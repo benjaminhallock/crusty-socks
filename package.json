@@ -1,0 +1,25 @@
+{
+  "name": "crustysocks",
+  "version": "1.0.0",
+  "description": "A simple pixel art pictionary game. Draw by number and guess the word.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "install": "cd server && npm install && cd ../client && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benjaminhallock/crusty-socks.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/benjaminhallock/crusty-socks/issues"
+  },
+  "homepage": "https://github.com/benjaminhallock/crusty-socks#readme"
+}

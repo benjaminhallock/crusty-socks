@@ -3,6 +3,7 @@ import PixelCanvas from "./PixelCanvas";
 import ChatBox from "./ChatBox";
 import UsernameModal from "./UsernameModal";
 import { socket } from "../socket";
+import { getWordColor } from '../utils/wordColors';
 
 const ROUND_TIME = 60; // seconds
 
@@ -14,12 +15,13 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
   const [timer, setTimer] = useState(ROUND_TIME);
   const [currentWord, setCurrentWord] = useState(null);
   const [countdown, setCountdown] = useState(null);
-  const [revealedWord, setRevealedWord] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentDrawer, setCurrentDrawer] = useState(null); // Add this state
   const [connected, setConnected] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [playerListStable, setPlayerListStable] = useState([]);
+  const [lastDrawer, setLastDrawer] = useState(null);
+  const [currentColor, setCurrentColor] = useState('#000000');
 
   useEffect(() => {
     if (!socket.connected) {
@@ -103,8 +105,17 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
       setIsDrawer(drawer.username === username);
       setCurrentDrawer(drawer);
       setTimer(ROUND_TIME);
-      // Set current word for both drawer and guessers
       setCurrentWord(word);
+      setLastDrawer(drawer.username); // Store the current drawer
+      setCurrentColor(getWordColor(word)); // Set the color based on the word
+    };
+
+    const handleRoundEnd = () => {
+      setGameState("end");
+      setCurrentWord(null);
+      setIsDrawer(false);
+      // Don't reset lastDrawer here - it needs to persist between rounds
+      setCurrentDrawer(null);
     };
 
     socket.on("gameStarting", handleGameStart);
@@ -119,37 +130,16 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
         canvasRef.current.clearCanvas();
       }
     });
-    socket.on("roundEnd", () => {
-      setGameState("end");
-      setCurrentWord(null);
-      setIsDrawer(false);
-      setCurrentDrawer(null);
-    });
+    socket.on("roundEnd", handleRoundEnd);
 
     return () => {
       socket.off("gameStarting", handleGameStart);
       socket.off("timeUpdate");
       socket.off("countdown");
       socket.off("clearCanvas");
-      socket.off("roundEnd");
+      socket.off("roundEnd", handleRoundEnd);
     };
-  }, [username]);
-
-  useEffect(() => {
-    if (currentWord && !isDrawer) {
-      const revealed = currentWord
-        .split("")
-        .map((letter, i) => {
-          // Adjust reveal logic to be more gradual
-          const revealPoint = Math.floor(
-            (ROUND_TIME - timer) / (ROUND_TIME / (currentWord.length + 2))
-          );
-          return i < revealPoint ? letter : "_";
-        })
-        .join(" ");
-      setRevealedWord(revealed);
-    }
-  }, [timer, currentWord, isDrawer]);
+  }, [username, lastDrawer]);
 
   const getPlayerStatus = (player) => {
     if (
@@ -198,16 +188,13 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
               ? `${currentDrawer.username} is drawing...`
               : "Waiting for drawer..."}
           </h2>
-          <div className="font-mono text-lg text-indigo-600">
-            {revealedWord}
-          </div>
         </div>
       );
     }
 
     if (gameState === "end") {
       return (
-        <div className="text-center p-4 bg-blue-100 rounded">
+        <div className="text-center p-4 bg-blue-100 dark:bg-blue-900 rounded text-blue-800 dark:text-blue-200">
           Round finished! Ready up for the next round.
         </div>
       );
@@ -218,7 +205,7 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
 
   const handleReadyToggle = () => {
     const newReadyState = !isReady;
-    socket.emit(newReadyState ? "playerReady" : "playerNotReady");
+    socket.emit(newReadyState ? "playerReady" : "playerNotReady", { lastDrawer });
     setIsReady(newReadyState);
   };
 
@@ -260,22 +247,22 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
   }
 
   return (
-    <div className="flex gap-8 justify-center min-h-[600px] bg-white rounded-lg shadow-lg p-6">
+    <div className="flex gap-8 justify-center min-h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
       <div className="text-center flex-1">
-        <div className="flex justify-between items-center mb-4 bg-indigo-100 p-4 rounded-lg">
+        <div className="flex justify-between items-center mb-4 bg-indigo-100 dark:bg-gray-700 p-4 rounded-lg">
           {getGameStatus()}
           {gameState === "playing" && (
-            <div className="text-xl font-mono bg-white px-4 py-2 rounded-lg text-indigo-600">
+            <div className="text-xl font-mono bg-white dark:bg-gray-800 px-4 py-2 rounded-lg text-indigo-600 dark:text-indigo-400">
               {Math.floor(timer / 60)}:
               {(timer % 60).toString().padStart(2, "0")}
             </div>
           )}
         </div>
-        <PixelCanvas isDrawer={isDrawer} gameState={gameState} />
+        <PixelCanvas isDrawer={isDrawer} gameState={gameState} defaultColor={currentColor} />
       </div>
       <div className="flex-1 max-w-md flex flex-col">
-        <div className="mb-4 bg-white p-4 rounded-lg shadow-lg border-4 border-indigo-300">
-          <h3 className="font-bold mb-4 text-lg text-indigo-600 border-b pb-2">
+        <div className="mb-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border-4 border-indigo-300 dark:border-indigo-600">
+          <h3 className="font-bold mb-4 text-lg text-indigo-600 dark:text-indigo-400 border-b dark:border-gray-700 pb-2">
             Players
           </h3>
           <div className="space-y-2">
@@ -284,17 +271,17 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
                 key={player.username}
                 className={`flex items-center justify-between p-2 rounded ${
                   currentDrawer && player.id === currentDrawer.id
-                    ? "bg-indigo-100"
+                    ? "bg-indigo-100 dark:bg-gray-700"
                     : ""
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{player.username}</span>
+                  <span className="font-medium dark:text-gray-200">{player.username}</span>
                   {player.status === "ready" && (
-                    <span className="text-green-500">✓</span>
+                    <span className="text-green-500 dark:text-green-400">✓</span>
                   )}
                   {currentDrawer && player.id === currentDrawer.id && (
-                    <span className="text-sm text-indigo-600 font-semibold">
+                    <span className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
                       (Drawing)
                     </span>
                   )}
@@ -321,7 +308,7 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
             ))}
           </div>
           {players.length === 1 && (
-            <p className="text-sm text-indigo-500 mt-4 text-center">
+            <p className="text-sm text-indigo-500 dark:text-indigo-400 mt-4 text-center">
               Waiting for more players to join...
             </p>
           )}

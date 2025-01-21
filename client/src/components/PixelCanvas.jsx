@@ -85,14 +85,18 @@ const PixelCanvas = ({ isDrawer, gameState }) => {
         ref={canvasRef}
         width={800}
         height={640}
-        className="border-4 border-indigo-300 rounded-lg cursor-crosshair"
+        className={`border-4 rounded-lg cursor-crosshair transition-all duration-300 ${
+          isDrawer && gameState === 'playing'
+            ? 'border-indigo-400 shadow-lg shadow-indigo-200 animate-pulse'
+            : 'border-indigo-300'
+        }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       />
       {isDrawer && gameState === 'playing' && (
-        <div className="absolute top-2 right-2 bg-white p-2 rounded-lg shadow flex gap-2">
+        <div className="absolute top-2 right-2 bg-white p-2 rounded-lg shadow-lg backdrop-blur-sm bg-opacity-90 flex gap-2">
           <input
             type="color"
             value={currentColor}

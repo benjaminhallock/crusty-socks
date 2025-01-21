@@ -12,7 +12,11 @@
     "build": "cd client && npm run build && cd ../server && npm run build",
     "deploy": "vercel --prod",
     "dev": "cd server && npm run dev && cd ../client && npm run dev",
-    "lint": "cd client && npm run lint && cd ../server && npm run lint"
+    "lint": "cd client && npm run lint && cd ../server && npm run lint",
+    "deploy:server": "cd server && railway up",
+    "deploy:client": "cd client && vercel --prod",
+    "deploy:all": "npm run deploy:server && npm run deploy:client",
+    "git:push": "git add . && git commit -m \"update\" && git push"
   },
   "repository": {
     "type": "git",

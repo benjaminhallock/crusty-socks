@@ -2,29 +2,38 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import dotenv from "dotenv";
 import records from "./routes/records.js";
 
-const port = process.env.PORT || 5050;
+dotenv.config();
+
+const port = process.env.PORT || 3001;
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://crustysocks.vercel.app",
+      process.env.CORS_ORIGIN, // Add flexible client URL
+    ].filter(Boolean),
     methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["my-custom-header"],
   },
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ["websocket"],
+  transports: ["websocket", "polling"], // Add polling as fallback
 });
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://crustysocks.vercel.app",
+      process.env.CLIENT_URL,
+    ].filter(Boolean),
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 const ROUND_TIME = 60;
@@ -247,6 +256,18 @@ function endRound() {
   io.emit("playersList", players);
 }
 
+// Add health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// Add this near the top of your routes
+app.get("/", (req, res) => {
+  res.json({ status: "Server is running" });
+});
+
 httpServer.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(
+    `Server is running on https://crustysocks-server-production.up.railway.app or http://localhost:${port}`
+  );
 });

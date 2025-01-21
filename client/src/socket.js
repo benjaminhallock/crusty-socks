@@ -15,7 +15,8 @@ export const socket = io(SOCKET_URL, {
 export const socketStatus = {
   connected: false,
   error: null,
-  details: ''
+  details: '',
+  joinedGame: false
 };
 
 socket.on("connect_error", (error) => {
@@ -36,4 +37,15 @@ socket.on("disconnect", (reason) => {
   console.log("Socket disconnected:", reason);
   socketStatus.connected = false;
   socketStatus.details = `Disconnected: ${reason}`;
+});
+
+socket.on("playersList", (players) => {
+  console.log("Received players list:", players);
+  socketStatus.joinedGame = true;
+});
+
+socket.on("error", (error) => {
+  console.error("Game error:", error);
+  socketStatus.error = error;
+  socketStatus.details = error;
 });

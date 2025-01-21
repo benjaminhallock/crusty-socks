@@ -137,7 +137,6 @@ io.on("connection", (socket) => {
       const minPlayers = players.length >= 2; // Changed to 2 for testing
 
       if (allReady && minPlayers && gameState.status === "waiting") {
-        console.log("All players ready, starting countdown...");
         startNewRound();
       }
     }

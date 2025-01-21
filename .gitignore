@@ -40,3 +40,4 @@ coverage/
 
 # Optional: Typescript build info
 *.tsbuildinfo
+.vercel

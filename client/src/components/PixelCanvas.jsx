@@ -108,9 +108,9 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
         ref={canvasRef}
         width={800}
         height={640}
-        className={`border-4 rounded-lg cursor-crosshair ${
+        className={`game-canvas ${
           isDrawer && gameState === "playing"
-            ? "border-indigo-400 shadow-lg shadow-indigo-200 animate-[pulse_3s_ease-in-out_infinite]"
+            ? "canvas-active"
             : "border-indigo-300"
         }`}
         onMouseDown={handleMouseDown}
@@ -118,31 +118,25 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       />
-      <div className="absolute top-2 right-2 bg-white p-2 rounded-lg shadow-lg backdrop-blur-sm flex flex-col gap-2">
+      <div className="tools-panel">
         <div className="flex gap-2 items-center">
           <input
             type="color"
             value={currentColor}
             onChange={handleColorChange}
-            className={`w-8 h-8 cursor-pointer ${
-              !isDrawer && gameState === "playing" ? "opacity-50" : ""
-            }`}
+            className="input-control"
             disabled={!isDrawer && gameState === "playing"}
           />
           <button
             onClick={() => setIsErasing(!isErasing)}
-            className={`px-2 py-1 rounded ${
-              isErasing 
-                ? "bg-indigo-500 text-white" 
-                : "bg-gray-200"
-            } ${!isDrawer && gameState === "playing" ? "opacity-50 cursor-not-allowed" : ""}`}
-            disabled={(!isDrawer && gameState === "playing")}
+            className={`btn-secondary ${isErasing && "btn-primary"}`}
+            disabled={!isDrawer && gameState === "playing"}
           >
             Eraser
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Size:</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Size:</span>
           <input
             type="range"
             min="1"

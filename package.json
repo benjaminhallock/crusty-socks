@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/benjaminhallock/crusty-socks/issues"
   },
-  "homepage": "https://github.com/benjaminhallock/crusty-socks#readme"
+  "homepage": "https://github.com/benjaminhallock/crusty-socks#readme",
+  "dependencies": {
+    "concurrently": "^9.1.2"
+  }
 }

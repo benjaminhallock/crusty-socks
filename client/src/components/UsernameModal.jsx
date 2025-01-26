@@ -49,7 +49,7 @@ const UsernameModal = ({ onSubmit }) => {
       const data = await (activeTab === "login"
         ? login(formData.email, formData.password)
         : register(formData.email, formData.username, formData.password));
-      onSubmit(data.user?.username);
+      onSubmit(data.username);
     } catch (err) {
       setError(err.message || "An error occurred");
     } finally {

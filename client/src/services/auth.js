@@ -27,10 +27,10 @@ export const login = async (email, password) => {
     }
 
     console.log("Login successful, processing response data:", data);
-    if (data.token && data.user?.username) {
-      console.log("Storing auth data for user:", data.user.username);
+    if (data.token && data.username) {
+      console.log("Storing auth data for user:", data.username);
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.user.username);
+      localStorage.setItem("username", data.username);
     }
     return data;
   } catch (error) {

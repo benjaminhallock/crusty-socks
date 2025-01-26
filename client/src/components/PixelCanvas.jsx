@@ -14,14 +14,14 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const handleDraw = (data) => {
@@ -59,22 +59,22 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
     const updateCanvasSize = () => {
       const container = canvasRef.current?.parentElement;
       if (!container) return;
-      
+
       // Calculate size based on screen width
       const screenWidth = window.innerWidth;
       const padding = screenWidth < 640 ? 16 : 32; // Less padding on mobile
       const maxWidth = Math.min(container.clientWidth - padding, 800);
       const scale = maxWidth / 800;
-      
+
       setCanvasSize({
         width: maxWidth,
-        height: Math.floor(640 * scale)
+        height: Math.floor(640 * scale),
       });
     };
 
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+    window.addEventListener("resize", updateCanvasSize);
+    return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
 
   const handleMouseDown = (e) => {
@@ -115,17 +115,17 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const scale = 800 / rect.width; // Calculate actual scale
-    
+
     // Get coordinates whether it's touch or mouse event
     const clientX = e.clientX || e.pageX;
     const clientY = e.clientY || e.pageY;
-    
+
     const centerX = Math.floor(((clientX - rect.left) * scale) / 8);
     const centerY = Math.floor(((clientY - rect.top) * scale) / 8);
 
     const size = isErasing ? Math.max(brushSize, 3) : brushSize;
     const offset = Math.floor(size / 2);
-    
+
     for (let y = -offset; y <= offset; y++) {
       for (let x = -offset; x <= offset; x++) {
         const currentX = centerX + x;
@@ -134,11 +134,11 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
 
         if (currentX >= 0 && currentX < 100 && currentY >= 0 && currentY < 80) {
           const ctx = canvas.getContext("2d");
-          ctx.fillStyle = isErasing ? '#FFFFFF' : currentColor;
+          ctx.fillStyle = isErasing ? "#FFFFFF" : currentColor;
           ctx.fillRect(currentX * 8, currentY * 8, 8, 8);
-          socket.emit("draw", { 
-            index, 
-            color: isErasing ? '#FFFFFF' : currentColor 
+          socket.emit("draw", {
+            index,
+            color: isErasing ? "#FFFFFF" : currentColor,
           });
         }
       }
@@ -154,12 +154,12 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
     <div className="relative w-full max-w-[800px] mx-auto px-2 sm:px-4">
       <canvas
         ref={canvasRef}
-        width={800} // Keep original dimensions for pixel precision
+        width={800}
         height={640}
         style={{
           width: canvasSize.width,
           height: canvasSize.height,
-          touchAction: 'none', // Prevent default touch actions
+          touchAction: "none",
         }}
         className={`game-canvas ${
           isDrawer && gameState === "playing"
@@ -180,12 +180,22 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
             type="color"
             value={currentColor}
             onChange={handleColorChange}
-            className="input-control w-10 h-10 sm:w-8 sm:h-8"
+            className="w-10 h-10"
             disabled={!isDrawer && gameState === "playing"}
           />
           <button
             onClick={() => setIsErasing(!isErasing)}
-            className={`btn-secondary ${isErasing && "btn-primary"} text-sm`}
+            className={`px-4 py-2 rounded-lg text-sm transition-colors
+              ${
+                isErasing
+                  ? "bg-indigo-600 dark:bg-indigo-700 text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
+              }
+              ${
+                !isDrawer && gameState === "playing"
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-indigo-100 dark:hover:bg-indigo-900"
+              }`}
             disabled={!isDrawer && gameState === "playing"}
           >
             Eraser

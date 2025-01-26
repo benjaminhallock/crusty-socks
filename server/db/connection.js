@@ -1,8 +1,7 @@
-import { MongoClient, ServerApiVersion } from "mongodb";
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Update config path to look for config.env in project root
 dotenv.config({ path: path.resolve(process.cwd(), 'config.env') });
 
 const uri = process.env.ATLAS_URI;
@@ -10,26 +9,22 @@ if (!uri) {
     throw new Error('ATLAS_URI environment variable is not set. Please check your config.env file.');
 }
 
-const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    },
+mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+})
+.then(() => {
+    console.log('Successfully connected to MongoDB.');
+})
+.catch((err) => {
+    console.error('Error connecting to MongoDB:', err);
+    process.exit(1);
 });
 
-let db;
+const db = mongoose.connection;
 
-try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    db = client.db("employees");
-} catch (err) { 
-    console.error("Error connecting to MongoDB:", err);
-    // Add more descriptive error message
-    console.error("Please check your MongoDB connection string and ensure the database is accessible.");
-    process.exit(1);
-}
+db.on('error', (err) => {
+    console.error('MongoDB connection error:', err);
+});
 
 export default db;

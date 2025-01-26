@@ -1,22 +1,24 @@
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
-console.log('Attempting to connect to:', SOCKET_URL);
+if (!import.meta.env.VITE_SOCKET_URL) {
+  console.warn('VITE_SOCKET_URL is not defined in environment variables, using default');
+}
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 export const socket = io(SOCKET_URL, {
-  transports: ['websocket', 'polling'],
+  transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
   reconnectionAttempts: 5,
-  timeout: 10000
+  timeout: 10000,
 });
 
 export const socketStatus = {
   connected: false,
   error: null,
-  details: '',
-  joinedGame: false
+  details: "",
+  joinedGame: false,
 };
 
 socket.on("connect_error", (error) => {
@@ -30,7 +32,7 @@ socket.on("connect", () => {
   console.log("Socket connected successfully to:", SOCKET_URL);
   socketStatus.connected = true;
   socketStatus.error = null;
-  socketStatus.details = '';
+  socketStatus.details = "";
 });
 
 socket.on("disconnect", (reason) => {

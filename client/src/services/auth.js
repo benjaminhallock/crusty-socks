@@ -9,13 +9,13 @@ export const login = async (email, password) => {
     credentials: "include",
     body: JSON.stringify({ email, password }),
   });
+  const data = await response.json();
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to login");
+    throw new Error(data.error || "Failed to login");
   }
 
-  return response.json();
+  return data;
 };
 
 export const register = async (email, username, password) => {
@@ -33,7 +33,7 @@ export const register = async (email, username, password) => {
   console.log("register data", data);
 
   if (!response.ok) {
-    throw new Error(data.message || "Failed to register");
+    throw new Error(data.error || "Failed to register");
   }
 
   return data;

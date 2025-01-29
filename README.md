@@ -1,6 +1,6 @@
 # Crusty Socks
 
-# Current Version: 1.0 Alpha 1/29/2025
+## Current Version: 1.0 Alpha 1/29/2025
 
 ## Description
 

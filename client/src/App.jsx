@@ -11,7 +11,7 @@ import AdminPanel from "./components/AdminPanel";
 function App() {
   return (
     <AuthProvider>
-      <AppContent /> //
+      <AppContent /> 
     </AuthProvider>
   );
 }

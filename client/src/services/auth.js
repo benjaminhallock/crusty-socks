@@ -28,12 +28,15 @@ export const register = async (email, username, password) => {
     body: JSON.stringify({ email, username, password }),
   });
 
+  const data = await response.json();
+
+  console.log("register data", data);
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to register");
+    throw new Error(data.message || "Failed to register");
   }
 
-  return response.json();
+  return data;
 };
 
 export const logout = async () => {

@@ -12,7 +12,10 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
   // Reduce base dimensions to 800x600 (4:3 ratio)
   const BASE_WIDTH = 800;
   const BASE_HEIGHT = 600;
-  const [canvasSize, setCanvasSize] = useState({ width: BASE_WIDTH, height: BASE_HEIGHT });
+  const [canvasSize, setCanvasSize] = useState({
+    width: BASE_WIDTH,
+    height: BASE_HEIGHT,
+  });
 
   const clearCanvas = () => {
     if (!canvasRef.current) return;
@@ -184,7 +187,10 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor }) => {
   };
 
   return (
-    <div ref={containerRef} className="relative h-full flex flex-col items-center justify-center max-w-[900px] mx-auto">
+    <div
+      ref={containerRef}
+      className="relative h-full flex flex-col items-center justify-center max-w-[900px] mx-auto"
+    >
       <div className="relative flex-grow flex items-center justify-center w-full px-4">
         <canvas
           ref={canvasRef}

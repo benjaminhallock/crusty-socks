@@ -1,120 +1,80 @@
-if (!import.meta.env.VITE_BASE_URL) {
-  console.warn(
-    "VITE_BASE_URL is not defined in environment variables, using default"
-  );
-}
-const baseUrl = import.meta.env.VITE_BASE_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001/";
 
 export const login = async (email, password) => {
-  try {
-    console.log("Starting login attempt for email:", email);
-
-    console.log("Sending login request...");
-    const response = await fetch(`${baseUrl}/users/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-      credentials: "include", // This enables sending cookies
-    });
-    console.log("Login response status:", response.status);
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.log("Login failed:", data.message);
-      throw new Error(data.message || "Failed to login");
-    }
-
-    console.log("Login successful, processing response data:", data);
-    if (data.token && data.username) {
-      console.log("Storing auth data for user:", data.username);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.username);
-    }
-    return data;
-  } catch (error) {
-    console.error("Login failed:", error);
-    throw error;
-  }
-};
-
-async function checkUsername(username) {
-  try {
-    // Add debouncing to prevent too many requests
-    if (!username || username.length < 3) return false;
-
-    const response = await fetch(`${baseUrl}/users/check/${username}`, {
-      method: "POST", // POST is preferred for security
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // If you need to handle sessions
-    });
-
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Username check failed:", error);
-    throw error;
-  }
-}
-
-export const register = async (email, username, password) => {
-  console.log("Starting registration for username:", username);
-
-  // Check username
-  console.log("Checking if username exists...");
-  const usernameCheck = await checkUsername(username);
-  if (!usernameCheck) {
-    throw new Error("Username check failed");
-  }
-
-  console.log("Username check result:", usernameCheck);
-  console.log("Sending registration request...");
-  const response = await fetch(`${baseUrl}/users/register`, {
+  const response = await fetch(`${API_URL}/users/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, username, password }),
     credentials: "include",
+    body: JSON.stringify({ email, password }),
   });
 
-  console.log("Registration response status:", response.status);
-
   if (!response.ok) {
-    const data = await response.json();
-    console.error("Registration error:", data);
-    throw new Error(data.message || "Failed to register");
+    const error = await response.json();
+    throw new Error(error.message || "Failed to login");
   }
 
-  const data = await response.json();
-  if (data.token && data.username) {
-    console.log("Registration successful:", data);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("username", data.username);
-  }
-  return data;
+  return response.json();
 };
 
-export const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("username");
-  return fetch(`${baseUrl}/users/logout`, {
+export const register = async (email, username, password) => {
+  const response = await fetch(`${API_URL}/users/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ email, username, password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to register");
+  }
+
+  return response.json();
+};
+
+export const logout = async () => {
+  const response = await fetch(`${API_URL}/users/logout`, {
     method: "POST",
     credentials: "include",
   });
+
+  if (!response.ok) {
+    throw new Error("Failed to logout");
+  }
+
+  return true;
 };
 
-export const getToken = () => {
-  return localStorage.getItem("token");
-};
+export const checkAuth = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return false;
+    }
 
-export const isAuthenticated = () => {
-  const token = getToken();
-  return !!token;
+    const response = await fetch(`${API_URL}/users/validate`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error("Auth check failed:", error);
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    return false;
+  }
 };

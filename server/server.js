@@ -5,13 +5,16 @@ import cors from "cors";
 import dotenv from "dotenv";
 import users from "./routes/users.js";
 import { GameManager } from "./gameManager.js";
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 dotenv.config({ path: "./config.env" });
 
 const port = process.env.PORT || 3001;
 const app = express();
 const httpServer = createServer(app);
+
+// Cors helps us to allow requests from different origins but not all.
+// We can specify the methods and headers that are allowed.
 const io = new Server(httpServer, {
   cors: {
     origin: ["http://localhost:5173", process.env.CORS_ORIGIN].filter(Boolean),
@@ -28,15 +31,17 @@ app.use(
   })
 );
 
+// Does our app need to parse JSON requests?
 app.use(express.json());
 
-mongoose.connect(process.env.ATLAS_URI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// Connect to MongoDB in the cloud, if you want a local connection, use the local URI
+mongoose
+  .connect(process.env.ATLAS_URI)
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 
 // Initialize game manager
 const gameManager = new GameManager(io);
-
 io.on("connection", (socket) => {
   console.log("\n[SERVER] 🔌 New connection:", socket.id);
 
@@ -74,7 +79,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Routes
 app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.get("/", (req, res) => res.json({ status: "Server is running" }));
 app.use("/users", users);

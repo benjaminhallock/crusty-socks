@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001/";
+const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
 
 export const login = async (email, password) => {
   const response = await fetch(`${API_URL}/users/login`, {

@@ -13,19 +13,19 @@ router.get("/validate", auth, async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User not found"
+        message: "User not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      username: user.username
+      username: user.username,
     });
   } catch (error) {
-    console.error('Validation error:', error);
+    console.error("Validation error:", error);
     return res.status(401).json({
       success: false,
-      message: "Token validation failed"
+      message: "Token validation failed",
     });
   }
 });
@@ -33,7 +33,7 @@ router.get("/validate", auth, async (req, res) => {
 //route to get all users - fix the path
 router.get("/all", auth, async (req, res) => {
   try {
-    const users = await User.find().select('-password -email');  // Exclude sensitive data
+    const users = await User.find().select("-password -email"); // Exclude sensitive data
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -9,6 +9,11 @@ import mongoose from "mongoose";
 
 dotenv.config({ path: "./config.env" });
 
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET is not defined in environment variables');
+  process.exit(1);
+}
+
 const port = process.env.PORT || 3001;
 const app = express();
 const httpServer = createServer(app);

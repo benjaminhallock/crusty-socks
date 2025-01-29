@@ -38,9 +38,9 @@ body::before {
 
 @keyframes scroll {
     0% {
-        background-position: 0% center;
+        background-position: 0 0;
     }
     100% {
-        background-position: 100% center;
+        background-position: -200% 0;
     }
 }

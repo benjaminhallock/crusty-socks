@@ -11,6 +11,39 @@ export class GameManager {
       "plane", "train", "snake", "apple", "heart", "smile", "hat", "ball",
       "clock", "drum", "shoe", "bread", "book"
     ];
+    // this.CATEGORIES = {
+    //   nature: ["grass", "flower", "tree", "jungle", "beach", "ocean", "breeze", "cat", "dog", "ladybug",
+    //     "beetle", "worm", "twig", "mountain", "deer", "vines", "apple", "plum", "walnut", "squirrel", "dolphin", "elephant", "panda",
+    //     "iguana", "monkey", "rose", "lilly", "sunflower", "rock", "cactus"],
+    //   fantasy: ["ogre", "wizard", "king", "queen", "magic", "witchcraft", "crystal ball", "talking donkey", "dragon", "castle", "knight", "dimension",
+    //     "wand", "evil", "angel", "demon", "monster", "vampire", "werewolf", "mermaid", "gauntlet", "ruby", "emerald", "miner", "quest", "pyramid", "sphinx", "dungeon",
+    //     "darkness", "plasma", "genie"],
+    //   sports: ["basketball", "hockey", "baseball", "sweeping", "volleyball", "billiards", "shoes", "gloves", "shorts", "jersey", "ball", "puck", "frisbee"
+    //     , "golf", "coach", "bench", "hoop", "goalie", "soccer", "penalty", "quarterback", "champions", "winner", "loser", "celebration", "field", "rink", "court",
+    //     "announcer", "points", "dribble", "outdoors", "indoors", "angry", "happy", "sad", "athlete", "celebrity"],
+    //   theater:
+    //       ["theater", "movie", "actor", "director", "script", "scene", "shrek", "oz", "costume", "prop", "stage", "musical",
+    //         "broadway", "hollywood", "oscar", "reel", "clapperboard", "pixar", "disney", "marvel", "hobbit", "titanic",
+    //         "villain", "hero", "trailer", "popcorn", "spotlight", "comedy", "drama", "horror", "improv",
+    //         "monologue", "dialogue", "stunt", "audition", "choreography", "makeup", "backstage", "playbill",
+    //         "sequel", "remake", "animation", "blockbuster", "cameo", "cinematography", "effects", "vader", "potter",
+    //         "gollum", "batman", "joker", "forrest", "elsa", "woody", "indiana", "thanos", "thor", "stones", "donkey"],
+    //   silly: ["goofy", "wacky", "zany", "banana", "slapstick", "quirky", "absurd", "wiggle", "bloop", "boing", "peculiar",
+    //     "flubber", "offbeat", "loopy", "bonkers", "guffaw", "snort", "chuckle", "squiggle", "unusual", "quack", "blunder",
+    //     "splat", "boop", "scoot", "wonky", "goober", "dizzy", "puddle", "plop", "awkward", "burp", "sneeze", "hiccup",
+    //     "oddball", "snoot", "snicker", "bubble", "jittery", "gloop", "wobble", "squishy", "lumpy", "dork", "prank",
+    //     "whomp", "kazoo", "fumble", "giddy", "eccentric", "yeet", "bruh", "shrek", "sus", "derp", "oof", "pog", "vibe",
+    //     "chonk", "cringe", "based", "boi", "nope", "zoomer", "rekt"],
+    //   space:
+    //       ["galaxy", "orbit", "nebula", "cosmos", "meteor", "comet", "asteroid", "supernova", "blackhole", "wormhole",
+    //         "gravity", "telescope", "spaceship", "rocket", "astronaut", "satellite", "lunar", "solar", "eclipse",
+    //         "starlight", "constellation", "planet", "exoplanet", "moon", "sun", "venus", "mars", "jupiter", "saturn",
+    //         "uranus", "neptune", "pluto", "milkyway", "andromeda", "aliens", "extraterrestrial", "stars", "spacewalk",
+    //         "floating", "spacesuit", "astronomy", "bigbang", "quasar", "pulsar", "eventhorizon", "spaceshuttle",
+    //         "stardust", "terraform", "cryovolcano", "rover", "ufo", "moonbase", "shuttle"]
+    // };
+    // potential categories, needs to be integrated into the UI as a dropdown select
+    // **AI generated words based on category selection is still in question, yet to be developed**
     
     this.players = [];
     this.currentDrawer = null;

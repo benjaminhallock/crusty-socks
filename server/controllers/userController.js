@@ -26,18 +26,11 @@ export const userController = {
       }
 
       // Validate password strength
-      if (password.length < 6) {
-        return res
-          .status(400)
-          .json({ error: "Password must be at least 8 characters" });
-      }
-
-      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
-      if (!passwordRegex.test(password)) {
-        return res.status(400).json({
-          error: "Password must contain at least one letter and one number",
-        });
-      }
+      if (!password) return "Password is required";
+      if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters long",});
+      if (!/[A-Z]/.test(password)) return res.status(400).json({ error: "Password must contain at least one uppercase letter",});
+      if (!/[a-z]/.test(password)) return res.status(400).json({ error: "Password must contain at least one lowercase letter",});
+      if (!/[0-9]/.test(password)) return res.status(400).json({ error: "Password must contain at least one number",});
 
       // Check for existing email and username
       const existingEmail = await User.findByEmail(email);

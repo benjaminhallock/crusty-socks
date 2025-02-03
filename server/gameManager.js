@@ -1,4 +1,3 @@
-
 //NOT USED YET
 export class GameManager {
   constructor(io) {
@@ -62,15 +61,16 @@ export class GameManager {
     };
   }
 
-  addPlayer(socket, username) {
-    console.log('\n[GAME] 🎮 Add Player Attempt:', { username, socketId: socket.id });
+  createLobby(socket, username) {
     
+  }
+
+  addPlayer(socket, username) {
     const existingPlayer = this.players.find(
       (p) => p.username === username || p.id === socket.id
     );
 
     if (existingPlayer) {
-      console.log('[GAME] ❌ Player already exists:', existingPlayer);
       return false;
     }
 
@@ -82,9 +82,6 @@ export class GameManager {
     };
 
     this.players.push(newPlayer);
-    console.log('[GAME] ✅ Player added successfully:', newPlayer);
-    console.log('[GAME] 👥 Current players:', this.players);
-    
     this.io.emit("playersList", this.players);
     return true;
   }
@@ -105,7 +102,6 @@ export class GameManager {
 
   handlePlayerReady(socketId) {
     if (this.gameState.roundInProgress) return;
-    console.log('[GAME] 🔄 Player ready:', socketId);
 
     const player = this.players.find((p) => p.id === socketId);
     if (player) {
@@ -116,7 +112,6 @@ export class GameManager {
       const minPlayers = this.players.length >= 2;
 
       if (allReady && minPlayers && this.gameState.status === "waiting") {
-        console.log('[GAME] 🎲 Starting new round - all players ready');
         this.startNewRound();
       }
     }
@@ -155,7 +150,6 @@ export class GameManager {
   }
 
   startNewRound() {
-    console.log('[GAME] 🔄 Starting countdown');
     this.gameState.status = "countdown";
     this.gameState.countdownTime = this.COUNTDOWN_TIME;
     this.io.emit("countdown", { time: this.COUNTDOWN_TIME });
@@ -172,15 +166,11 @@ export class GameManager {
   }
 
   startGame() {
-    console.log('[GAME] 🎮 Starting game');
     this.gameState.status = "playing";
     this.currentDrawer = this.players[Math.floor(Math.random() * this.players.length)];
     this.gameState.currentDrawer = this.currentDrawer;
     this.currentWord = this.WORDS[Math.floor(Math.random() * this.WORDS.length)];
     this.gameState.word = this.currentWord;
-    
-    console.log('[GAME] 🎨 Selected drawer:', this.currentDrawer.username);
-    console.log('[GAME] 📝 Selected word:', this.currentWord);
 
     this.io.emit("gameStarting", {
       drawer: this.currentDrawer,
@@ -192,7 +182,6 @@ export class GameManager {
       timeLeft--;
       this.io.emit("timeUpdate", timeLeft);
       if (timeLeft <= 0) {
-        console.log('[GAME] ⏰ Round time up');
         this.endRound();
       }
     }, 1000);

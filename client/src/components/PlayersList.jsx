@@ -4,10 +4,12 @@ const PlayersList = ({
   username, 
   gameState, 
   isReady, 
-  onReadyToggle 
+  onReadyToggle,
+  isHost,
+  className 
 }) => {
   return (
-    <div className="mb-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border-4 border-indigo-300 dark:border-indigo-600">
+    <div className={`mb-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border-4 border-indigo-300 dark:border-indigo-600 ${className}`}>
       <h3 className="font-bold mb-4 text-lg text-indigo-600 dark:text-indigo-400 border-b dark:border-gray-700 pb-2">
         Players
       </h3>
@@ -30,6 +32,9 @@ const PlayersList = ({
                 <span className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
                   (Drawing)
                 </span>
+              )}
+              {player.isHost && (
+                <span className="text-xs bg-yellow-200 px-1 rounded">Host</span>
               )}
             </div>
             <div className="flex items-center gap-2">

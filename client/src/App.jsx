@@ -4,17 +4,26 @@ import LoginForm from "./components/LoginForm";
 import Navbar from "./components/Navbar";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Routes, Route, Navigate } from "react-router-dom";
-import AdminPanel from "./components/AdminPanel";
+import Logout from "./components/Logout";
+import { ChatroomProvider } from "./contexts/ChatroomContext";
+import CreateLobby from "./components/CreateLobby";
 
 // Wrap the entire application with the AuthProvider
 // This will allow us to share the state between multiple components
 function App() {
   return (
     <AuthProvider>
-      <AppContent /> 
+      <AppContent />
     </AuthProvider>
   );
 }
+
+const logout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  setUser(null);
+  setIsAuthenticated(false);
+};
 
 // The AppContent component is now a child of the AuthProvider
 function AppContent() {
@@ -38,7 +47,7 @@ function AppContent() {
           path="/"
           element={
             isAuthenticated ? (
-              <Navigate to="/game" replace />
+              <CreateLobby />
             ) : (
               <LoginForm onLoginSuccess={handleLogin} />
             )
@@ -48,29 +57,26 @@ function AppContent() {
           path="/login"
           element={
             isAuthenticated ? (
-              <Navigate to="/game" replace />
+              <Navigate to="/" replace />
             ) : (
               <LoginForm onLoginSuccess={handleLogin} />
             )
           }
         />
-        <Route path="/logout" element={<Navigate to="/" replace />} />
+        <Route path="/logout" element={<Logout />} />
         <Route
-          path="/admin"
-          element={
-            isAuthenticated ? <AdminPanel /> : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/game"
+          path="/lobby/:roomId"
           element={
             isAuthenticated ? (
-              <GameRoom onError={setError} onLogout={handleLogout} />
+              <ChatroomProvider>
+                <GameRoom />
+              </ChatroomProvider>
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

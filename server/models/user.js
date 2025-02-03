@@ -60,7 +60,6 @@ userSchema.statics.findByUsername = async function (username) {
   return this.findOne({ username });
 };
 
-
 // Find user by credentials
 userSchema.statics.findByCredentials = async function (email, password) {
   const user = await this.findOne({ email });

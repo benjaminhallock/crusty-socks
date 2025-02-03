@@ -4,13 +4,15 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import users from "./routes/users.js";
+import lobbys from "./routes/lobbys.js";
 import { GameManager } from "./gameManager.js";
+import { SocketHandler } from "./socketHandler.js";
 import mongoose from "mongoose";
 
 dotenv.config({ path: "./config.env" });
 
 if (!process.env.JWT_SECRET) {
-  console.error('JWT_SECRET is not defined in environment variables');
+  console.error("JWT_SECRET is not defined in environment variables");
   process.exit(1);
 }
 
@@ -33,6 +35,8 @@ app.use(
   cors({
     origin: ["http://localhost:5173", process.env.CLIENT_URL].filter(Boolean),
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    authorizedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -45,48 +49,14 @@ mongoose
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Initialize game manager
+// Initialize game manager and socket handler
 const gameManager = new GameManager(io);
-io.on("connection", (socket) => {
-  console.log("\n[SERVER] 🔌 New connection:", socket.id);
+const socketHandler = new SocketHandler(io, gameManager);
 
-  socket.on("joinGame", ({ username }) => {
-    try {
-      console.log("[SERVER] 👋 Join game request:", {
-        username,
-        socketId: socket.id,
-      });
-      const success = gameManager.addPlayer(socket, username);
-      if (!success) {
-        socket.emit("error", "Username already taken or already connected");
-      }
-    } catch (error) {
-      console.error("Error in joinGame:", error);
-      socket.emit("error", "Failed to join game");
-    }
-  });
-
-  socket.on("playerReady", () => gameManager.handlePlayerReady(socket.id));
-  socket.on("playerNotReady", () =>
-    gameManager.handlePlayerNotReady(socket.id)
-  );
-  socket.on("draw", (data) => gameManager.handleDraw(socket, data));
-  socket.on("guess", ({ user, message }) =>
-    gameManager.handleGuess(user, message)
-  );
-
-  // Send current drawing to new players
-  socket.emit("drawUpdate", gameManager.getCurrentDrawing());
-
-  socket.on("disconnect", () => {
-    console.log("[SERVER] 🔌 Client disconnected:", socket.id);
-    gameManager.removePlayer(socket.id);
-  });
-});
-
-app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
-app.get("/", (req, res) => res.json({ status: "Server is running" }));
+app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+app.get("/", (_req, res) => res.json({ status: "Server is running" }));
 app.use("/users", users);
+app.use("/lobby", lobbys);
 
 httpServer.listen(port, () => {
   console.log("\n[SERVER] 🚀 Server running on:");

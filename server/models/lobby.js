@@ -1,16 +1,15 @@
 import mongoose from "mongoose";
 
-const chatroomSchema = new mongoose.Schema(
+const lobbySchema = new mongoose.Schema(
   {
     roomLeader: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    roomCode: {
+    roomId: {
       type: String,
       required: true,
-      unique: true,
     },
     isPrivate: {
       type: Boolean,
@@ -49,6 +48,25 @@ const chatroomSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+// Helper method to check if a user is in the lobby
+lobbySchema.methods.hasUser = function(userId) {
+  return this.users.includes(userId);
+};
 
-const Chatroom = mongoose.model("Chatroom", chatroomSchema);
-export default Chatroom;
+// Helper method to add a user to the lobby
+lobbySchema.methods.addUser = function(userId) {
+  if (!this.hasUser(userId)) {
+    this.users.push(userId);
+  }
+  return this.save();
+};
+
+// Helper method to remove a user from the lobby
+lobbySchema.methods.removeUser = function(userId) {
+  this.users = this.users.filter(id => !id.equals(userId));
+  return this.save();
+};
+
+// Export the model
+const Lobby = mongoose.model('Lobby', lobbySchema);
+export default Lobby;

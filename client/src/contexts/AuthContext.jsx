@@ -30,13 +30,14 @@ export const AuthProvider = ({ children }) => {
     validateAuth();
 
     return () => {
-      socket.disconnect(); // Cleanup on unmount
+      logout(); // Clean up on unmount
     };
   }, []);
 
   const login = (userData) => {
     localStorage.setItem("token", userData.token);
     localStorage.setItem("username", userData.username);
+    console.log("login data", userData);
     setUser(userData.username);
     setIsAuthenticated(true);
     connectSocket(); // Connect socket after successful login

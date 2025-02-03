@@ -1,5 +1,41 @@
 const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
 
+if (!API_URL) {
+  console.error("API_URL is not defined in environment variables");
+}
+
+export const createLobby = async (username) => {
+  try {
+    console.log("[CLIENT] Creating lobby with token:", localStorage.getItem("token"));
+    const response = await fetch(`${API_URL}/lobby/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      credentials: "include",
+      body: JSON.stringify({ username }),
+    });
+
+    console.log("[CLIENT] Lobby create response:", response);
+    const data = await response.json();
+    console.log("[CLIENT] Lobby create data:", data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `Server error: ${response.statusText}`);
+    }
+
+    if (!data.roomId) {
+      throw new Error("No room ID returned from server");
+    }
+
+    return data.roomId;
+  } catch (error) {
+    console.error("[CLIENT] Error creating lobby:", error);
+    throw error;
+  }
+};
+
 export const login = async (email, password) => {
   const response = await fetch(`${API_URL}/users/login`, {
     method: "POST",

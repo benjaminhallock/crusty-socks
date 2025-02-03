@@ -1,11 +1,7 @@
 import { io } from "socket.io-client";
 
-if (!import.meta.env.VITE_SOCKET_URL) {
-  console.warn(
-    "VITE_SOCKET_URL is not defined in environment variables, using default"
-  );
-}
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+console.log('Connecting to socket URL:', SOCKET_URL);
 
 export const socket = io(SOCKET_URL, {
   transports: ["websocket", "polling"],
@@ -58,6 +54,12 @@ socket.on("error", (error) => {
 export const joinGame = (username) => {
   if (socket.connected) {
     socket.emit("joinGame", { username });
+  }
+};
+
+export const createLobby = (username, callback) => {
+  if (socket.connected) {
+    socket.emit("createLobby", { username }, callback);
   }
 };
 

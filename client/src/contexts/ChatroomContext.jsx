@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { socket } from '../socket';
-import { useParams, useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useState } from "react";
+import { socket } from "../socket";
+import { useParams, useNavigate } from "react-router-dom";
 
 const ChatroomContext = createContext(null);
 
@@ -14,69 +14,80 @@ export const ChatroomProvider = ({ children }) => {
   const { roomId } = useParams();
 
   useEffect(() => {
-    const username = localStorage.getItem('username');
-    const storedRoomId = localStorage.getItem('roomId');
-    
+    const username = localStorage.getItem("username");
+    const storedRoomId = localStorage.getItem("roomId");
+
     if (!roomId || !username) {
-      navigate('/');
+      navigate("/");
       return;
     }
 
-    // Sync with stored roomId
-    if (storedRoomId !== roomId) {
-      localStorage.setItem('roomId', roomId);
-    }
+    // Initial fetch of lobby state
+    const fetchLobbyState = async () => {
+      try {
+        const response = await fetch(`/lobby/${roomId}`);
+        const data = await response.json();
+        if (data.success) {
+          setLobbyState(data.lobby);
+          setUsers(data.lobby.users);
+          setIsHost(data.lobby.roomLeader === socket.id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch lobby state:", error);
+      }
+    };
 
-    // Initial lobby fetch
-    socket.emit('fetchLobbyState', { roomId });
+    fetchLobbyState();
+    socket.emit("joinRoom", { roomId, username });
 
-    // Join the specific room
-    socket.emit('joinRoom', { roomId });
-
-    socket.on('roomJoined', (roomData) => {
+    socket.on("roomJoined", (roomData) => {
       setRoom(roomData);
       setUsers(roomData.users);
       setIsHost(roomData.hostId === socket.id);
       setError(null);
     });
 
-    socket.on('roomNotFound', () => {
-      setError('Room not found');
-      navigate('/');
+    socket.on("roomNotFound", () => {
+      setError("Room not found");
+      navigate("/");
     });
 
-    socket.on('userJoined', (userData) => {
-      setUsers(prev => [...prev.filter(u => u.id !== userData.id), userData]);
+    socket.on("userJoined", (userData) => {
+      setUsers((prev) => [
+        ...prev.filter((u) => u.id !== userData.id),
+        userData,
+      ]);
     });
 
-    socket.on('userLeft', (userId) => {
-      setUsers(prev => prev.filter(user => user.id !== userId));
+    socket.on("userLeft", (userId) => {
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
     });
 
-    socket.on('hostChanged', (newHostId) => {
+    socket.on("hostChanged", (newHostId) => {
       setIsHost(newHostId === socket.id);
     });
 
-    socket.on('lobbyState', (state) => {
+    socket.on("lobbyState", (state) => {
       setLobbyState(state);
       setRoom(state.room);
       setUsers(state.users);
       setIsHost(state.hostId === socket.id);
     });
 
-    socket.on('lobbyUpdate', (update) => {
-      setLobbyState(prev => ({ ...prev, ...update }));
+    socket.on("lobbyUpdate", (update) => {
+      setLobbyState((prev) => ({ ...prev, ...update }));
+      if (update.users) setUsers(update.users);
     });
 
     return () => {
-      socket.emit('leaveLobby', { roomId });
-      socket.off('roomJoined');
-      socket.off('roomNotFound');
-      socket.off('userJoined');
-      socket.off('userLeft');
-      socket.off('hostChanged');
-      socket.off('lobbyState');
-      socket.off('lobbyUpdate');
+      socket.emit("leaveLobby", { roomId });
+      socket.off("roomJoined");
+      socket.off("roomNotFound");
+      socket.off("userJoined");
+      socket.off("userLeft");
+      socket.off("hostChanged");
+      socket.off("lobbyState");
+      socket.off("lobbyUpdate");
     };
   }, [roomId, navigate]);
 
@@ -88,8 +99,8 @@ export const ChatroomProvider = ({ children }) => {
     lobbyState,
     roomUrl: roomId ? `${window.location.origin}/lobby/${roomId}` : null,
     updateLobbySettings: (settings) => {
-      socket.emit('updateLobbySettings', { roomId, settings });
-    }
+      socket.emit("updateLobbySettings", { roomId, settings });
+    },
   };
 
   return (
@@ -102,7 +113,7 @@ export const ChatroomProvider = ({ children }) => {
 export const useChatroom = () => {
   const context = useContext(ChatroomContext);
   if (!context) {
-    throw new Error('useChatroom must be used within a ChatroomProvider');
+    throw new Error("useChatroom must be used within a ChatroomProvider");
   }
   return context;
 };

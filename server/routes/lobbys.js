@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/create", auth, async (req, res) => {
   try {
     const { username } = req.body;
-    
+
     if (!req.user || !req.user._id) {
       return res.status(401).json({
         success: false,
@@ -20,27 +20,23 @@ router.post("/create", auth, async (req, res) => {
     const lobby = new Lobby({
       roomId: lobbyId,
       roomLeader: req.user._id,
-      users: [{
-        userId: req.user._id,
-        username: req.user.username,
-        isReady: false,
-        score: 0,
-        isOnline: true
-      }]
+      users: [
+        {
+          userId: req.user._id,
+          username: req.user.username,
+          isReady: false,
+          score: 0,
+          isOnline: true,
+        },
+      ],
     });
 
     const savedLobby = await lobby.save();
-    
-    // Emit lobby creation event
-    req.app.get('io').emit('lobbyCreated', {
-      lobbyId,
-      users: savedLobby.users
-    });
 
     return res.status(201).json({
       success: true,
       roomId: lobbyId,
-      lobby: savedLobby
+      lobby: savedLobby,
     });
   } catch (error) {
     console.error("[SERVER] Error creating lobby:", error);
@@ -54,17 +50,26 @@ router.post("/create", auth, async (req, res) => {
 // Get specific lobby
 router.get("/:lobbyId", async (req, res) => {
   try {
-    Lobby.findById(req.params.lobbyId, (err, lobby) => {
-      if (err) {
-        return res.status(404).json({
-          success: false,
-          message: "Lobby not found",
-        });
-      }
-      res.status(200).json({
-        success: true,
-        lobby,
+    const lobby = await Lobby.findOne({ roomId: req.params.lobbyId });
+    if (!lobby) {
+      return res.status(404).json({
+        success: false,
+        message: "Lobby not found",
       });
+    }
+
+    res.status(200).json({
+      success: true,
+      lobby: {
+        ...lobby.toObject(),
+        users: lobby.users.map((user) => ({
+          userId: user.userId,
+          username: user.username,
+          isReady: user.isReady,
+          score: user.score,
+          isOnline: user.isOnline,
+        })),
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -79,18 +84,18 @@ router.patch("/:lobbyId/settings", auth, async (req, res) => {
   try {
     const { settings } = req.body;
     const lobby = await Lobby.findOne({ roomId: req.params.lobbyId });
-    
+
     if (!lobby) {
       return res.status(404).json({
         success: false,
-        message: "Lobby not found"
+        message: "Lobby not found",
       });
     }
 
     if (lobby.roomLeader.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Only the room leader can update settings"
+        message: "Only the room leader can update settings",
       });
     }
 
@@ -98,18 +103,18 @@ router.patch("/:lobbyId/settings", auth, async (req, res) => {
     await lobby.save();
 
     // Emit update to all users in the room
-    req.app.get('io').to(req.params.lobbyId).emit('lobbyUpdate', {
-      settings: lobby.settings
+    req.app.get("io").to(req.params.lobbyId).emit("lobbyUpdate", {
+      settings: lobby.settings,
     });
 
     res.json({
       success: true,
-      lobby
+      lobby,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Failed to update lobby settings"
+      message: "Failed to update lobby settings",
     });
   }
 });

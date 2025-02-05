@@ -107,7 +107,7 @@ const GameRoom = ({ onError }) => {
             <div className="flex gap-3">
               <button
                 onClick={handleStartGame}
-                disabled={!isHost || users.length < 2}
+                disabled={!isHost}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 transition-colors"
               >
                 Start Game
@@ -132,10 +132,11 @@ const GameRoom = ({ onError }) => {
 
         <div className="flex flex-col h-full gap-4">
           <PlayersList
-            players={players}
+            players={lobbyState?.users || []}
             currentDrawer={currentDrawer}
             username={username}
             isHost={isHost}
+            roomLeader={lobbyState?.roomLeader}
             className="flex-shrink-0 bg-white rounded-lg shadow-lg"
           />
           <div className="flex-grow min-h-0 bg-white rounded-lg shadow-lg">

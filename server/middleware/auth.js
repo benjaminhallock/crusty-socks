@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
-dotenv.config({ path: new URL('../config.env', import.meta.url).pathname });
+dotenv.config({ path:'./config.env'});
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is not defined in environment variables");
   process.exit(1);

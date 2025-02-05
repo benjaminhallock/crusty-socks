@@ -1,4 +1,3 @@
-//NOT USED YET
 export class GameManager {
   constructor(io) {
     this.io = io;
@@ -10,198 +9,219 @@ export class GameManager {
       "plane", "train", "snake", "apple", "heart", "smile", "hat", "ball",
       "clock", "drum", "shoe", "bread", "book"
     ];
-    // this.CATEGORIES = {
-    //   nature: ["grass", "flower", "tree", "jungle", "beach", "ocean", "breeze", "cat", "dog", "ladybug",
-    //     "beetle", "worm", "twig", "mountain", "deer", "vines", "apple", "plum", "walnut", "squirrel", "dolphin", "elephant", "panda",
-    //     "iguana", "monkey", "rose", "lilly", "sunflower", "rock", "cactus"],
-    //   fantasy: ["ogre", "wizard", "king", "queen", "magic", "witchcraft", "crystal ball", "talking donkey", "dragon", "castle", "knight", "dimension",
-    //     "wand", "evil", "angel", "demon", "monster", "vampire", "werewolf", "mermaid", "gauntlet", "ruby", "emerald", "miner", "quest", "pyramid", "sphinx", "dungeon",
-    //     "darkness", "plasma", "genie"],
-    //   sports: ["basketball", "hockey", "baseball", "sweeping", "volleyball", "billiards", "shoes", "gloves", "shorts", "jersey", "ball", "puck", "frisbee"
-    //     , "golf", "coach", "bench", "hoop", "goalie", "soccer", "penalty", "quarterback", "champions", "winner", "loser", "celebration", "field", "rink", "court",
-    //     "announcer", "points", "dribble", "outdoors", "indoors", "angry", "happy", "sad", "athlete", "celebrity"],
-    //   theater:
-    //       ["theater", "movie", "actor", "director", "script", "scene", "shrek", "oz", "costume", "prop", "stage", "musical",
-    //         "broadway", "hollywood", "oscar", "reel", "clapperboard", "pixar", "disney", "marvel", "hobbit", "titanic",
-    //         "villain", "hero", "trailer", "popcorn", "spotlight", "comedy", "drama", "horror", "improv",
-    //         "monologue", "dialogue", "stunt", "audition", "choreography", "makeup", "backstage", "playbill",
-    //         "sequel", "remake", "animation", "blockbuster", "cameo", "cinematography", "effects", "vader", "potter",
-    //         "gollum", "batman", "joker", "forrest", "elsa", "woody", "indiana", "thanos", "thor", "stones", "donkey"],
-    //   silly: ["goofy", "wacky", "zany", "banana", "slapstick", "quirky", "absurd", "wiggle", "bloop", "boing", "peculiar",
-    //     "flubber", "offbeat", "loopy", "bonkers", "guffaw", "snort", "chuckle", "squiggle", "unusual", "quack", "blunder",
-    //     "splat", "boop", "scoot", "wonky", "goober", "dizzy", "puddle", "plop", "awkward", "burp", "sneeze", "hiccup",
-    //     "oddball", "snoot", "snicker", "bubble", "jittery", "gloop", "wobble", "squishy", "lumpy", "dork", "prank",
-    //     "whomp", "kazoo", "fumble", "giddy", "eccentric", "yeet", "bruh", "shrek", "sus", "derp", "oof", "pog", "vibe",
-    //     "chonk", "cringe", "based", "boi", "nope", "zoomer", "rekt"],
-    //   space:
-    //       ["galaxy", "orbit", "nebula", "cosmos", "meteor", "comet", "asteroid", "supernova", "blackhole", "wormhole",
-    //         "gravity", "telescope", "spaceship", "rocket", "astronaut", "satellite", "lunar", "solar", "eclipse",
-    //         "starlight", "constellation", "planet", "exoplanet", "moon", "sun", "venus", "mars", "jupiter", "saturn",
-    //         "uranus", "neptune", "pluto", "milkyway", "andromeda", "aliens", "extraterrestrial", "stars", "spacewalk",
-    //         "floating", "spacesuit", "astronomy", "bigbang", "quasar", "pulsar", "eventhorizon", "spaceshuttle",
-    //         "stardust", "terraform", "cryovolcano", "rover", "ufo", "moonbase", "shuttle"]
-    // };
-    // potential categories, needs to be integrated into the UI as a dropdown select
-    // **AI generated words based on category selection is still in question, yet to be developed**
-    
-    this.players = [];
-    this.currentDrawer = null;
-    this.currentWord = null;
-    this.timer = null;
-    
-    this.gameState = {
-      currentDrawing: Array(100 * 80).fill("#FFFFFF"),
+
+    // Track games by room ID
+    this.games = new Map();
+  }
+
+  initializeGame(roomId) {
+    if (this.games.has(roomId)) return;
+
+    this.games.set(roomId, {
+      players: [],
       currentDrawer: null,
-      messages: [],
-      word: "",
-      status: "waiting",
-      countdownTime: this.COUNTDOWN_TIME,
-      readyPlayers: new Set(),
-      roundInProgress: false,
-    };
+      currentWord: null,
+      timer: null,
+      settings: {
+        roundTime: this.ROUND_TIME,
+        rounds: 3,
+        customWords: [],
+        language: "en"
+      },
+      gameState: {
+        currentDrawing: Array(100 * 80).fill("#FFFFFF"),
+        status: "waiting",
+        countdownTime: this.COUNTDOWN_TIME,
+        roundNumber: 0,
+        messages: []
+      }
+    });
   }
 
-  createLobby(socket, username) {
-    
-  }
+  addPlayer(socket, username, roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return false;
 
-  addPlayer(socket, username) {
-    const existingPlayer = this.players.find(
-      (p) => p.username === username || p.id === socket.id
+    const existingPlayer = game.players.find(
+      p => p.username === username || p.id === socket.id
     );
 
-    if (existingPlayer) {
-      return false;
-    }
+    if (existingPlayer) return false;
 
     const newPlayer = {
       id: socket.id,
       username,
       score: 0,
-      status: "not-ready",
+      status: "not-ready"
     };
 
-    this.players.push(newPlayer);
-    this.io.emit("playersList", this.players);
+    game.players.push(newPlayer);
+    socket.join(roomId);
+    this.io.to(roomId).emit("playersList", game.players);
     return true;
   }
 
-  removePlayer(socketId) {
-    const disconnectedPlayer = this.players.find((p) => p.id === socketId);
-    if (disconnectedPlayer) {
-      this.players = this.players.filter((p) => p.id !== socketId);
-      if (this.currentDrawer?.id === socketId) {
-        this.endRound();
-      }
-      this.io.emit("playersList", this.players);
-      this.gameState.readyPlayers.delete(socketId);
-      this.players.forEach((p) => (p.status = "not-ready"));
-      this.io.emit("playersList", this.players);
+  removePlayer(socketId, roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    game.players = game.players.filter(p => p.id !== socketId);
+
+    if (game.currentDrawer?.id === socketId) {
+      this.endRound(roomId);
+    }
+
+    if (game.players.length === 0) {
+      this.games.delete(roomId);
+    } else {
+      this.io.to(roomId).emit("playersList", game.players);
     }
   }
 
-  handlePlayerReady(socketId) {
-    if (this.gameState.roundInProgress) return;
+  updateSettings(roomId, newSettings) {
+    const game = this.games.get(roomId);
+    if (!game) return;
 
-    const player = this.players.find((p) => p.id === socketId);
+    game.settings = { ...game.settings, ...newSettings };
+    this.io.to(roomId).emit("settingsUpdated", game.settings);
+  }
+
+  handlePlayerReady(socketId, roomId) {
+    const game = this.games.get(roomId);
+    if (!game || game.gameState.status !== "waiting") return;
+
+    const player = game.players.find(p => p.id === socketId);
     if (player) {
       player.status = "ready";
-      this.io.emit("playersList", this.players);
+      this.io.to(roomId).emit("playersList", game.players);
 
-      const allReady = this.players.every((p) => p.status === "ready");
-      const minPlayers = this.players.length >= 2;
-
-      if (allReady && minPlayers && this.gameState.status === "waiting") {
-        this.startNewRound();
+      const allReady = game.players.every(p => p.status === "ready");
+      if (allReady && game.players.length >= 2) {
+        this.startNewRound(roomId);
       }
     }
   }
 
-  handlePlayerNotReady(socketId) {
-    if (this.gameState.roundInProgress) return;
+  handleDraw(socket, data, roomId) {
+    const game = this.games.get(roomId);
+    if (!game || game.gameState.status !== "playing") return;
 
-    const player = this.players.find((p) => p.id === socketId);
-    if (player) {
-      player.status = "not-ready";
-      this.io.emit("playersList", this.players);
+    if (socket.id === game.currentDrawer?.id) {
+      socket.to(roomId).emit("drawUpdate", data);
+      game.gameState.currentDrawing[data.index] = data.color;
     }
   }
 
-  handleDraw(socket, data) {
-    if (this.gameState.status !== "playing" || socket.id === this.currentDrawer?.id) {
-      socket.broadcast.emit("drawUpdate", data);
-      this.gameState.currentDrawing[data.index] = data.color;
-    }
-  }
+  handleGuess(username, message, roomId) {
+    const game = this.games.get(roomId);
+    if (!game || !game.currentWord) return;
 
-  handleGuess(user, message) {
-    if (this.currentWord && message.toLowerCase() === this.currentWord.toLowerCase()) {
-      const guesser = this.players.find((p) => p.username === user);
-      if (guesser && guesser.id !== this.currentDrawer.id) {
+    if (message.toLowerCase() === game.currentWord.toLowerCase()) {
+      const guesser = game.players.find(p => p.username === username);
+      if (guesser && guesser.id !== game.currentDrawer.id) {
         guesser.score += 10;
-        this.currentDrawer.score += 5;
-        this.io.emit("correctGuess", { winner: user, word: this.currentWord });
-        this.io.emit("playersList", this.players);
-        this.endRound();
+        game.currentDrawer.score += 5;
+        this.io.to(roomId).emit("correctGuess", { 
+          winner: username, 
+          word: game.currentWord 
+        });
+        this.io.to(roomId).emit("playersList", game.players);
+        this.endRound(roomId);
       }
     } else {
-      this.io.emit("chatMessage", { user, message });
+      this.io.to(roomId).emit("chatMessage", { user: username, message });
     }
   }
 
-  startNewRound() {
-    this.gameState.status = "countdown";
-    this.gameState.countdownTime = this.COUNTDOWN_TIME;
-    this.io.emit("countdown", { time: this.COUNTDOWN_TIME });
+  startNewRound(roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return;
 
-    const countdownTimer = setInterval(() => {
-      this.gameState.countdownTime--;
-      this.io.emit("countdown", { time: this.gameState.countdownTime });
+    game.gameState.status = "countdown";
+    game.gameState.countdownTime = this.COUNTDOWN_TIME;
+    this.io.to(roomId).emit("countdown", { time: this.COUNTDOWN_TIME });
 
-      if (this.gameState.countdownTime <= 0) {
-        clearInterval(countdownTimer);
-        this.startGame();
+    const countdownInterval = setInterval(() => {
+      game.gameState.countdownTime--;
+      this.io.to(roomId).emit("countdown", { time: game.gameState.countdownTime });
+
+      if (game.gameState.countdownTime <= 0) {
+        clearInterval(countdownInterval);
+        this.startRound(roomId);
       }
     }, 1000);
   }
 
-  startGame() {
-    this.gameState.status = "playing";
-    this.currentDrawer = this.players[Math.floor(Math.random() * this.players.length)];
-    this.gameState.currentDrawer = this.currentDrawer;
-    this.currentWord = this.WORDS[Math.floor(Math.random() * this.WORDS.length)];
-    this.gameState.word = this.currentWord;
+  startRound(roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return;
 
-    this.io.emit("gameStarting", {
-      drawer: this.currentDrawer,
-      word: this.currentWord,
+    game.gameState.status = "playing";
+    game.gameState.roundNumber++;
+    game.currentDrawer = game.players[
+      Math.floor(Math.random() * game.players.length)
+    ];
+    game.currentWord = this.WORDS[Math.floor(Math.random() * this.WORDS.length)];
+
+    this.io.to(roomId).emit("gameStarting", {
+      drawer: game.currentDrawer,
+      word: game.currentWord,
+      roundNumber: game.gameState.roundNumber
     });
 
-    let timeLeft = this.ROUND_TIME;
-    this.timer = setInterval(() => {
+    let timeLeft = game.settings.roundTime;
+    game.timer = setInterval(() => {
       timeLeft--;
-      this.io.emit("timeUpdate", timeLeft);
+      this.io.to(roomId).emit("timeUpdate", timeLeft);
       if (timeLeft <= 0) {
-        this.endRound();
+        this.endRound(roomId);
       }
     }, 1000);
   }
 
-  endRound() {
-    clearInterval(this.timer);
-    this.gameState.roundInProgress = false;
-    this.io.emit("roundEnd", { word: this.currentWord, drawer: this.currentDrawer });
-    this.currentDrawer = null;
-    this.gameState.currentDrawer = null;
-    this.currentWord = null;
-    this.gameState.word = "";
-    this.gameState.status = "waiting";
+  endRound(roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return;
 
-    this.players.forEach((p) => (p.status = "not-ready"));
-    this.io.emit("playersList", this.players);
+    clearInterval(game.timer);
+    this.io.to(roomId).emit("roundEnd", {
+      word: game.currentWord,
+      drawer: game.currentDrawer
+    });
+
+    game.currentDrawer = null;
+    game.currentWord = null;
+    game.gameState.status = "waiting";
+    game.gameState.currentDrawing.fill("#FFFFFF");
+
+    // Check if game should end
+    if (game.gameState.roundNumber >= game.settings.rounds) {
+      this.endGame(roomId);
+    } else {
+      game.players.forEach(p => p.status = "not-ready");
+      this.io.to(roomId).emit("playersList", game.players);
+    }
   }
 
-  getCurrentDrawing() {
-    return this.gameState.currentDrawing;
+  endGame(roomId) {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    const winner = [...game.players].sort((a, b) => b.score - a.score)[0];
+    this.io.to(roomId).emit("gameEnd", { 
+      winner,
+      finalScores: game.players.map(p => ({ 
+        username: p.username, 
+        score: p.score 
+      }))
+    });
+
+    // Reset game state
+    game.gameState.roundNumber = 0;
+    game.players.forEach(p => {
+      p.score = 0;
+      p.status = "not-ready";
+    });
+    this.io.to(roomId).emit("playersList", game.players);
   }
 }

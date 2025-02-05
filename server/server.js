@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 import users from "./routes/users.js";
 import lobbys from "./routes/lobbys.js";
 import { GameManager } from "./gameManager.js";
-import { SocketHandler } from "./socketHandler.js";
 import mongoose from "mongoose";
 
 dotenv.config({ path: "./config.env" });
@@ -51,7 +50,6 @@ mongoose
 
 // Initialize game manager and socket handler
 const gameManager = new GameManager(io);
-const socketHandler = new SocketHandler(io, gameManager);
 
 app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
 app.get("/", (_req, res) => res.json({ status: "Server is running" }));

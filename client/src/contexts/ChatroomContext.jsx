@@ -9,15 +9,27 @@ export const ChatroomProvider = ({ children }) => {
   const [users, setUsers] = useState([]);
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState(null);
+  const [lobbyState, setLobbyState] = useState(null);
   const navigate = useNavigate();
   const { roomId } = useParams();
 
   useEffect(() => {
     const username = localStorage.getItem('username');
+    const storedRoomId = localStorage.getItem('roomId');
+    
     if (!roomId || !username) {
       navigate('/');
       return;
     }
+
+    // Sync with stored roomId
+    if (storedRoomId !== roomId) {
+      localStorage.setItem('roomId', roomId);
+    }
+
+    // Initial lobby fetch
+    socket.emit('fetchLobbyState', { roomId });
+
     // Join the specific room
     socket.emit('joinRoom', { roomId });
 
@@ -45,6 +57,17 @@ export const ChatroomProvider = ({ children }) => {
       setIsHost(newHostId === socket.id);
     });
 
+    socket.on('lobbyState', (state) => {
+      setLobbyState(state);
+      setRoom(state.room);
+      setUsers(state.users);
+      setIsHost(state.hostId === socket.id);
+    });
+
+    socket.on('lobbyUpdate', (update) => {
+      setLobbyState(prev => ({ ...prev, ...update }));
+    });
+
     return () => {
       socket.emit('leaveLobby', { roomId });
       socket.off('roomJoined');
@@ -52,6 +75,8 @@ export const ChatroomProvider = ({ children }) => {
       socket.off('userJoined');
       socket.off('userLeft');
       socket.off('hostChanged');
+      socket.off('lobbyState');
+      socket.off('lobbyUpdate');
     };
   }, [roomId, navigate]);
 
@@ -60,7 +85,11 @@ export const ChatroomProvider = ({ children }) => {
     users,
     isHost,
     error,
-    roomUrl: roomId ? `${window.location.origin}/lobby/${roomId}` : null
+    lobbyState,
+    roomUrl: roomId ? `${window.location.origin}/lobby/${roomId}` : null,
+    updateLobbySettings: (settings) => {
+      socket.emit('updateLobbySettings', { roomId, settings });
+    }
   };
 
   return (

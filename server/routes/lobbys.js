@@ -8,7 +8,6 @@ const router = express.Router();
 router.post("/create", auth, async (req, res) => {
   try {
     const { username } = req.body;
-    console.log("[SERVER] Creating lobby for user:", req.user);
     
     if (!req.user || !req.user._id) {
       return res.status(401).json({
@@ -21,16 +20,27 @@ router.post("/create", auth, async (req, res) => {
     const lobby = new Lobby({
       roomId: lobbyId,
       roomLeader: req.user._id,
-      users: [req.user._id],
+      users: [{
+        userId: req.user._id,
+        username: req.user.username,
+        isReady: false,
+        score: 0,
+        isOnline: true
+      }]
     });
 
-    console.log("[SERVER] Attempting to save lobby:", lobby);
     const savedLobby = await lobby.save();
-    console.log("[SERVER] Saved lobby result:", savedLobby);
+    
+    // Emit lobby creation event
+    req.app.get('io').emit('lobbyCreated', {
+      lobbyId,
+      users: savedLobby.users
+    });
 
     return res.status(201).json({
       success: true,
       roomId: lobbyId,
+      lobby: savedLobby
     });
   } catch (error) {
     console.error("[SERVER] Error creating lobby:", error);
@@ -60,6 +70,46 @@ router.get("/:lobbyId", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to get lobby",
+    });
+  }
+});
+
+// Update lobby settings
+router.patch("/:lobbyId/settings", auth, async (req, res) => {
+  try {
+    const { settings } = req.body;
+    const lobby = await Lobby.findOne({ roomId: req.params.lobbyId });
+    
+    if (!lobby) {
+      return res.status(404).json({
+        success: false,
+        message: "Lobby not found"
+      });
+    }
+
+    if (lobby.roomLeader.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the room leader can update settings"
+      });
+    }
+
+    Object.assign(lobby, { settings });
+    await lobby.save();
+
+    // Emit update to all users in the room
+    req.app.get('io').to(req.params.lobbyId).emit('lobbyUpdate', {
+      settings: lobby.settings
+    });
+
+    res.json({
+      success: true,
+      lobby
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update lobby settings"
     });
   }
 });

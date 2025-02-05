@@ -20,7 +20,8 @@ const CreateLobby = () => {
       setError("");
       const username = localStorage.getItem("username");
       const roomId = await createLobby(username);
-    //   socket.emit("join_room", { roomId });
+      localStorage.setItem("roomId", roomId);
+      //   socket.emit("join_room", { roomId });
       navigate(`/lobby/${roomId}`);
     } catch (error) {
       setError(error.message || "Failed to create lobby");
@@ -30,7 +31,8 @@ const CreateLobby = () => {
 
   const handleJoinLobby = (event) => {
     event.preventDefault();
-    const roomId = event.target.roomId.value;
+    const input = event.target.roomId.value;
+    const roomId = input.includes("/") ? input.split("/").pop() : input;
     if (roomId) {
       socket.emit("join_room", { roomId });
       navigate(`/lobby/${roomId}`);
@@ -39,10 +41,9 @@ const CreateLobby = () => {
 
   return (
     <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-      
-      <div className="text-center bg-white p-8 rounded-lg shadow-lg">
+      <div className="text-center bg-white/80 backdrop-blur-[4px] p-8 rounded-lg shadow-lg transition-all duration-300">
         <div className="flex flex-col gap-4">
-        {error && <div className="text-red-500">{error}</div>}
+          {error && <div className="text-red-500">{error}</div>}
           <button
             onClick={() => handleCreateLobby()}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

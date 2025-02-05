@@ -33,8 +33,23 @@ const lobbySchema = new mongoose.Schema(
     },
     users: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        username: String,
+        isReady: {
+          type: Boolean,
+          default: false,
+        },
+        score: {
+          type: Number,
+          default: 0,
+        },
+        isOnline: {
+          type: Boolean,
+          default: true,
+        },
       },
     ],
     messages: [
@@ -48,22 +63,28 @@ const lobbySchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
 // Helper method to check if a user is in the lobby
 lobbySchema.methods.hasUser = function(userId) {
-  return this.users.includes(userId);
+  return this.users.some(user => user.userId.equals(userId));
 };
 
 // Helper method to add a user to the lobby
-lobbySchema.methods.addUser = function(userId) {
-  if (!this.hasUser(userId)) {
-    this.users.push(userId);
+lobbySchema.methods.addUser = async function(user) {
+  if (!this.hasUser(user._id)) {
+    this.users.push({
+      userId: user._id,
+      username: user.username,
+      isReady: false,
+      score: 0,
+    });
   }
   return this.save();
 };
 
 // Helper method to remove a user from the lobby
 lobbySchema.methods.removeUser = function(userId) {
-  this.users = this.users.filter(id => !id.equals(userId));
+  this.users = this.users.filter(user => !user.userId.equals(userId));
   return this.save();
 };
 

@@ -65,7 +65,7 @@ const LoginForm = ({ onLoginSuccess }) => {
   return (
     <>
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-sm p-8 rounded-lg shadow-xl">
+        <div className="max-w-md w-full space-y-8 bg-white/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl transition-all duration-300">
           <img className="mx-auto h-40 w-auto" src="/logo.png" alt="Logo" />
           <div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">

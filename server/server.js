@@ -7,8 +7,11 @@ import users from "./routes/users.js";
 import lobbys from "./routes/lobbys.js";
 import { GameManager } from "./gameManager.js";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config({ path: "./config.env" });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, "config.env") });
 
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is not defined in environment variables");

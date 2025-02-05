@@ -1,120 +1,119 @@
-if (!import.meta.env.VITE_BASE_URL) {
-  console.warn(
-    "VITE_BASE_URL is not defined in environment variables, using default"
-  );
+const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+
+if (!API_URL) {
+  console.error("API_URL is not defined in environment variables");
 }
-const baseUrl = import.meta.env.VITE_BASE_URL || "http://localhost:3001";
 
-export const login = async (email, password) => {
+export const createLobby = async (username) => {
   try {
-    console.log("Starting login attempt for email:", email);
-
-    console.log("Sending login request...");
-    const response = await fetch(`${baseUrl}/users/login`, {
+    console.log("[CLIENT] Creating lobby with token:", localStorage.getItem("token"));
+    const response = await fetch(`${API_URL}/lobby/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ email, password }),
-      credentials: "include", // This enables sending cookies
+      credentials: "include",
+      body: JSON.stringify({ username }),
     });
-    console.log("Login response status:", response.status);
+
+    console.log("[CLIENT] Lobby create response:", response);
     const data = await response.json();
+    console.log("[CLIENT] Lobby create data:", data);
 
     if (!response.ok) {
-      console.log("Login failed:", data.message);
-      throw new Error(data.message || "Failed to login");
+      throw new Error(data.message || `Server error: ${response.statusText}`);
     }
 
-    console.log("Login successful, processing response data:", data);
-    if (data.token && data.username) {
-      console.log("Storing auth data for user:", data.username);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.username);
+    if (!data.roomId) {
+      throw new Error("No room ID returned from server");
     }
-    return data;
+
+    return data.roomId;
   } catch (error) {
-    console.error("Login failed:", error);
+    console.error("[CLIENT] Error creating lobby:", error);
     throw error;
   }
 };
 
-async function checkUsername(username) {
-  try {
-    // Add debouncing to prevent too many requests
-    if (!username || username.length < 3) return false;
-
-    const response = await fetch(`${baseUrl}/users/check/${username}`, {
-      method: "POST", // POST is preferred for security
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // If you need to handle sessions
-    });
-
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Username check failed:", error);
-    throw error;
-  }
-}
-
-export const register = async (email, username, password) => {
-  console.log("Starting registration for username:", username);
-
-  // Check username
-  console.log("Checking if username exists...");
-  const usernameCheck = await checkUsername(username);
-  if (!usernameCheck) {
-    throw new Error("Username check failed");
-  }
-
-  console.log("Username check result:", usernameCheck);
-  console.log("Sending registration request...");
-  const response = await fetch(`${baseUrl}/users/register`, {
+export const login = async (email, password) => {
+  const response = await fetch(`${API_URL}/users/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, username, password }),
     credentials: "include",
+    body: JSON.stringify({ email, password }),
   });
-
-  console.log("Registration response status:", response.status);
+  const data = await response.json();
 
   if (!response.ok) {
-    const data = await response.json();
-    console.error("Registration error:", data);
-    throw new Error(data.message || "Failed to register");
+    throw new Error(data.error || "Failed to login");
   }
 
-  const data = await response.json();
-  if (data.token && data.username) {
-    console.log("Registration successful:", data);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("username", data.username);
-  }
   return data;
 };
 
-export const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("username");
-  return fetch(`${baseUrl}/users/logout`, {
+export const register = async (email, username, password) => {
+  const response = await fetch(`${API_URL}/users/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ email, username, password }),
+  });
+
+  const data = await response.json();
+
+  console.log("register data", data);
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to register");
+  }
+
+  return data;
+};
+
+export const logout = async () => {
+  const response = await fetch(`${API_URL}/users/logout`, {
     method: "POST",
     credentials: "include",
   });
+
+  if (!response.ok) {
+    throw new Error("Failed to logout");
+  }
+
+  return true;
 };
 
-export const getToken = () => {
-  return localStorage.getItem("token");
-};
+export const checkAuth = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return false;
+    }
 
-export const isAuthenticated = () => {
-  const token = getToken();
-  return !!token;
+    const response = await fetch(`${API_URL}/users/validate`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error("Auth check failed:", error);
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    return false;
+  }
 };

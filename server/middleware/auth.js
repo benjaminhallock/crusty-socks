@@ -1,18 +1,35 @@
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+dotenv.config({ path: new URL('../config.env', import.meta.url).pathname });
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is not defined in environment variables");
+  process.exit(1);
+}
 
 export const auth = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "Authentication required" });
+    console.log("[SERVER] auth middleware");
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided",
+      });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.userId;
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    req.user = {
+      _id: decoded.userId,
+    };
+
     next();
   } catch (err) {
-    res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
   }
 };

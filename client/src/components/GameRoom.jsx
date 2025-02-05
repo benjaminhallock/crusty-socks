@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useGameSocket } from "../hooks/useGameSocket";
+import { useChatroom } from "../contexts/ChatroomContext";
 import PixelCanvas from "./PixelCanvas";
 import ChatBox from "./ChatBox";
-import UsernameModal from "./UsernameModal";
 import PlayersList from "./PlayersList";
 import GameStatus from "./GameStatus";
-import { useGameSocket } from "../hooks/useGameSocket";
-import { getWordColor } from '../utils/wordColors';
 
-const GameRoom = ({ onError, onDebug = console.log }) => {
+const GameRoom = ({ onError }) => {
   const [username, setUsername] = useState(null);
   const [isDrawer, setIsDrawer] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -15,13 +14,20 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
   const [timer, setTimer] = useState(60);
   const [currentWord, setCurrentWord] = useState(null);
   const [countdown, setCountdown] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [currentDrawer, setCurrentDrawer] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [currentColor, setCurrentColor] = useState('#000000');
+  const [loading, setLoading] = useState(true);
 
-  const socket = useGameSocket({
+  // New lobby-related state
+  const { users, isHost, roomUrl, lobbyState, updateLobbySettings } = useChatroom();
+  const [settings, setSettings] = useState({
+    roundTime: 60,
+    rounds: 3,
+    customWords: "",
+    language: "en",
+  });
+
+  const gameSocket = useGameSocket({
     username,
     setPlayers,
     setGameState,
@@ -33,35 +39,60 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
     setConnected,
     setLoading,
     onError,
-    onDebug
+    onDebug: console.log,
   });
 
-  const handleReadyToggle = () => {
-    const newReadyState = !isReady;
-    socket.emit(newReadyState ? "playerReady" : "playerNotReady");
-    setIsReady(newReadyState);
+  useEffect(() => {
+    if (gameState === "waiting") {
+      setLoading(false);
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    setUsername(localStorage.getItem("username"));
+  }, []);
+
+  useEffect(() => {
+    if (lobbyState) {
+      // Sync local state with lobby state
+      setPlayers(lobbyState.players || []);
+      setGameState(lobbyState.gameState || "waiting");
+      setSettings(lobbyState.settings || {
+        roundTime: 60,
+        rounds: 3,
+        customWords: "",
+        language: "en",
+      });
+    }
+  }, [lobbyState]);
+
+  const handleSettingChange = (setting, value) => {
+    if (!isHost) return;
+    updateLobbySettings({ [setting]: value });
+  };
+
+  const handleStartGame = () => {
+    if (!isHost) return;
+    gameSocket.emit("startGame", settings);
+  };
+
+  const copyInviteLink = () => {
+    if (!roomUrl) return;
+    navigator.clipboard.writeText(roomUrl);
   };
 
   if (loading) {
-    return <div className="text-center text-indigo-600 p-4">
-      <div className="animate-pulse">Connecting to server...</div>
-    </div>;
+    return <div className="text-white">Loading...</div>;
   }
 
   if (!connected) {
-    return <div className="text-center text-red-600 p-4">
-      <div>Not connected to server. Attempting to reconnect...</div>
-    </div>;
-  }
-
-  if (!username) {
-    return <UsernameModal onSubmit={setUsername} />;
+    return <div className="text-white">Connecting to server...</div>;
   }
 
   return (
-    <div className="flex gap-8 justify-center min-h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-      <div className="text-center flex-1">
-        <div className="flex justify-between items-center mb-4 bg-indigo-100 dark:bg-gray-700 p-4 rounded-lg">
+    <div className="relative min-h-screen">
+      <div className="relative grid grid-cols-3 gap-4 p-4 h-[calc(100vh-5rem)] max-h-[800px]">
+        <div className="col-span-2 flex flex-col h-full gap-4">
           <GameStatus
             gameState={gameState}
             players={players}
@@ -71,24 +102,45 @@ const GameRoom = ({ onError, onDebug = console.log }) => {
             currentDrawer={currentDrawer}
             timer={timer}
           />
+
+          {gameState === "waiting" && (
+            <div className="flex gap-3">
+              <button
+                onClick={handleStartGame}
+                disabled={!isHost || users.length < 2}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 transition-colors"
+              >
+                Start Game
+              </button>
+              <button
+                onClick={copyInviteLink}
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Copy Invite Link
+              </button>
+            </div>
+          )}
+
+          <div className="flex-grow min-h-0 bg-white rounded-lg shadow-lg overflow-hidden">
+            <PixelCanvas
+              isDrawer={isDrawer}
+              gameState={gameState}
+              defaultColor="#000000"
+            />
+          </div>
         </div>
-        <PixelCanvas 
-          isDrawer={isDrawer} 
-          gameState={gameState} 
-          defaultColor={currentColor} 
-        />
-      </div>
-      <div className="flex-1 max-w-md flex flex-col">
-        <PlayersList
-          players={players}
-          currentDrawer={currentDrawer}
-          username={username}
-          gameState={gameState}
-          isReady={isReady}
-          onReadyToggle={handleReadyToggle}
-        />
-        <div className="flex-1">
-          <ChatBox username={username} />
+
+        <div className="flex flex-col h-full gap-4">
+          <PlayersList
+            players={players}
+            currentDrawer={currentDrawer}
+            username={username}
+            isHost={isHost}
+            className="flex-shrink-0 bg-white rounded-lg shadow-lg"
+          />
+          <div className="flex-grow min-h-0 bg-white rounded-lg shadow-lg">
+            <ChatBox username={username} />
+          </div>
         </div>
       </div>
     </div>

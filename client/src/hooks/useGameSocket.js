@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
-import { socket } from '../socket';
+import { 
+  socket, 
+  connectSocket, 
+  joinGame, 
+  setPlayerReady, 
+  setPlayerNotReady, 
+  sendDrawing, 
+  sendGuess 
+} from '../socket';
 
 export const useGameSocket = ({
   username,
@@ -16,9 +24,8 @@ export const useGameSocket = ({
   onDebug
 }) => {
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
+    // Use the connectSocket utility instead of directly connecting
+    connectSocket();
 
     const handleConnect = () => {
       onDebug("Socket connected");
@@ -30,7 +37,7 @@ export const useGameSocket = ({
       onDebug(`Socket disconnected: ${reason}`);
       setConnected(false);
       if (reason === "io server disconnect") {
-        socket.connect();
+        connectSocket();
       }
     };
 
@@ -46,6 +53,23 @@ export const useGameSocket = ({
       setPlayers(playersList || []);
     };
 
+    const handleRoundEnd = ({ winner, word }) => {
+      setGameState("roundEnd");
+      setCurrentWord(word);
+      // Reset drawer state
+      setIsDrawer(false);
+      setCurrentDrawer(null);
+    };
+
+    const handleGameEnd = () => {
+      setGameState("end");
+      setCurrentWord(null);
+      setIsDrawer(false);
+      setCurrentDrawer(null);
+      setTimer(0);
+    };
+
+    // Socket event listeners
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", (error) => onError(`Connection error: ${error.message}`));
@@ -56,7 +80,16 @@ export const useGameSocket = ({
       setCountdown(time);
       setGameState("countdown");
     });
+    socket.on("error", (error) => onError(error));
+    socket.on("roundEnd", handleRoundEnd);
+    socket.on("gameEnd", handleGameEnd);
+    socket.on("wordReveal", ({ word }) => setCurrentWord(word));
+    socket.on("drawerChange", ({ drawer }) => {
+      setCurrentDrawer(drawer);
+      setIsDrawer(drawer.username === username);
+    });
 
+    // Cleanup function
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
@@ -65,9 +98,24 @@ export const useGameSocket = ({
       socket.off("playersList", handlePlayersList);
       socket.off("timeUpdate");
       socket.off("countdown");
+      socket.off("error");
+      socket.off("roundEnd", handleRoundEnd);
+      socket.off("gameEnd", handleGameEnd);
+      socket.off("wordReveal");
+      socket.off("drawerChange");
       socket.disconnect();
     };
   }, [username]);
 
-  return socket;
+  // Return socket actions using the exported functions from socket.js
+  return {
+    socket,
+    joinGame: () => joinGame(username),
+    setReady: setPlayerReady,
+    setNotReady: setPlayerNotReady,
+    sendDrawing,
+    sendGuess: (message) => sendGuess({ user: username, message }),
+    disconnect: () => socket.disconnect(),
+    connect: connectSocket
+  };
 };

@@ -1,15 +1,8 @@
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-
-dotenv.config({ path: new URL('../config.env', import.meta.url).pathname });
-if (!process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is not defined in environment variables");
-  process.exit(1);
-}
+import User from "../models/user.js";
 
 export const auth = async (req, res, next) => {
   try {
-    console.log("[SERVER] auth middleware");
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
@@ -21,15 +14,31 @@ export const auth = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = {
-      _id: decoded.userId,
-    };
+    if (!decoded.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Missing user ID in token",
+      });
+    }
 
+    // Add user verification
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    req.user = user;
+    req.token = token;
+    req._id = decoded.userId;
     next();
   } catch (err) {
+    console.error("auth.js:", err.message);
     return res.status(401).json({
       success: false,
-      message: "Invalid token",
+      message: "Token is not valid",
     });
   }
 };

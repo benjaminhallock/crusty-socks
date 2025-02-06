@@ -1,46 +1,95 @@
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+
+dotenv.config("/config.env");
 
 export const userController = {
-  // Register new user
+  validateToken: async (req, res) => {
+    try {
+      console.log(
+        "Validating token for user:",
+        req.user + "id: " + req.user._id + "and other id: " + req._id
+      );
+      return res.status(200).json({
+        success: true,
+        user: req.user,
+        token: req.token,
+        _id: req.user._id,
+      });
+    } catch (error) {
+      console.error("Validation error:", error);
+      return res.status(401).json({
+        success: false,
+        message: "Token validation failed",
+      });
+    }
+  },
+
   register: async (req, res) => {
     try {
       const { username, email, password } = req.body;
 
       // Validate required fields
       if (!username || !email || !password) {
-        return res.status(400).json({ error: "All fields are required" });
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required",
+        });
       }
 
       // Validate username format
       if (username.length < 3 || username.length > 20) {
-        return res
-          .status(400)
-          .json({ error: "Username must be between 3 and 20 characters" });
+        return res.status(400).json({
+          success: false,
+          message: "Username must be between 3 and 20 characters",
+        });
       }
 
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: "Invalid email format" });
+        return res.status(400).json({
+          success: false,
+          message: "Invalid email format",
+        });
       }
-
-      // Validate password strength
-      if (!password) return "Password is required";
-      if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters long",});
-      if (!/[A-Z]/.test(password)) return res.status(400).json({ error: "Password must contain at least one uppercase letter",});
-      if (!/[a-z]/.test(password)) return res.status(400).json({ error: "Password must contain at least one lowercase letter",});
-      if (!/[0-9]/.test(password)) return res.status(400).json({ error: "Password must contain at least one number",});
+      if (password.length < 8)
+        return res.status(400).json({
+          success: false,
+          message: "Password must be at least 8 characters long",
+        });
+      if (!/[A-Z]/.test(password))
+        return res.status(400).json({
+          success: false,
+          message: "Password must contain at least one uppercase letter",
+        });
+      if (!/[a-z]/.test(password))
+        return res.status(400).json({
+          success: false,
+          message: "Password must contain at least one lowercase letter",
+        });
+      if (!/[0-9]/.test(password))
+        return res.status(400).json({
+          success: false,
+          message: "Password must contain at least one number",
+        });
 
       // Check for existing email and username
       const existingEmail = await User.findByEmail(email);
       if (existingEmail) {
-        return res.status(400).json({ error: "Email already in use" });
+        return res.status(400).json({
+          success: false,
+          message: "Email already in use",
+        });
       }
 
       const existingUsername = await User.findByUsername(username);
       if (existingUsername) {
-        return res.status(400).json({ error: "Username already taken" });
+        return res.status(400).json({
+          success: false,
+          message: "Username already taken",
+        });
       }
 
       // Create new user
@@ -60,34 +109,37 @@ export const userController = {
       // Return success response with token
       return res.status(201).json({
         success: true,
+        message: "User registered successfully",
         username: user.username,
         token: token,
+        _id: user._id,
+        user: user,
       });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error.message,
+        message: error.message,
       });
     }
   },
 
-  // Login user
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
 
       // Validate required fields
       if (!email || !password) {
-        return res
-          .status(400)
-          .json({ error: "Email and password are required" });
+        return res.status(400).json({
+          success: false,
+          message: "Email and password are required",
+        });
       }
 
       const user = await User.findByCredentials(email, password);
       if (!user) {
         return res.status(401).json({
           success: false,
-          error: "Invalid login credentials",
+          message: "Invalid login credentials",
         });
       }
 
@@ -97,90 +149,17 @@ export const userController = {
 
       return res.status(200).json({
         success: true,
+        message: "Login successful",
         username: user.username,
+        _id: user._id,
+        user: user,
         token: token,
       });
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("Login error:", error.message);
-      }
+      console.error("Login error:", error.message);
       return res.status(401).json({
         success: false,
-        error: "Invalid login credentials",
-      });
-    }
-  },
-
-  logout: async (req, res) => {
-    try {
-      // Clear user's token (blacklist/invalidate if needed)
-      // Here you would typically add the token to a blacklist
-      // For now, we'll just return a success response
-      return res.status(200).json({
-        success: true,
-        message: "Successfully logged out",
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Error logging out",
-      });
-    }
-  },
-  // Get user profile
-  getProfile: async (req, res) => {
-    try {
-      const user = await User.findById(req.user.userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      return res.status(200).json({
-        success: true,
-        data: {
-          username: user.username,
-          email: user.email,
-        },
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Error fetching profile",
-      });
-    }
-  },
-
-  // Update user profile
-  updateProfile: async (req, res) => {
-    try {
-      const updates = Object.keys(req.body);
-      const allowedUpdates = ["username", "email"];
-      const isValidOperation = updates.every((update) =>
-        allowedUpdates.includes(update)
-      );
-
-      if (!isValidOperation) {
-        return res.status(400).json({ error: "Invalid updates" });
-      }
-
-      const user = await User.findById(req.user.userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      updates.forEach((update) => (user[update] = req.body[update]));
-      await user.save();
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          username: user.username,
-          email: user.email,
-        },
-      });
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
+        message: "Invalid login credentials",
       });
     }
   },

@@ -4,10 +4,16 @@ import Lobby from "../models/lobby.js";
 
 const router = express.Router();
 
-// lobby/create
 router.post("/create", auth, async (req, res) => {
   try {
-    const { username } = req.body;
+    console.log(
+      "Creating lobby with user:",
+      req.user,
+      "id: ",
+      req.user._id,
+      "and other id: ",
+      req._id
+    );
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({
@@ -16,26 +22,32 @@ router.post("/create", auth, async (req, res) => {
       });
     }
 
-    const lobbyId = Math.random().toString(36).substring(2, 8);
+    const roomId = Math.random().toString(36).substring(2, 8);
     const lobby = new Lobby({
-      roomId: lobbyId,
+      roomId: roomId,
       roomLeader: req.user._id,
-      users: [
+      players: [
         {
           userId: req.user._id,
           username: req.user.username,
-          isReady: false,
-          score: 0,
-          isOnline: true,
+          score: 100,
         },
       ],
+      gameState: "waiting",
+      settings: {
+        maxPlayers: 8,
+        rounds: 3,
+        customWords: [],
+      },
     });
 
     const savedLobby = await lobby.save();
 
+    console.log("Lobby created:", savedLobby);
+
     return res.status(201).json({
       success: true,
-      roomId: lobbyId,
+      roomId: roomId,
       lobby: savedLobby,
     });
   } catch (error) {
@@ -48,7 +60,7 @@ router.post("/create", auth, async (req, res) => {
 });
 
 // Get specific lobby
-router.get("/:lobbyId", async (req, res) => {
+router.get("/:lobbyId", auth, async (req, res) => {
   try {
     const lobby = await Lobby.findOne({ roomId: req.params.lobbyId });
     if (!lobby) {
@@ -58,17 +70,14 @@ router.get("/:lobbyId", async (req, res) => {
       });
     }
 
+    console.log("Lobby found id: ", lobby.roomId);
+
     res.status(200).json({
       success: true,
       lobby: {
         ...lobby.toObject(),
-        users: lobby.users.map((user) => ({
-          userId: user.userId,
-          username: user.username,
-          isReady: user.isReady,
-          score: user.score,
-          isOnline: user.isOnline,
-        })),
+        players: lobby.players,
+        gameState: lobby.gameState,
       },
     });
   } catch (error) {
@@ -80,11 +89,10 @@ router.get("/:lobbyId", async (req, res) => {
 });
 
 // Update lobby settings
-router.patch("/:lobbyId/settings", auth, async (req, res) => {
+router.patch("/:lobbyId/", auth, async (req, res) => {
   try {
     const { settings } = req.body;
     const lobby = await Lobby.findOne({ roomId: req.params.lobbyId });
-
     if (!lobby) {
       return res.status(404).json({
         success: false,

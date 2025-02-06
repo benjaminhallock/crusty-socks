@@ -9,29 +9,35 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
+      validate: {
+        validator: function (v) {
+          return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        },
+        message: "Please enter a valid email",
+      },
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 8, // Add minimum length requirement
+      validate: {
+        validator: function (v) {
+          return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(v); // Basic password strength check
+        },
+        message: "Password must contain at least one letter and one number",
+      },
     },
     username: {
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
       trim: true,
       minlength: 3,
     },
     isAdmin: {
       type: Boolean,
       default: false,
-    },
-    numberOfReports: {
-      type: Number,
-      default: 0,
-    },
-    languagePreference: {
-      type: String,
-      default: "english",
-    },
-    password: {
-      type: String,
-      required: true,
     },
     createdAt: {
       type: Date,

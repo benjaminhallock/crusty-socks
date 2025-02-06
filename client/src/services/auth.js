@@ -1,12 +1,40 @@
 const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
 
 if (!API_URL) {
-  console.error("API_URL is not defined in environment variables");
+  console.error(
+    "API_URL is not defined in environment variables, create a .env file in the root of the project and add VITE_SOCKET_URL"
+  );
 }
 
-export const createLobby = async (username) => {
+export const fetchLobby = async (roomId) => {
   try {
-    console.log("[CLIENT] Creating lobby with token:", localStorage.getItem("token"));
+    const token = localStorage.getItem("token");
+    console.log("Fetching lobby data for room:", String(roomId));
+    const response = await fetch(`${API_URL}/lobby/${roomId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Failed to fetch lobby data:", data.message);
+      return { success: false, message: data.message };
+    }
+
+    return {
+      success: true,
+      lobby: data.lobby,
+    };
+  } catch (error) {
+    console.error("Failed to fetch lobby data:", error);
+    return { success: false, message: error.message };
+  }
+};
+
+export const createLobby = async () => {
+  try {
     const response = await fetch(`${API_URL}/lobby/create`, {
       method: "POST",
       headers: {
@@ -14,22 +42,25 @@ export const createLobby = async (username) => {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
       credentials: "include",
-      body: JSON.stringify({ username }),
     });
 
-    console.log("[CLIENT] Lobby create response:", response);
     const data = await response.json();
-    console.log("[CLIENT] Lobby create data:", data);
-
-    if (!response.ok) {
-      throw new Error(data.message || `Server error: ${response.statusText}`);
-    }
 
     if (!data.roomId) {
       throw new Error("No room ID returned from server");
     }
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Failed to create lobby",
+      };
+    }
 
-    return data.roomId;
+    return {
+      success: true,
+      roomId: data.roomId,
+      lobby: data.lobby,
+    };
   } catch (error) {
     console.error("[CLIENT] Error creating lobby:", error);
     throw error;
@@ -63,57 +94,58 @@ export const register = async (email, username, password) => {
     credentials: "include",
     body: JSON.stringify({ email, username, password }),
   });
-
-  const data = await response.json();
-
-  console.log("register data", data);
-
+  const res = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Failed to register");
+    return {
+      success: false,
+      message: res.message || "Failed to register",
+    };
+  }
+  return {
+    success: true,
+    user: res.user,
+    token: res.token,
+  };
+};
+export const checkAuth = async (token) => {
+  if (!token) {
+    return {
+      success: false,
+      message: "No token provided",
+    };
   }
 
-  return data;
-};
-
-export const logout = async () => {
-  const response = await fetch(`${API_URL}/users/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to logout");
-  }
-
-  return true;
-};
-
-export const checkAuth = async () => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      return false;
-    }
-
     const response = await fetch(`${API_URL}/users/validate`, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      credentials: "include",
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
-      return false;
+      return {
+        success: false,
+        message: data.message || "Failed to validate token",
+      };
     }
 
-    const data = await response.json();
-    return data.success === true;
+    console.log("User is authenticated:", data);
+
+    return {
+      success: true,
+      user: data.user,
+      token: token,
+    };
   } catch (error) {
     console.error("Auth check failed:", error);
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    return false;
+    return {
+      success: false,
+      message: "Network or server error",
+    };
   }
 };

@@ -7,17 +7,12 @@ import users from "./routes/users.js";
 import lobbys from "./routes/lobbys.js";
 import { GameManager } from "./gameManager.js";
 import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, "config.env") });
-
+dotenv.config({ path: "./config.env" });
 if (!process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is not defined in environment variables");
+  console.error("auth.js: JWT_SECRET is not defined in environment variables");
   process.exit(1);
 }
-
 const port = process.env.PORT || 3001;
 const app = express();
 const httpServer = createServer(app);
@@ -26,23 +21,23 @@ const httpServer = createServer(app);
 // We can specify the methods and headers that are allowed.
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:5173", process.env.CORS_ORIGIN].filter(Boolean),
+    origin: ["http://localhost:5173", process.env.CORS_ORIGIN],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
   transports: ["websocket", "polling"],
 });
+// Initialize game manager and socket handler
+const gameManager = new GameManager(io);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL].filter(Boolean),
+    origin: ["http://localhost:5173", process.env.CLIENT_URL],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     authorizedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-// Does our app need to parse JSON requests?
 app.use(express.json());
 
 // Connect to MongoDB in the cloud, if you want a local connection, use the local URI
@@ -51,18 +46,12 @@ mongoose
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Initialize game manager and socket handler
-const gameManager = new GameManager(io);
-
-app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+// Routes for the server
 app.get("/", (_req, res) => res.json({ status: "Server is running" }));
 app.use("/users", users);
 app.use("/lobby", lobbys);
 
 httpServer.listen(port, () => {
-  console.log("\n[SERVER] 🚀 Server running on:");
   console.log(`[SERVER] 📡 Local: http://localhost:${port}`);
-  console.log(
-    `[SERVER] 🌍 Production: ${process.env.CORS_ORIGIN || "Not set"}\n`
-  );
+  console.log("[CLIENT] 📡 Local: http://localhost:5173");
 });

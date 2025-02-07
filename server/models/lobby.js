@@ -62,10 +62,11 @@ const lobbySchema = new mongoose.Schema({
     }],
     lastUpdate: {
       type: Date,
-      default: Date.now
+      default: Date.now,
+      expires: "5h" //hope this works!!!
     }
   }
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

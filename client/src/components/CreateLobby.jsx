@@ -7,7 +7,9 @@ const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
 
   const joinRoom = (roomId, username, userId) => {
-    socketManager.joinLobby(roomId, username, userId);
+    if (!socketManager.socket?.connected) {
+      socketManager.joinLobby(roomId, username, userId);
+    }
     navigate(`/lobby/${roomId}`);
   };
 
@@ -23,7 +25,7 @@ const CreateLobby = ({ user }) => {
     } else {
       localStorage.removeItem('currentRoom');
     }
-  }, [user, navigate]);
+  }, []); // Only run once on mount
 
   const handleCreateGame = async () => {
     try {

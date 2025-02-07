@@ -15,47 +15,46 @@ const GameRoom = ({ user }) => {
   });
 
   useEffect(() => {
-    if (!user?.username || !user?.id) {
+    if (!user?.username) {
       navigate('/');
       return;
     }
 
-    socketManager.joinLobby(roomId, user.username, user.id);
-    localStorage.setItem('currentRoom', roomId);
-
-    const cleanup = socketManager.subscribe(setGameData);
+    socketManager.connect();
+    socketManager.joinLobby(roomId, user.username);
+    
+    const unsubInit = socketManager.onInitRoom(setGameData);
+    const unsubPlayer = socketManager.onPlayerUpdate(players => 
+      setGameData(prev => ({ ...prev, players }))
+    );
+    const unsubMessage = socketManager.onMessage(message =>
+      setGameData(prev => ({ ...prev, messages: [...prev.messages, message] }))
+    );
 
     return () => {
-      localStorage.removeItem('currentRoom');
-      if (user?.id) {
-        socketManager.leaveLobby(roomId, user.id);
-      }
-      cleanup();
+      unsubInit();
+      unsubPlayer();
+      unsubMessage();
     };
-  }, [roomId, user, navigate]);
-
-  const isRoomLeader = user?.id === gameData.players[0]?.userId;
+  }, []);
 
   return (
-    <div className="container mx-auto min-h-screen pt-20 px-4">
-      <div className="flex flex-col h-[calc(100vh-5rem)] max-w-7xl mx-auto gap-4">
+    <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
+      <div className="h-full flex flex-col gap-4 py-4">
         <GameStatus 
           gameState={gameData.gameState}
-          isRoomLeader={isRoomLeader}
+          isRoomLeader={user?.id === gameData.players[0]?.userId}
         />
-        
-        <div className="flex flex-1 gap-4 min-h-0">
-          <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
-            <PixelCanvas 
-              isDrawer={user?.isAdmin}
-              gameState={gameData.gameState}
-            />
+        <div className="flex-1 flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
+            <PixelCanvas isDrawer={true} gameState={gameData.gameState} />
           </div>
-          <div className="w-96 flex-shrink-0">
+          <div className="h-[300px] lg:h-auto lg:w-80">
             <ChatBox 
               players={gameData.players}
               messages={gameData.messages}
               roomId={roomId}
+              username={user?.username}
             />
           </div>
         </div>

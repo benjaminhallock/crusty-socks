@@ -1,26 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAllUsers, getAllLobbies } from "../services/auth";
 
-const DataTable = ({ title, headers, data, renderRow }) => (
-  <section>
-    <h2 className="text-xl font-semibold mb-2">{title}</h2>
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-white shadow-md rounded-lg">
-        <thead className="bg-gray-50">
-          <tr>
-            {headers.map(header => (
-              <th key={header} className="px-6 py-3 text-left">{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(renderRow)}
-        </tbody>
-      </table>
-    </div>
-  </section>
-);
-
 const Admin = () => {
   const [data, setData] = useState({ users: [], lobbies: [] });
 
@@ -77,5 +57,25 @@ const Admin = () => {
     </div>
   );
 };
+
+const DataTable = ({ title, headers, data, renderRow }) => (
+  <section>
+    <h2 className="text-xl font-semibold mb-2">{title}</h2>
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white shadow-md rounded-lg">
+        <thead className="bg-gray-50">
+          <tr>
+            {headers.map(header => (
+              <th key={header} className="px-6 py-3 text-left">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map(renderRow)}
+        </tbody>
+      </table>
+    </div>
+  </section>
+);
 
 export default Admin;

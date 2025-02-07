@@ -1,21 +1,32 @@
-import { useState, useRef, useEffect } from "react";
-import { socketManager } from "../services/socket";
 import PlayersList from "./helpers/PlayersList";
+import { useState, useEffect, useRef } from 'react';
+import { socketManager } from '../services/socket';
 
-const ChatBox = ({ players, messages, roomId }) => {
+const ChatBox = ({ players, messages = [], roomId, username }) => {
   const [input, setInput] = useState("");
+  const [localMessages, setLocalMessages] = useState(messages);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  };
+
+  useEffect(() => {
+    const cleanup = socketManager.onMessage((message) => {
+      setLocalMessages(prev => [...prev, message]);
+    });
+    return () => cleanup();
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [localMessages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    
     if (trimmedInput) {
-      socketManager.sendMessage(roomId, trimmedInput);
+      socketManager.sendMessage(roomId, trimmedInput, username);
       setInput("");
     }
   };
@@ -23,15 +34,18 @@ const ChatBox = ({ players, messages, roomId }) => {
   return (
     <div className="flex flex-col h-full">
       <PlayersList players={players} />
-
-      <div className="flex-1 bg-white/90 rounded-lg mt-4 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {messages.map((msg, i) => (
+      <div className="flex-1 bg-white/95 rounded-lg mt-4 flex flex-col">
+        <div className="h-[450px] overflow-y-auto p-4 space-y-2">
+          {localMessages.map((msg, i) => (
             <div 
-              key={msg.timestamp ? `msg-${msg.timestamp}-${i}` : `msg-${Date.now()}-${i}`} 
-              className="message"
+              key={i} 
+              className={`message p-2 rounded ${
+                msg.username === username 
+                  ? 'bg-indigo-50 ml-8' 
+                  : 'bg-gray-50 mr-8'
+              }`}
             >
-              <span className="font-semibold text-indigo-600">{msg.user}</span>
+              <span className="font-semibold text-indigo-600">{msg.username}</span>
               <p className="text-sm text-gray-700 break-words">{msg.message}</p>
             </div>
           ))}
@@ -46,9 +60,8 @@ const ChatBox = ({ players, messages, roomId }) => {
               onChange={e => setInput(e.target.value)}
               placeholder="Type your message..."
               className="flex-1 px-3 py-2 text-sm border rounded-lg"
-              maxLength={200}
             />
-            <button
+            <button 
               type="submit"
               disabled={!input.trim()}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"

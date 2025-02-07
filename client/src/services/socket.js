@@ -1,101 +1,51 @@
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 class SocketManager {
   constructor() {
     this.socket = null;
-    this.gameData = {
-      players: [],
-      messages: [],
-      gameState: 'waiting'
-    };
-    this.listeners = new Set();
-    this.currentUser = null;
+    this.initCallbacks = new Set();
+    this.playerCallbacks = new Set();
+    this.messageCallbacks = new Set();
   }
 
-  connect(userData) {
+  connect() {
     if (this.socket) return;
     
     this.socket = io(SOCKET_URL);
-    this.currentUser = userData;
-    this.setupEvents();
+    
+    this.socket.on('initRoom', data => this.initCallbacks.forEach(cb => cb(data)));
+    this.socket.on('playerUpdate', players => this.playerCallbacks.forEach(cb => cb(players)));
+    this.socket.on('chatMessage', msg => this.messageCallbacks.forEach(cb => cb(msg)));
   }
 
-  setupEvents() {
-    if (!this.socket) return;
-
-    const events = {
-      playerUpdate: players => {
-        this.gameData.players = players;
-        this.notifyListeners();
-      },
-      chatMessage: message => {
-        this.gameData.messages = [...this.gameData.messages, message];
-        this.notifyListeners();
-      },
-      gameStateUpdate: gameState => {
-        this.gameData.gameState = gameState;
-        this.notifyListeners();
-      }
-    };
-
-    Object.entries(events).forEach(([event, handler]) => {
-      this.socket.on(event, handler);
-    });
+  joinLobby(roomId, username) {
+    this.socket?.emit('joinLobby', { roomId, username });
   }
 
-  joinLobby(roomId, username, userId) {
-    this.socket?.emit('joinLobby', { roomId, username, userId });
+  sendMessage(roomId, message, username) {
+    this.socket?.emit('chatMessage', { roomId, message, username });
   }
 
-  leaveLobby(roomId, userId) {
-    if (this.socket) {
-      this.socket.emit('leaveLobby', { roomId, userId });
-      this.resetGameData();
-    }
+  onMessage(callback) {
+    this.messageCallbacks.add(callback);
+    return () => this.messageCallbacks.delete(callback);
   }
 
-  sendMessage(roomId, message) {
-    if (this.currentUser && this.socket) {
-      this.socket.emit('chatMessage', {
-        roomId,
-        message,
-        username: this.currentUser.username
-      });
-    }
+  onInitRoom(callback) {
+    this.initCallbacks.add(callback);
+    return () => this.initCallbacks.delete(callback);
   }
 
-  emitDraw(index, color) {
-    this.socket?.emit("draw", { index, color });
-  }
-
-  subscribe(callback) {
-    this.listeners.add(callback);
-    callback({ ...this.gameData });
-    return () => this.listeners.delete(callback);
-  }
-
-  notifyListeners() {
-    this.listeners.forEach(callback => callback({ ...this.gameData }));
-  }
-
-  resetGameData() {
-    this.gameData = {
-      players: [],
-      messages: [],
-      gameState: 'waiting'
-    };
-    this.notifyListeners();
+  onPlayerUpdate(callback) {
+    this.playerCallbacks.add(callback);
+    return () => this.playerCallbacks.delete(callback);
   }
 
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    this.listeners.clear();
-    this.resetGameData();
+    this.socket?.disconnect();
+    this.socket = null;
   }
 }
 

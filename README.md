@@ -1,10 +1,10 @@
 # Crusty Socks
 
-## Current Version: 1.0 Alpha 1/29/2025
+## Current Version: 1.1 Alpha 2/7/2025
 
 ## Description
 
-A simple pixel art pictionary game. Draw by number and guess the word.
+A pixel art based spinoff of the popular game "Pictionary".
 
 ## Installation
 

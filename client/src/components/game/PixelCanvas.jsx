@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { socketManager } from "../services/socket";
+import { useRef, useState } from "react";
 
 const ToolButton = ({ active, onClick, children }) => (
   <button
@@ -16,46 +15,23 @@ const PixelCanvas = ({ isDrawer = true }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");
-  const [currentTool, setCurrentTool] = useState("brush"); // "brush" or "eraser"
+  const [currentTool, setCurrentTool] = useState("brush");
   
-  // Constants
   const GRID_SIZE = 20;
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 600;
-  const ERASER_SIZE = 2; // This will create a 2x2 eraser
 
-  // Drawing helper
   const drawPixel = (ctx, x, y, color) => {
     const gridX = Math.floor(x / GRID_SIZE);
     const gridY = Math.floor(y / GRID_SIZE);
     
-    const drawSinglePixel = (gX, gY, c) => {
-      if (gX >= 0 && gX < CANVAS_WIDTH / GRID_SIZE && 
-          gY >= 0 && gY < CANVAS_HEIGHT / GRID_SIZE) {
-        ctx.fillStyle = c;
-        ctx.fillRect(gX * GRID_SIZE, gY * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-        
-        socketManager.socket?.emit("draw", { 
-          index: gY * (CANVAS_WIDTH / GRID_SIZE) + gX, 
-          color: c 
-        });
-      }
-    };
-
-    if (currentTool === "eraser") {
-      // Draw multiple pixels for eraser
-      for (let i = 0; i < ERASER_SIZE; i++) {
-        for (let j = 0; j < ERASER_SIZE; j++) {
-          const checkerColor = ((gridX + i + gridY + j) % 2 === 0) ? "#f0f0f0" : "#ffffff";
-          drawSinglePixel(gridX + i, gridY + j, checkerColor);
-        }
-      }
-    } else {
-      drawSinglePixel(gridX, gridY, color);
+    if (gridX >= 0 && gridX < CANVAS_WIDTH / GRID_SIZE && 
+        gridY >= 0 && gridY < CANVAS_HEIGHT / GRID_SIZE) {
+      ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
+      ctx.fillRect(gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE);
     }
   };
 
-  // Drawing handlers
   const handleDraw = (e) => {
     if (!isDrawing || !isDrawer) return;
     
@@ -72,34 +48,6 @@ const PixelCanvas = ({ isDrawer = true }) => {
     drawPixel(ctx, x, y, currentColor);
   };
 
-  // Initialize canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    // Draw initial checkerboard
-    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
-      for (let x = 0; x < canvas.width; x += GRID_SIZE) {
-        ctx.fillStyle = (x / GRID_SIZE + y / GRID_SIZE) % 2 === 0 
-          ? "#f0f0f0" 
-          : "#ffffff";
-        ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
-      }
-    }
-
-    // Handle remote drawing updates
-    // socketManager.socket?.on("drawUpdate", ({ index, color }) => {
-    //   const x = (index % (canvas.width / GRID_SIZE)) * GRID_SIZE;
-    //   const y = Math.floor(index / (canvas.width / GRID_SIZE)) * GRID_SIZE;
-    //   ctx.fillStyle = color;
-    //   ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
-    // });
-
-    return () => {
-      // socketManager.socket?.off("drawUpdate");
-    };
-  }, []);
-
   return (
     <div className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 rounded-lg">
       <canvas
@@ -112,8 +60,8 @@ const PixelCanvas = ({ isDrawer = true }) => {
           height: "auto",
           touchAction: "none"
         }}
-        className={`border-2 rounded-lg ${
-          isDrawer ? "border-indigo-500 cursor-crosshair" : "border-gray-200"
+        className={`border-2 rounded-lg bg-white/100 ${
+          isDrawer ? "border-indigo-800 cursor-crosshair" : "border-gray-200"
         }`}
         onMouseDown={() => setIsDrawing(true)}
         onMouseMove={handleDraw}

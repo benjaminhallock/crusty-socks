@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import { checkAuth } from "./services/auth";
 import { socketManager } from "./services/socket";
 
 // Component imports
-import GameRoom from "./components/GameRoom";
-import LoginForm from "./components/LoginForm";
-import Navbar from "./components/helpers/Navbar";
-import CreateLobby from "./components/CreateLobby";
-import Admin from "./components/Admin";
+import Admin from "./components/admin/Admin";
+import Navbar from "./components/common/Navbar";
+import GameRoom from "./components/game/GameRoom";
+import LoginForm from "./components/auth/LoginForm";
+import CreateLobby from "./components/lobby/CreateLobby";
 
 function App() {
   const [user, setUser] = useState(null);

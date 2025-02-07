@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { login, register } from "../services/auth";
+
+import { login, register } from "../../services/auth";
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);

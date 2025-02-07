@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+import { API_ENDPOINTS, ENV_CONFIG } from '../../../shared/constants.js';
 
 const handleResponse = async (response) => {
   const data = await response.json();
@@ -8,7 +8,7 @@ const handleResponse = async (response) => {
 
 const makeApiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${ENV_CONFIG.API_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -21,14 +21,14 @@ const makeApiCall = async (endpoint, options = {}) => {
 
 export const fetchLobby = (roomId) => {
   if (!roomId) throw new Error("Room ID is required");
-  return makeApiCall(`/lobby/${roomId}`);
+  return makeApiCall(API_ENDPOINTS.GET_LOBBY(roomId));
 };
 
 export const createLobby = () => 
-  makeApiCall('/lobby/create', { method: "POST" });
+  makeApiCall(API_ENDPOINTS.CREATE_LOBBY, { method: "POST" });
 
 export const login = (email, password) => 
-  makeApiCall('/users/login', {
+  makeApiCall(API_ENDPOINTS.LOGIN, {
     method: "POST",
     body: JSON.stringify({ email, password })
   }).then(response => {
@@ -39,7 +39,7 @@ export const login = (email, password) =>
   });
 
 export const register = (email, username, password) => 
-  makeApiCall('/users/register', {
+  makeApiCall(API_ENDPOINTS.REGISTER, {
     method: "POST",
     body: JSON.stringify({ email, username, password })
   }).then(response => {
@@ -50,15 +50,15 @@ export const register = (email, username, password) =>
   });
 
 export const checkAuth = () => 
-  makeApiCall('/users/validate').catch(error => {
+  makeApiCall(API_ENDPOINTS.VALIDATE).catch(error => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     return { success: false, message: error.message };
   });
 
 export const getAllUsers = () => 
-  makeApiCall('/users/all');
+  makeApiCall(API_ENDPOINTS.GET_ALL_USERS);
 
 export const getAllLobbies = () => 
-  makeApiCall('/lobby/all');
+  makeApiCall(API_ENDPOINTS.GET_ALL_LOBBIES);
 

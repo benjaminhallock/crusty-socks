@@ -1,8 +1,8 @@
 import {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
-import { createLobby } from "../services/auth";
-import { fetchLobby} from "../services/auth";
-import { socketManager } from "../services/socket";
+
+import { socketManager } from "../../services/socket";
+import { fetchLobby, createLobby } from "../../services/auth";
 
 const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
@@ -16,18 +16,11 @@ const CreateLobby = ({ user }) => {
   };
 
   useEffect(() => {
-    if (!user?.id || !user?.username) {
-      navigate("/");
+    if (!user) {
+      navigate('/login');
       return;
     }
-
-    const currentRoom = localStorage.getItem('currentRoom');
-    if (currentRoom && window.confirm('Return to your active game?')) {
-      joinRoom(currentRoom, user.username, user.id);
-    } else {
-      localStorage.removeItem('currentRoom');
-    }
-  }, []); // Only run once on mount
+  }, [navigate, user]);
 
   const handleCreateGame = async () => {
     try {

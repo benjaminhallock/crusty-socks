@@ -1,7 +1,7 @@
 import express from 'express';
+
 import { userController } from '../controllers/userController.js';
-import { auth } from '../middleware/auth.js';
-import { admin } from '../middleware/admin.js';
+import { auth, authAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.post('/login', userController.login);        // Login to account
 // Protected routes (need to be logged in)
 router.get('/validate', auth, userController.validateToken);  // Check if token is valid
 
-// TODO: Add admin middleware to routes that require it
-router.get('/all', auth, userController.getAllUsers);  // Get list of all users
+// Admin routes
+router.get('/all', auth, authAdmin, userController.getAllUsers);  // Get list of all users (admin only)
 
 export default router;

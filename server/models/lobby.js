@@ -9,13 +9,13 @@ const lobbySchema = new mongoose.Schema({
   },
   roomLeader: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: true
   },
   players: [{
     userId: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: "User"
+      ref: 'User'
     },
     username: String,
     score: {
@@ -36,48 +36,19 @@ const lobbySchema = new mongoose.Schema({
     enum: ['waiting', 'playing', 'finished'],
     default: 'waiting'
   },
-  settings: {
-    maxPlayers: {
-      type: Number,
-      default: 8,
-      min: 2,
-      max: 16
-    },
-    rounds: {
-      type: Number,
-      default: 3,
-      min: 1,
-      max: 10
-    }
-  },
-  isArchived: {
-    type: Boolean,
-    default: false,
-    index: true
-  },
   canvasState: {
     pixels: [{
       index: Number,
       color: String
     }],
-    lastUpdate: {
-      type: Date,
-      default: Date.now,
-      expires: "5h" //hope this works!!!
-    }
+    lastUpdate: Date
   }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
 // Index for faster queries
 lobbySchema.index({ createdAt: -1 });
-lobbySchema.index({ gameState: 1, isArchived: 1 });
-
-// Add compound index to prevent duplicate players in a lobby
-// and ensure a player can only be in one lobby
 lobbySchema.index({ 'players.userId': 1, roomId: 1 }, { unique: true });
 
 const Lobby = mongoose.model('Lobby', lobbySchema);

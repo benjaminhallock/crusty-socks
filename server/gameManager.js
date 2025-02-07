@@ -1,3 +1,5 @@
+import { GAME_CONSTANTS } from '../shared/constants.js';
+
 export class GameManager {
   constructor(io) {
     this.io = io;
@@ -6,39 +8,38 @@ export class GameManager {
   }
 
   setupSocketListeners(io) {
-    io.on("connection", (socket) => {
-      socket.on("joinLobby", ({ roomId, username }) => {
+    io.on('connection', (socket) => {
+      socket.on('joinLobby', ({ roomId, username }) => {
         if (!roomId || !username) return;
-        
-        if (!this.rooms.has(roomId)) {
-          this.rooms.set(roomId, { 
-            players: new Set(), 
-            messages: [], 
-            gameState: "waiting" 
-          });
+
+        const room = this.rooms.get(roomId) || {
+          players: new Set(),
+          messages: [],
+          gameState: GAME_CONSTANTS.GAME_STATES.WAITING
+        };
+
+        // Remove existing player with same username if exists
+        const existingPlayer = Array.from(room.players).find(p => p.username === username);
+        if (existingPlayer) {
+          room.players.delete(existingPlayer);
         }
 
-        socket.join(roomId);
-        const room = this.rooms.get(roomId);
-        
-        // Remove existing player if exists
-        Array.from(room.players).forEach(p => {
-          if (p.username === username) room.players.delete(p);
-        });
+        // Add the player
         room.players.add({ username, socketId: socket.id });
-        
-        socket.emit("initRoom", {
-          players: Array.from(room.players).map(p => ({ username: p.username })),
-          messages: room.messages,
-          gameState: room.gameState
-        });
+        this.rooms.set(roomId, room);
+        socket.join(roomId);
 
-        io.to(roomId).emit("playerUpdate", Array.from(room.players).map(p => ({ 
-          username: p.username 
-        })));
+        // Emit updated player list
+        io.to(roomId).emit(
+          'playerUpdate',
+          Array.from(room.players).map(p => ({
+            username: p.username,
+            isOnline: true
+          }))
+        );
       });
 
-      socket.on("disconnect", () => {
+      socket.on('disconnect', () => {
         this.rooms.forEach((room, roomId) => {
           const player = Array.from(room.players).find(p => p.socketId === socket.id);
           if (player) {
@@ -46,7 +47,8 @@ export class GameManager {
             if (room.players.size === 0) {
               this.rooms.delete(roomId);
             } else {
-              io.to(roomId).emit("playerUpdate", 
+              io.to(roomId).emit(
+                'playerUpdate',
                 Array.from(room.players).map(p => ({
                   username: p.username,
                   isOnline: true
@@ -57,15 +59,18 @@ export class GameManager {
         });
       });
 
-      socket.on("chatMessage", ({ roomId, message, username }) => {
+      socket.on('chatMessage', ({ roomId, message, username }) => {
         if (!roomId || !message || !username) return;
         const room = this.rooms.get(roomId);
         if (!room) return;
 
         const messageData = { username, message, timestamp: Date.now() };
-        room.messages.push(messageData);
-        io.to(roomId).emit("chatMessage", messageData);
+        io.to(roomId).emit('chatMessage', messageData);
       });
     });
   }
 }
+
+export const initializeSocketEvents = (io) => {
+  return new GameManager(io);
+};

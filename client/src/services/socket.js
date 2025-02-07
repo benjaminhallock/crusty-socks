@@ -1,27 +1,51 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { ENV_CONFIG } from '../../../shared/constants.js';
 
 class SocketManager {
   constructor() {
     this.socket = null;
-    this.initCallbacks = new Set();
-    this.playerCallbacks = new Set();
     this.messageCallbacks = new Set();
+    this.playerCallbacks = new Set();
+    this.currentRoom = null;
   }
 
   connect() {
     if (this.socket) return;
     
-    this.socket = io(SOCKET_URL);
+    this.socket = io(ENV_CONFIG.SOCKET_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      extraHeaders: {
+        'Access-Control-Allow-Origin': ENV_CONFIG.CLIENT_URL
+      }
+    });
     
-    this.socket.on('initRoom', data => this.initCallbacks.forEach(cb => cb(data)));
-    this.socket.on('playerUpdate', players => this.playerCallbacks.forEach(cb => cb(players)));
-    this.socket.on('chatMessage', msg => this.messageCallbacks.forEach(cb => cb(msg)));
+    this.socket.on('playerUpdate', players => {
+      if (this.currentRoom) {  // Only update if we're in a room
+        this.playerCallbacks.forEach(cb => cb(players));
+      }
+    });
+    
+    this.socket.on('chatMessage', msg => 
+      this.messageCallbacks.forEach(cb => cb(msg))
+    );
+
+    // Handle reconnection
+    this.socket.on('reconnect', () => {
+      if (this.currentRoom) {
+        this.joinLobby(this.currentRoom.roomId, this.currentRoom.username);
+      }
+    });
   }
 
   joinLobby(roomId, username) {
-    this.socket?.emit('joinLobby', { roomId, username });
+    if (this.socket) {
+      this.currentRoom = { roomId, username };
+      this.socket.emit('joinLobby', { roomId, username });
+    }
   }
 
   sendMessage(roomId, message, username) {
@@ -31,11 +55,6 @@ class SocketManager {
   onMessage(callback) {
     this.messageCallbacks.add(callback);
     return () => this.messageCallbacks.delete(callback);
-  }
-
-  onInitRoom(callback) {
-    this.initCallbacks.add(callback);
-    return () => this.initCallbacks.delete(callback);
   }
 
   onPlayerUpdate(callback) {

@@ -1,4 +1,5 @@
 import express from 'express';
+
 import { auth } from '../middleware/auth.js';
 import Lobby from '../models/lobby.js';
 
@@ -11,7 +12,7 @@ router.get('/all', auth, async (req, res) => {
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: "Failed to get lobbies"
+      message: 'Failed to get lobbies'
     });
   }
 });
@@ -34,7 +35,7 @@ router.post('/create', auth, async (req, res) => {
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: "Failed to create lobby"
+      message: 'Failed to create lobby'
     });
   }
 });
@@ -45,14 +46,14 @@ router.get('/:roomId', auth, async (req, res) => {
     if (!lobby) {
       return res.status(404).json({
         success: false,
-        message: "Lobby not found"
+        message: 'Lobby not found'
       });
     }
     res.json({ success: true, lobby });
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: "Failed to get lobby"
+      message: 'Failed to get lobby'
     });
   }
 });

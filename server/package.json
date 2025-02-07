@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -18,7 +19,10 @@
     "socket.io": "^4.7.4"
   },
   "devDependencies": {
-    "eslint": "^8.56.0",
+    "@eslint/js": "^9.20.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-perfectionist": "^4.8.0",
+    "globals": "^15.14.0",
     "nodemon": "^3.0.3"
   },
   "engines": {

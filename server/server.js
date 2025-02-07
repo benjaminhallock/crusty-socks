@@ -1,56 +1,68 @@
+import cors from 'cors';
+import dotenv from 'dotenv';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import userRoutes from './routes/users.js';
-import lobbyRoutes from './routes/lobbys.js';
-import { GameManager } from './gameManager.js';
-import db from './db/connection.js';
 
-// Load environment variables
-dotenv.config({ path: "./config.env" });
+import { ENV_CONFIG } from '../shared/constants.js';
+import connectDB from './db/connection.js';
+import { initializeSocketEvents } from './gameManager.js';
+import lobbyRoutes from './routes/lobbys.js';
+import userRoutes from './routes/users.js';
+
+dotenv.config({ path: './config.env' });
+
 if (!process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is not defined");
-  process.exit(1);
+    console.error('JWT_SECRET environment variable is not set');
+    process.exit(1);
 }
 
-// Create Express app and HTTP server
 const app = express();
-const server = createServer(app);
+const httpServer = createServer(app);
 
+// CORS configuration
 const corsOptions = {
-  origin: [process.env.CORS_ORIGIN, "http://localhost:5174"],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+    origin: process.env.NODE_ENV === 'development' 
+        ? ['http://localhost:5174', 'http://127.0.0.1:5174'] 
+        : ENV_CONFIG.CLIENT_URL,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-// Setup middleware
-app.use(express.json());
+const io = new Server(httpServer, {
+    cors: {
+        ...corsOptions,
+        transports: ['websocket', 'polling'],
+        credentials: true
+    }
+});
+
+// Middleware
 app.use(cors(corsOptions));
+app.use(express.json());
 
-// Setup routes
-app.use('/users', userRoutes);
-app.use('/lobby', lobbyRoutes);
+// Routes
+app.use('/api/users', userRoutes);
+app.use('/api/lobbys', lobbyRoutes);
 
-// Create Socket.IO instance with simplified config
-const io = new Server(server, { cors: corsOptions });
+// Socket.io setup
+initializeSocketEvents(io);
 
-// Initialize after database connection
-db.once('connected', () => {
-  const gameManager = new GameManager(io);
-  const PORT = process.env.PORT || 3001;
-  
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
-  });
-});
+const PORT = process.env.PORT || 5000;
 
-// Handle database errors
-db.on('error', (error) => {
-  console.error('Database connection error:', error);
-});
+// Start server
+const startServer = async () => {
+    try {
+        await connectDB();
+        httpServer.listen(PORT, () => {
+            console.error(`Server running on port ${PORT}`);
+            console.error(`Environment: ${process.env.NODE_ENV}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
 
-export default server;
+startServer();

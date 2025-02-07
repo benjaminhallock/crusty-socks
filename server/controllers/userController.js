@@ -1,30 +1,45 @@
-import User from "../models/user.js";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
-dotenv.config("/config.env");
+import User from '../models/user.js';
 
-const generateToken = (userId) => 
-  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "24h" });
+dotenv.config('/config.env');
+
+const generateToken = (userId) =>
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
 const cleanUser = (user) => ({
   _id: user._id,
   email: user.email,
-  username: user.username
+  username: user.username,
 });
 
 export const userController = {
+  deleteUser: async (req, res) => {
+    try {
+      await req.user.remove();
+      res.status(200).json({
+        success: true,
+        message: 'User deleted',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete user',
+      });
+    }
+  },
   validateToken: async (req, res) => {
     try {
       res.status(200).json({
         success: true,
         user: cleanUser(req.user),
-        token: req.token
+        token: req.token,
       });
     } catch (error) {
       res.status(401).json({
         success: false,
-        message: "Invalid token"
+        message: 'Invalid token',
       });
     }
   },
@@ -35,21 +50,22 @@ export const userController = {
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields"
+        message: 'Missing required fields',
       });
     }
 
     try {
-      const existingUser = await User.findOne({ 
-        $or: [{ email }, { username }] 
+      const existingUser = await User.findOne({
+        $or: [{ email }, { username }],
       });
 
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: existingUser.email === email 
-            ? "Email already exists" 
-            : "Username already exists"
+          message:
+            existingUser.email === email
+              ? 'Email already exists'
+              : 'Username already exists',
         });
       }
 
@@ -59,48 +75,48 @@ export const userController = {
       res.status(201).json({
         success: true,
         user: cleanUser(user),
-        token
+        token,
       });
     } catch (error) {
       res.status(400).json({
         success: false,
-        message: "Registration failed"
+        message: 'Registration failed',
       });
     }
   },
 
   login: async (req, res) => {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password required"
+        message: 'Email and password required',
       });
     }
 
     try {
       const user = await User.findByCredentials(email, password);
-      
+
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: "Invalid credentials"
+          message: 'Invalid credentials',
         });
       }
-      
+
       const token = generateToken(user._id);
-      
+
       res.status(200).json({
         success: true,
         user: cleanUser(user),
         token,
-        message: "Login successful"
+        message: 'Login successful',
       });
     } catch (error) {
       res.status(401).json({
         success: false,
-        message: "Invalid credentials"
+        message: 'Invalid credentials',
       });
     }
   },
@@ -110,13 +126,13 @@ export const userController = {
       const users = await User.find({}, '-password');
       res.status(200).json({
         success: true,
-        users
+        users,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Failed to get users"
+        message: 'Failed to get users',
       });
     }
-  }
+  },
 };

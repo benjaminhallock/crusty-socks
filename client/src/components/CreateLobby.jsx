@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
 import { createLobby } from "../services/auth";
+import { fetchLobby} from "../services/auth";
 import { socketManager } from "../services/socket";
 
 const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
+  const [error, setError] = useState("");
 
   const joinRoom = (roomId, username, userId) => {
     socketManager.joinLobby(roomId, username, userId);
@@ -36,11 +38,21 @@ const CreateLobby = ({ user }) => {
     }
   };
 
-  const handleJoinGame = (e) => {
+  const handleJoinGame = async (e) => {
     e.preventDefault();
     const roomId = e.target.roomId.value.trim().split("/").pop();
-    if (roomId) {
-      joinRoom(roomId, user.username, user.id);
+
+    if (!roomId) return;
+
+    try {
+      const response = await fetchLobby(roomId);
+      if (response.success) {
+        joinRoom(roomId, user.username, user.id);
+      } else {
+        setError("Invalid Room ID.")
+      }
+    } catch (error) {
+      setError(""+error)
     }
   };
 
@@ -80,6 +92,11 @@ const CreateLobby = ({ user }) => {
             Join Game
           </button>
         </form>
+        {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+        )}
       </div>
     </div>
   );

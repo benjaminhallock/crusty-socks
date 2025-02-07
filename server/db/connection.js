@@ -14,17 +14,17 @@ mongoose.connect(uri, {
     socketTimeoutMS: 45000,
 })
 .then(() => {
-    console.log('Successfully connected to MongoDB.');
+    console.info('Database connection established');
 })
 .catch((err) => {
-    console.error('Error connecting to MongoDB:', err);
+    console.error('Database connection failed:', err);
     process.exit(1);
 });
 
 const db = mongoose.connection;
 
 db.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
+    console.error('Database connection error:', err);
 });
 
 export default db;

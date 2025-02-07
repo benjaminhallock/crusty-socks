@@ -4,41 +4,57 @@ import User from "../models/user.js";
 export const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: "No token provided",
+        message: "Authentication token missing",
       });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (!decoded.userId) {
+    let token = authHeader;
+    // Handle both formats but always store as clean token
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
+    
+    if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Missing user ID in token",
+        message: "Invalid token format",
       });
     }
 
-    // Add user verification
-    const user = await User.findById(decoded.userId);
-    if (!user) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!decoded?.userId) {
+        throw new Error("Invalid token payload");
+      }
+      
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Add user info to request object
+      req.user = user;
+      req.token = `Bearer ${token}`; // Store consistent format
+      req._id = decoded.userId;
+      
+      next();
+    } catch (jwtError) {
       return res.status(401).json({
         success: false,
-        message: "User not found",
+        message: "Invalid or expired token",
       });
     }
-
-    req.user = user;
-    req.token = token;
-    req._id = decoded.userId;
-    next();
   } catch (err) {
-    console.error("auth.js:", err.message);
-    return res.status(401).json({
+    console.error("Auth middleware error:", err.message);
+    return res.status(500).json({
       success: false,
-      message: "Token is not valid",
+      message: "Internal server error during authentication",
     });
   }
 };

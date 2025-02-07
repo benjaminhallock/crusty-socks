@@ -1,77 +1,134 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { socket } from "../services/socket";
 import { createLobby } from "../services/auth";
+import { socketManager } from "../services/socket";
 
-const CreateLobby = () => {
+const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const initialized = useRef(false);
 
-  const buttonStyle = "px-6 py-3 text-white rounded-lg transition-colors";
-
+  // Check if user is logged in and has active game
   useEffect(() => {
-    if (!localStorage.getItem("username")) {
+    if (!user?.id || !user?.username) {
+      navigate("/");
+      return;
+    }
+
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const currentRoom = localStorage.getItem('currentRoom');
+    if (currentRoom) {
+      const shouldReturn = window.confirm('You have an active game. Would you like to return to it?');
+      if (shouldReturn) {
+        socketManager.joinLobby(currentRoom, user.username, user.id);
+        navigate(`/lobby/${currentRoom}`);
+        return;
+      }
+      localStorage.removeItem('currentRoom');
+    }
+
+    const userData = localStorage.getItem("user");
+    if (!userData) {
       navigate("/");
     }
-  }, [navigate]);
+  }, [user, navigate]); // Added user and navigate to dependency array
 
-  const handleCreateLobby = async () => {
+  // Handle creating a new game lobby
+  const handleCreateGame = async () => {
+    if (!user?.id || !user?.username) {
+      setError("User session invalid");
+      return;
+    }
+
     try {
-      const username = localStorage.getItem("username");
-      const data = await createLobby();
-      if (data.success) {
-        const roomId = data.roomId;
-        localStorage.setItem("roomId", roomId);
-        console.log("Created lobby with ID:", roomId);
-        navigate(`/lobby/${roomId}`);
+      const response = await createLobby();
+      if (response.success) {
+
+        setError("");
+        socketManager.joinLobby(response.roomId, user.username, user.id);
+        navigate(`/lobby/${response.roomId}`);
       } else {
-        setError(data.message);
+        setError(response.message || "Could not create game");
       }
     } catch (error) {
-      setError("Failed to create lobby");
+      setError("Could not connect to server");
     }
   };
 
-  const handleJoinLobby = (e) => {
+  // Handle joining an existing game
+  const handleJoinGame = (e) => {
     e.preventDefault();
-    const roomId = e.target.roomId.value.split("/").pop();
+
+    if (!user?.id || !user?.username) {
+      setError("User session invalid");
+      return;
+    }
+
+    const roomInput = e.target.roomId.value.trim();
+    
+    // Extract room ID from full URL or use direct input
+    const roomId = roomInput.includes("/") 
+      ? roomInput.split("/").pop() 
+      : roomInput;
+
     if (roomId) {
-      socket.emit("join_room", { roomId });
+      socketManager.joinLobby(roomId, user.username, user.id);
       navigate(`/lobby/${roomId}`);
+    } else {
+      setError("Please enter a room ID or URL");
     }
   };
 
   return (
     <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-      <div className="text-center bg-white/80 backdrop-blur-[4px] p-8 rounded-lg shadow-lg">
-        <div className="flex flex-col gap-4">
-          {error && <div className="text-red-500">{error}</div>}
+      <div className="text-center bg-white/80 backdrop-blur-[4px] p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-6">Join a Game</h1>
+        
+        {/* Error message */}
+        {error && (
+          <div className="text-red-500 bg-red-50 p-3 rounded-lg text-sm mb-4">
+            {error}
+          </div>
+        )}
 
-          <button
-            onClick={handleCreateLobby}
-            className={`${buttonStyle} bg-indigo-600 hover:bg-indigo-700`}
-          >
-            Create Lobby
-          </button>
+        {/* Create game button */}
+        <button
+          onClick={handleCreateGame}
+          className="w-full px-6 py-3 text-white rounded-lg bg-indigo-600 hover:bg-indigo-700"
+        >
+          Create New Game
+        </button>
 
-          <div className="text-gray-500">or</div>
-
-          <form onSubmit={handleJoinLobby} className="flex flex-col gap-4">
-            <input
-              type="text"
-              name="roomId"
-              placeholder="Enter Room ID/url"
-              className="px-4 py-2 rounded-lg border"
-              required
-            />
-            <button
-              type="submit"
-              className={`${buttonStyle} bg-gray-600 hover:bg-gray-700`}
-            >
-              Join Lobby
-            </button>
-          </form>
+        {/* Divider */}
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-2 bg-white/80 text-sm text-gray-500">
+              or join existing
+            </span>
+          </div>
         </div>
+
+        {/* Join game form */}
+        <form onSubmit={handleJoinGame}>
+          <input
+            type="text"
+            name="roomId"
+            placeholder="Enter Room ID or paste invite link"
+            className="w-full px-4 py-2 rounded-lg border mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+          />
+          <button
+            type="submit"
+            className="w-full px-6 py-3 text-white rounded-lg bg-gray-600 hover:bg-gray-700"
+          >
+            Join Game
+          </button>
+        </form>
       </div>
     </div>
   );

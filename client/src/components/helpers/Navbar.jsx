@@ -1,21 +1,6 @@
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 const Navbar = ({ isLoggedIn, onLogout }) => {
-  const [showMenu, setShowMenu] = useState(false);
-
-  useEffect(() => {
-    const closeMenu = () => setShowMenu(false);
-    window.addEventListener("click", closeMenu);
-
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
-
-  const handleLogout = () => {
-    onLogout();
-    setShowMenu(false);
-  };
-
   return (
     <nav className="bg-gray-800 h-16 z-50 fixed top-0 left-0 right-0 p-4 mb-10">
       <div className="flex justify-between items-center">
@@ -24,10 +9,17 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
             <img src="/logo.svg" alt="Logo" className="h-8" />
           </Link>
         </div>
-        <div>
+        <div className="hidden md:flex gap-4">
+          {isLoggedIn && (
+            <Link to="/admin" className="text-white hover:text-gray-300">
+              Admin
+            </Link>
+          )}
+        </div>
+        <div className="relative">
           {isLoggedIn ? (
             <button
-              onClick={handleLogout}
+              onClick={onLogout}
               className="text-white hover:text-gray-300"
             >
               Logout

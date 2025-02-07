@@ -1,6 +1,6 @@
 const GameStatus = ({ gameState, onStartGame }) => {
   return (
-    <div className="flex gap-3 bg-white/90 backdrop-blur-sm rounded-lg p-4">
+    <div className="flex justify-between gap-3 bg-white/90 backdrop-blur-sm rounded-lg p-4">
       <div className="flex items-center gap-1">
         <span className="text-lg font-bold">Status:</span>
         <span className="text-lg font-semibold text-indigo-600">

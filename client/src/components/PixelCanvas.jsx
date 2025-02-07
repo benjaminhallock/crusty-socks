@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { socket } from "../services/socket";
+import { socketManager } from "../services/socket";
 
 // Simple button component for drawing tools
 const ToolButton = ({ active, disabled, onClick, children }) => (
@@ -18,124 +18,170 @@ const ToolButton = ({ active, disabled, onClick, children }) => (
   </button>
 );
 
+// Separate component for drawing tools
+const DrawingTools = ({ canvasState, setCanvasState, defaultColor, isDisabled }) => {
+  return (
+    <div className="w-full bg-white/90 backdrop-blur-sm p-3 rounded-lg mt-2">
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        {/* Color picker */}
+        <input
+          type="color"
+          value={canvasState.currentColor || defaultColor}
+          onChange={(e) =>
+            setCanvasState((prev) => ({
+              ...prev,
+              currentColor: e.target.value,
+              currentTool: "brush",
+            }))
+          }
+          className="w-10 h-10 rounded cursor-pointer"
+          disabled={isDisabled}
+          title="Choose color"
+        />
+
+        {/* Tool buttons */}
+        <div className="flex gap-2">
+          {["brush", "bucket", "eraser"].map((tool) => (
+            <ToolButton
+              key={tool}
+              active={canvasState.currentTool === tool}
+              disabled={isDisabled}
+              onClick={() =>
+                setCanvasState((prev) => ({ ...prev, currentTool: tool }))
+              }
+              title={tool === "bucket" ? "Fill area" : `${tool} tool`}
+            >
+              {tool === "bucket" ? "Fill" : tool.charAt(0).toUpperCase() + tool.slice(1)}
+            </ToolButton>
+          ))}
+        </div>
+
+        {/* History controls */}
+        <div className="flex gap-2">
+          <ToolButton
+            onClick={() => canvasState.historyIndex > 0 && canvasState.undo()}
+            disabled={canvasState.historyIndex <= 0 || isDisabled}
+            title="Undo last action"
+          >
+            Undo
+          </ToolButton>
+          <ToolButton
+            onClick={() => 
+              canvasState.historyIndex < canvasState.history.length - 1 && 
+              canvasState.redo()
+            }
+            disabled={
+              canvasState.historyIndex >= canvasState.history.length - 1 ||
+              isDisabled
+            }
+            title="Redo last action"
+          >
+            Redo
+          </ToolButton>
+        </div>
+
+        {/* Brush size control */}
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <input
+            type="range"
+            min="1"
+            max="5"
+            value={canvasState.brushSize}
+            onChange={(e) =>
+              setCanvasState((prev) => ({
+                ...prev,
+                brushSize: parseInt(e.target.value),
+              }))
+            }
+            className="w-16 sm:w-20"
+            disabled={isDisabled}
+            title="Adjust brush size"
+          />
+          <span className="text-xs w-4">{canvasState.brushSize}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main PixelCanvas component
 const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
-  // References to DOM elements
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Canvas configuration
-  const GRID_SIZE = 20; // Size of each pixel
-  const BASE_WIDTH = 800; // Default canvas width
-  const BASE_HEIGHT = 600; // Default canvas height
+  // Constants
+  const GRID_SIZE = 20;
+  const BASE_WIDTH = 800;
+  const BASE_HEIGHT = 600;
 
-  // Main state for canvas operations
+  // Canvas state with action methods
   const [canvasState, setCanvasState] = useState({
-    isDrawing: false, // Whether user is currently drawing
-    currentColor: defaultColor, // Selected color
-    brushSize: 1, // Size of brush (1-5)
-    currentTool: "brush", // Current tool (brush, bucket, eraser)
-    history: [], // Array of canvas states for undo/redo
-    historyIndex: -1, // Current position in history
-    canvasSize: { width: BASE_WIDTH, height: BASE_HEIGHT }, // Current canvas size
+    isDrawing: false,
+    currentColor: defaultColor,
+    brushSize: 1,
+    currentTool: "brush",
+    history: [],
+    historyIndex: -1,
+    canvasSize: { width: BASE_WIDTH, height: BASE_HEIGHT },
+    undo: () => handleUndo(),
+    redo: () => handleRedo(),
   });
 
-  // Disable drawing if not the drawer and game is playing
   const isDisabled = !isDrawer && gameState === "playing";
 
-  // Convert mouse/touch position to grid coordinates
+  // Drawing helpers
   const getGridPosition = (clientX, clientY, rect, scale) => {
-    const x = Math.floor(((clientX - rect.left) * scale) / GRID_SIZE);
-    const y = Math.floor(((clientY - rect.top) * scale) / GRID_SIZE);
-    return [x, y];
+    return [
+      Math.floor(((clientX - rect.left) * scale) / GRID_SIZE),
+      Math.floor(((clientY - rect.top) * scale) / GRID_SIZE)
+    ];
   };
 
-  // Draw a single pixel and emit to other players
-  const drawPixel = (ctx, x, y, color) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-
-    // Tell other players about this pixel
-    const index = y * (BASE_WIDTH / GRID_SIZE) + x;
-    socket.emit("draw", { index, color });
+  const getPixel = (ctx, x, y) => {
+    const pixel = ctx.getImageData(x * GRID_SIZE, y * GRID_SIZE, 1, 1);
+    return `rgb(${pixel.data[0]}, ${pixel.data[1]}, ${pixel.data[2]})`;
   };
 
-  // Handle start of drawing (mouse down or touch start)
-  const handleInteractionStart = (e) => {
-    if (isDisabled) return;
-    setCanvasState((prev) => ({ ...prev, isDrawing: true }));
-    handleDraw(e);
-  };
+  const floodFill = (startX, startY, fillColor) => {
+    if (!isWithinCanvas(startX, startY)) return;
 
-  // Handle drawing motion (mouse move or touch move)
-  const handleInteractionMove = (e) => {
-    if (!canvasState.isDrawing) return;
-    handleDraw(e);
-  };
-
-  // Handle end of drawing (mouse up or touch end)
-  const handleInteractionEnd = () => {
-    setCanvasState((prev) => ({ ...prev, isDrawing: false }));
-  };
-
-  // Main drawing function
-  const handleDraw = (e) => {
-    if (isDisabled) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scale = canvas.width / rect.width;
-
-    // Get cursor position (works for both mouse and touch)
-    const clientX = e.clientX || e.touches?.[0]?.clientX;
-    const clientY = e.clientY || e.touches?.[0]?.clientY;
-    if (!clientX || !clientY) return;
-
-    const [centerX, centerY] = getGridPosition(clientX, clientY, rect, scale);
-
-    // Handle paint bucket tool separately
-    if (canvasState.currentTool === "bucket") {
-      floodFill(
-        clientX - rect.left,
-        clientY - rect.top,
-        canvasState.currentColor
-      );
-      return;
-    }
-
-    // Draw pixels based on brush size
-    drawBrush(centerX, centerY);
-  };
-
-  // Draw multiple pixels for brush tool
-  const drawBrush = (centerX, centerY) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const size =
-      canvasState.currentTool === "eraser"
-        ? Math.max(canvasState.brushSize, 1)
-        : canvasState.brushSize;
-    const offset = Math.floor(size / 2);
+    const targetColor = getPixel(ctx, startX, startY);
+    
+    if (targetColor === fillColor) return;
 
-    // Draw a square of pixels centered on the cursor
-    for (let y = -offset; y <= offset; y++) {
-      for (let x = -offset; x <= offset; x++) {
-        const currentX = centerX + x;
-        const currentY = centerY + y;
+    const stack = [[startX, startY]];
+    const visited = new Set();
 
-        // Check if pixel is within canvas bounds
-        if (isWithinCanvas(currentX, currentY)) {
-          const color = getPixelColor(currentX, currentY);
-          drawPixel(ctx, currentX, currentY, color);
-        }
+    while (stack.length > 0) {
+      const [x, y] = stack.pop();
+      const key = `${x},${y}`;
+
+      if (!isWithinCanvas(x, y) || visited.has(key) || getPixel(ctx, x, y) !== targetColor) {
+        continue;
       }
+
+      drawPixel(ctx, x, y, fillColor);
+      visited.add(key);
+
+      // Add adjacent pixels
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
 
-    if (!canvasState.isDrawing || canvasState.currentTool === "bucket") {
-      saveToHistory();
-    }
+    saveToHistory();
   };
 
-  // Check if coordinates are within canvas bounds
+  const drawPixel = (ctx, x, y, color) => {
+    if (!isWithinCanvas(x, y)) return;
+    ctx.fillStyle = color;
+    ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+    socketManager.socket?.emit("draw", { 
+      index: y * (BASE_WIDTH / GRID_SIZE) + x, 
+      color 
+    });
+  };
+
   const isWithinCanvas = (x, y) => {
     const canvas = canvasRef.current;
     return (
@@ -146,156 +192,104 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
     );
   };
 
-  // Get color for pixel based on tool
-  const getPixelColor = (x, y) => {
-    if (canvasState.currentTool === "eraser") {
-      return (x + y) % 2 === 0 ? "#f0f0f0" : "#ffffff";
+  // Drawing handlers
+  const handleDraw = (e) => {
+    if (isDisabled || !canvasState.isDrawing) return;
+
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    
+    const clientX = e.clientX || e.touches?.[0]?.clientX;
+    const clientY = e.clientY || e.touches?.[0]?.clientY;
+    if (!clientX || !clientY) return;
+
+    const [x, y] = getGridPosition(clientX, clientY, rect, scale);
+
+    if (canvasState.currentTool === "bucket") {
+      floodFill(x, y, canvasState.currentColor);
+      return;
     }
-    return canvasState.currentColor;
+
+    drawBrush(x, y);
   };
 
-  // Save current canvas state to history
+  const drawBrush = (centerX, centerY) => {
+    const ctx = canvasRef.current.getContext("2d");
+    const size = canvasState.currentTool === "eraser" 
+      ? 1 
+      : canvasState.brushSize;
+    
+    const offset = Math.floor(size / 2);
+    const color = canvasState.currentTool === "eraser"
+      ? ((centerX + centerY) % 2 === 0 ? "#f0f0f0" : "#ffffff")
+      : canvasState.currentColor;
+
+    // Draw brush pixels
+    for (let y = -offset; y <= offset; y++) {
+      for (let x = -offset; x <= offset; x++) {
+        drawPixel(ctx, centerX + x, centerY + y, color);
+      }
+    }
+
+    if (!canvasState.isDrawing || canvasState.currentTool === "bucket") {
+      saveToHistory();
+    }
+  };
+
+  // Canvas history management
   const saveToHistory = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    const newHistory = canvasState.history.slice(
-      0,
-      canvasState.historyIndex + 1
-    );
-    newHistory.push(imageData);
-
-    setCanvasState((prev) => ({
-      ...prev,
-      history: newHistory,
-      historyIndex: newHistory.length - 1,
-    }));
+    
+    setCanvasState(prev => {
+      const newHistory = prev.history.slice(0, prev.historyIndex + 1);
+      newHistory.push(imageData);
+      return {
+        ...prev,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    });
   };
 
-  // Undo the last action
-  const undo = () => {
-    if (canvasState.historyIndex > 0) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      const newIndex = canvasState.historyIndex - 1;
-      ctx.putImageData(canvasState.history[newIndex], 0, 0);
-      setCanvasState((prev) => ({ ...prev, historyIndex: newIndex }));
-      socket.emit("canvasState", { imageData: canvas.toDataURL() });
-    }
-  };
-
-  // Redo the last undone action
-  const redo = () => {
-    if (canvasState.historyIndex < canvasState.history.length - 1) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      const newIndex = canvasState.historyIndex + 1;
-      ctx.putImageData(canvasState.history[newIndex], 0, 0);
-      setCanvasState((prev) => ({ ...prev, historyIndex: newIndex }));
-      socket.emit("canvasState", { imageData: canvas.toDataURL() });
-    }
-  };
-
-  // Check if two colors match within a tolerance
-  const colorsMatch = (color1, color2, tolerance = 1) => {
-    return (
-      Math.abs(color1[0] - color2[0]) <= tolerance &&
-      Math.abs(color1[1] - color2[1]) <= tolerance &&
-      Math.abs(color1[2] - color2[2]) <= tolerance
-    );
-  };
-
-  // Flood fill algorithm for paint bucket tool
-  const floodFill = (startX, startY, fillColor) => {
+  const handleUndo = () => {
+    if (canvasState.historyIndex <= 0) return;
+    
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-
-    const gridX = Math.floor(startX / GRID_SIZE);
-    const gridY = Math.floor(startY / GRID_SIZE);
-
-    const startData = ctx.getImageData(
-      gridX * GRID_SIZE,
-      gridY * GRID_SIZE,
-      1,
-      1
-    ).data;
-
-    const fillR = parseInt(fillColor.slice(1, 3), 16);
-    const fillG = parseInt(fillColor.slice(3, 5), 16);
-    const fillB = parseInt(fillColor.slice(5, 7), 16);
-
-    if (
-      colorsMatch(
-        [startData[0], startData[1], startData[2]],
-        [fillR, fillG, fillB]
-      )
-    ) {
-      return;
-    }
-
-    const stack = [[gridX, gridY]];
-    const visited = new Set();
-    const maxX = Math.floor(canvas.width / GRID_SIZE);
-    const maxY = Math.floor(canvas.height / GRID_SIZE);
-
-    while (stack.length > 0) {
-      const [x, y] = stack.pop();
-      const key = `${x},${y}`;
-
-      if (visited.has(key) || x < 0 || x >= maxX || y < 0 || y >= maxY)
-        continue;
-
-      const currentData = ctx.getImageData(
-        x * GRID_SIZE,
-        y * GRID_SIZE,
-        1,
-        1
-      ).data;
-
-      if (
-        colorsMatch(
-          [currentData[0], currentData[1], currentData[2]],
-          [startData[0], startData[1], startData[2]]
-        )
-      ) {
-        ctx.fillStyle = fillColor;
-        ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-
-        const index = y * maxX + x;
-        socket.emit("draw", { index, color: fillColor });
-
-        visited.add(key);
-        stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-      }
-    }
-    saveToHistory();
+    const newIndex = canvasState.historyIndex - 1;
+    
+    ctx.putImageData(canvasState.history[newIndex], 0, 0);
+    setCanvasState(prev => ({ ...prev, historyIndex: newIndex }));
+    socketManager.socket?.emit("canvasState", { imageData: canvas.toDataURL() });
   };
 
-  // Clear the entire canvas
-  const clearCanvas = () => {
-    if (!canvasRef.current) return;
+  const handleRedo = () => {
+    if (canvasState.historyIndex >= canvasState.history.length - 1) return;
+    
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-
-    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
-      for (let x = 0; x < canvas.width; x += GRID_SIZE) {
-        ctx.fillStyle =
-          (x / GRID_SIZE + y / GRID_SIZE) % 2 === 0 ? "#f0f0f0" : "#ffffff";
-        ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
-      }
-    }
+    const newIndex = canvasState.historyIndex + 1;
+    
+    ctx.putImageData(canvasState.history[newIndex], 0, 0);
+    setCanvasState(prev => ({ ...prev, historyIndex: newIndex }));
+    socketManager.socket?.emit("canvasState", { imageData: canvas.toDataURL() });
   };
 
+  // Initialize canvas and handle resize
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
 
+    // Draw initial checkerboard
     const drawCheckerboard = () => {
       for (let y = 0; y < canvas.height; y += GRID_SIZE) {
         for (let x = 0; x < canvas.width; x += GRID_SIZE) {
-          ctx.fillStyle =
-            (x / GRID_SIZE + y / GRID_SIZE) % 2 === 0 ? "#f0f0f0" : "#ffffff";
+          ctx.fillStyle = (x / GRID_SIZE + y / GRID_SIZE) % 2 === 0 
+            ? "#f0f0f0" 
+            : "#ffffff";
           ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
         }
       }
@@ -304,35 +298,49 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
     drawCheckerboard();
     saveToHistory();
 
-    const handleDraw = (data) => {
-      const ctx = canvasRef.current.getContext("2d");
-      ctx.fillStyle = data.color;
-      const x = (data.index % (canvas.width / GRID_SIZE)) * GRID_SIZE;
-      const y = Math.floor(data.index / (canvas.width / GRID_SIZE)) * GRID_SIZE;
+    // Handle remote drawing updates
+    socketManager.socket?.on("drawUpdate", ({ index, color }) => {
+      const x = (index % (canvas.width / GRID_SIZE)) * GRID_SIZE;
+      const y = Math.floor(index / (canvas.width / GRID_SIZE)) * GRID_SIZE;
+      ctx.fillStyle = color;
       ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
-    };
+    });
 
-    const handleClear = () => clearCanvas();
-
-    socket.on("drawUpdate", handleDraw);
-    socket.on("clearCanvas", handleClear);
+    // Handle canvas clear command
+    socketManager.socket?.on("clearCanvas", drawCheckerboard);
 
     return () => {
-      socket.off("drawUpdate", handleDraw);
-      socket.off("clearCanvas", handleClear);
+      if (socketManager.socket) {
+        socketManager.socket.off("drawUpdate");
+        socketManager.socket.off("clearCanvas");
+      }
     };
   }, []);
 
+  // Handle game state changes
   useEffect(() => {
     if (gameState === "playing") {
-      clearCanvas();
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      
+      // Clear canvas with checkerboard pattern
+      for (let y = 0; y < canvas.height; y += GRID_SIZE) {
+        for (let x = 0; x < canvas.width; x += GRID_SIZE) {
+          ctx.fillStyle = (x / GRID_SIZE + y / GRID_SIZE) % 2 === 0 
+            ? "#f0f0f0" 
+            : "#ffffff";
+          ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
+        }
+      }
     }
   }, [gameState]);
 
+  // Update color when default changes
   useEffect(() => {
-    setCanvasState((prev) => ({ ...prev, currentColor: defaultColor }));
+    setCanvasState(prev => ({ ...prev, currentColor: defaultColor }));
   }, [defaultColor]);
 
+  // Handle window resize
   useEffect(() => {
     const updateCanvasSize = () => {
       const container = containerRef.current;
@@ -340,12 +348,11 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
 
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight - 60;
-
       const scaleWidth = containerWidth / BASE_WIDTH;
       const scaleHeight = containerHeight / BASE_HEIGHT;
       const scale = Math.min(scaleWidth, scaleHeight);
 
-      setCanvasState((prev) => ({
+      setCanvasState(prev => ({
         ...prev,
         canvasSize: {
           width: Math.floor(BASE_WIDTH * scale),
@@ -364,6 +371,7 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
       ref={containerRef}
       className="relative h-full flex flex-col items-center justify-center max-w-[900px] mx-auto"
     >
+      {/* Canvas container */}
       <div className="relative flex-grow flex items-center justify-center w-full px-4">
         <canvas
           ref={canvasRef}
@@ -382,82 +390,29 @@ const PixelCanvas = ({ isDrawer, gameState, defaultColor = "#000000" }) => {
               ? "border-indigo-500 cursor-crosshair"
               : "border-gray-200"
           }`}
-          onMouseDown={handleInteractionStart}
-          onMouseMove={handleInteractionMove}
-          onMouseUp={handleInteractionEnd}
-          onMouseLeave={handleInteractionEnd}
-          onTouchStart={handleInteractionStart}
-          onTouchMove={handleInteractionMove}
-          onTouchEnd={handleInteractionEnd}
+          onMouseDown={e => {
+            setCanvasState(prev => ({ ...prev, isDrawing: true }));
+            handleDraw(e);
+          }}
+          onMouseMove={handleDraw}
+          onMouseUp={() => setCanvasState(prev => ({ ...prev, isDrawing: false }))}
+          onMouseLeave={() => setCanvasState(prev => ({ ...prev, isDrawing: false }))}
+          onTouchStart={e => {
+            setCanvasState(prev => ({ ...prev, isDrawing: true }));
+            handleDraw(e);
+          }}
+          onTouchMove={handleDraw}
+          onTouchEnd={() => setCanvasState(prev => ({ ...prev, isDrawing: false }))}
         />
       </div>
 
-      <div className="w-full bg-white/90 backdrop-blur-sm p-2 rounded-lg mt-2">
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <input
-            type="color"
-            value={canvasState.currentColor || defaultColor}
-            onChange={(e) =>
-              setCanvasState((prev) => ({
-                ...prev,
-                currentColor: e.target.value,
-                currentTool: "brush",
-              }))
-            }
-            className="w-10 h-10"
-            disabled={isDisabled}
-          />
-
-          {["brush", "fill", "eraser"].map((tool) => (
-            <ToolButton
-              key={tool}
-              active={canvasState.currentTool === tool}
-              disabled={isDisabled}
-              onClick={() =>
-                setCanvasState((prev) => ({ ...prev, currentTool: tool }))
-              }
-            >
-              {tool.charAt(0).toUpperCase() + tool.slice(1)}
-            </ToolButton>
-          ))}
-
-          <button
-            onClick={undo}
-            disabled={canvasState.historyIndex <= 0 || isDisabled}
-            className="px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 disabled:opacity-50"
-          >
-            Undo
-          </button>
-          <button
-            onClick={redo}
-            disabled={
-              canvasState.historyIndex >= canvasState.history.length - 1 ||
-              isDisabled
-            }
-            className="px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border border-gray-300 disabled:opacity-50"
-          >
-            Redo
-          </button>
-
-          <div className="flex items-center gap-2 min-w-[120px]">
-            <input
-              type="range"
-              min="1"
-              max="5"
-              value={canvasState.brushSize}
-              onChange={(e) =>
-                setCanvasState((prev) => ({
-                  ...prev,
-                  brushSize: parseInt(e.target.value),
-                }))
-              }
-              className="w-16 sm:w-20"
-              disabled={isDisabled}
-            />
-            <span className="text-xs w-4">{canvasState.brushSize}</span>
-          </div>
-        </div>
-      </div>
+      {/* Drawing tools */}
+      <DrawingTools
+        canvasState={canvasState}
+        setCanvasState={setCanvasState}
+        defaultColor={defaultColor}
+        isDisabled={isDisabled}
+      />
     </div>
   );
 };

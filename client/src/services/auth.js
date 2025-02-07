@@ -1,151 +1,98 @@
+// API configuration
 const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
 
-if (!API_URL) {
-  console.error(
-    "API_URL is not defined in environment variables, create a .env file in the root of the project and add VITE_SOCKET_URL"
-  );
-}
-
-export const fetchLobby = async (roomId) => {
+// Simple function to make API calls
+async function makeApiCall(endpoint, options = {}) {
   try {
     const token = localStorage.getItem("token");
-    console.log("Fetching lobby data for room:", String(roomId));
-    const response = await fetch(`${API_URL}/lobby/${roomId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("Failed to fetch lobby data:", data.message);
-      return { success: false, message: data.message };
-    }
-
-    return {
-      success: true,
-      lobby: data.lobby,
-    };
-  } catch (error) {
-    console.error("Failed to fetch lobby data:", error);
-    return { success: false, message: error.message };
-  }
-};
-
-export const createLobby = async () => {
-  try {
-    const response = await fetch(`${API_URL}/lobby/create`, {
-      method: "POST",
+    
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        ...(token && { Authorization: `Bearer ${token}` }), // Always send with Bearer prefix
       },
-      credentials: "include",
     });
 
-    const data = await response.json();
-
-    if (!data.roomId) {
-      throw new Error("No room ID returned from server");
-    }
     if (!response.ok) {
-      return {
-        success: false,
-        message: data.message || "Failed to create lobby",
-      };
+      const data = await response.json();
+      throw new Error(data.message || "Request failed");
     }
 
-    return {
-      success: true,
-      roomId: data.roomId,
-      lobby: data.lobby,
-    };
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("[CLIENT] Error creating lobby:", error);
-    throw error;
+    throw new Error(error.message || "Network error");
   }
-};
+}
 
-export const login = async (email, password) => {
-  const response = await fetch(`${API_URL}/users/login`, {
+// Game Lobby Functions
+export async function fetchLobby(roomId) {
+  if (!roomId) {
+    throw new Error("Room ID is required");
+  }
+  return makeApiCall(`/lobby/${roomId}`);
+}
+
+export async function createLobby() {
+  return makeApiCall('/lobby/create', { method: "POST" });
+}
+
+// Auth Functions
+export async function login(email, password) {
+  const response = await makeApiCall('/users/login', {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Failed to login");
+  
+  if (response.token) {
+    // Store token without Bearer prefix - it's added in makeApiCall
+    localStorage.setItem('token', response.token.replace('Bearer ', ''));
+    return { ...response, success: true }; // Ensure success is set
   }
+  
+  return { ...response, success: false };
+}
 
-  return data;
-};
-
-export const register = async (email, username, password) => {
-  const response = await fetch(`${API_URL}/users/register`, {
+export async function register(email, username, password) {
+  const response = await makeApiCall('/users/register', {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
     body: JSON.stringify({ email, username, password }),
   });
-  const res = await response.json();
-  if (!response.ok) {
-    return {
-      success: false,
-      message: res.message || "Failed to register",
-    };
-  }
-  return {
-    success: true,
-    user: res.user,
-    token: res.token,
-  };
-};
-export const checkAuth = async (token) => {
-  if (!token) {
-    return {
-      success: false,
-      message: "No token provided",
-    };
-  }
 
+  if (response.token) {
+    // Store token without Bearer prefix - it's added in makeApiCall
+    localStorage.setItem('token', response.token.replace('Bearer ', ''));
+  }
+  
+  return response;
+}
+
+export async function checkAuth() {
+  const token = localStorage.getItem("token");
+  if (!token) return { success: false };
+  
   try {
-    const response = await fetch(`${API_URL}/users/validate`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        message: data.message || "Failed to validate token",
-      };
+    const response = await makeApiCall('/users/validate');
+    // If validation fails, clean up the token
+    if (!response.success) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
     }
-
-    console.log("User is authenticated:", data);
-
-    return {
-      success: true,
-      user: data.user,
-      token: token,
-    };
+    return response;
   } catch (error) {
-    console.error("Auth check failed:", error);
-    return {
-      success: false,
-      message: "Network or server error",
-    };
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return { success: false, message: error.message };
   }
-};
+}
+
+// Admin Functions
+export async function getAllUsers() {
+  return makeApiCall('/users/all');
+}
+
+export async function getAllLobbies() {
+  return makeApiCall('/lobby/all');
+}
+

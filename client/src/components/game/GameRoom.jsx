@@ -48,7 +48,7 @@ const GameRoom = ({ user }) => {
       <div className="h-full flex flex-col gap-4 py-4">
         <div className="w-full p-4 bg-white/90 backdrop-blur-sm rounded-lg shadow">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-black mx-2">
               {gameData.gameState === "waiting"
                 ? "Waiting for players..."
                 : gameData.gameState === "playing"

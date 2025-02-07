@@ -54,7 +54,7 @@ const CreateLobby = ({ user }) => {
   return (
     <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
       <div className="text-center bg-white/80 backdrop-blur-[4px] p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6">Join a Game</h1>
+        <h1 className="text-2xl font-bold mb-6 dark:text-black">Create or Join a Game</h1>
         
         <button
           onClick={handleCreateGame}

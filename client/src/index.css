@@ -5,14 +5,19 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: dark light;
+  }
+  
   html {
     font-family: "Roboto Mono", monospace;
     -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
   }
 }
 
 body {
-  @apply relative min-h-screen m-0 overflow-x-hidden;
+  @apply relative min-h-screen m-0 overflow-x-hidden text-gray-900 bg-white dark:text-white dark:bg-gray-900;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

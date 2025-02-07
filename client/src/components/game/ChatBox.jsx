@@ -59,7 +59,7 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Type your message..."
-              className="flex-1 px-3 py-2 text-sm border rounded-lg"
+              className="flex-1 px-3 py-2 text-sm border rounded-lg bg-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button 
               type="submit"

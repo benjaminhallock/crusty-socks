@@ -45,14 +45,14 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
+      <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
         <img className="mx-auto h-40 w-auto" src="/logo.svg" alt="Logo" />
-        <h2 className="text-center text-3xl font-bold text-gray-900">
+        <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
           {isRegister ? "Create an account" : "Sign in"}
         </h2>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded">
             {error}
           </div>
         )}
@@ -62,7 +62,7 @@ const LoginForm = ({ onLoginSuccess }) => {
             type="email"
             name="email"
             required
-            className="w-full px-3 py-2 border rounded"
+            className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
             placeholder="Email address"
             value={formData.email}
             onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
@@ -73,7 +73,7 @@ const LoginForm = ({ onLoginSuccess }) => {
               type="text"
               name="username"
               required
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
               placeholder="Username"
               value={formData.username}
               onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
@@ -84,7 +84,7 @@ const LoginForm = ({ onLoginSuccess }) => {
             type="password"
             name="password"
             required
-            className="w-full px-3 py-2 border rounded"
+            className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
             placeholder="Password"
             value={formData.password}
             onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
@@ -93,7 +93,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2 px-4 rounded text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full py-2 px-4 rounded text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
             {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
           </button>
@@ -101,7 +101,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           <button
             type="button"
             onClick={toggleMode}
-            className="w-full text-indigo-600 hover:text-indigo-500"
+            className="w-full text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
           >
             {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
           </button>

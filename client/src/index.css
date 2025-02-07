@@ -1,34 +1,28 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   html {
     font-family: "Roboto Mono", monospace;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
 body {
-  position: relative;
-  min-height: 100vh;
-  margin: 0;
-  overflow-x: hidden;
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  @apply relative min-h-screen m-0 overflow-x-hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Background wallpaper */
 body::before {
   content: "";
-  position: fixed;
-  inset: 0; /* shorthand for top/right/bottom/left: 0 */
-  background: url("/wallpaper.svg") center/cover no-repeat fixed;
-  opacity: 0.9;
-  z-index: -1;
+  @apply fixed inset-0 bg-no-repeat bg-center bg-cover opacity-90 -z-10;
+  background-image: url("/wallpaper.svg");
 }
 
-/* Hide scrollbar */
 ::-webkit-scrollbar {
   display: none;
 }
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

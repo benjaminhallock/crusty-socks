@@ -4,19 +4,21 @@ import dotenv from "dotenv";
 
 dotenv.config("/config.env");
 
+const generateToken = (userId) => 
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "24h" });
+
+const cleanUser = (user) => ({
+  _id: user._id,
+  email: user.email,
+  username: user.username
+});
+
 export const userController = {
   validateToken: async (req, res) => {
     try {
-      // Send back cleaned user object
-      const user = {
-        _id: req.user._id,
-        email: req.user.email,
-        username: req.user.username
-      };
-      
       res.status(200).json({
         success: true,
-        user,
+        user: cleanUser(req.user),
         token: req.token
       });
     } catch (error) {
@@ -30,7 +32,6 @@ export const userController = {
   register: async (req, res) => {
     const { username, email, password } = req.body;
 
-    // Simple validation
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -39,7 +40,6 @@ export const userController = {
     }
 
     try {
-      // Check if user exists
       const existingUser = await User.findOne({ 
         $or: [{ email }, { username }] 
       });
@@ -47,44 +47,38 @@ export const userController = {
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: existingUser.email === email ? "Email already exists" : "Username already exists"
+          message: existingUser.email === email 
+            ? "Email already exists" 
+            : "Username already exists"
         });
       }
 
-      // Create user
       const user = await User.create({ username, email, password });
-      
-      // Generate token
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "24h"
-      });
+      const token = generateToken(user._id);
 
-      // Send clean user object and token
       res.status(201).json({
         success: true,
-        user: {
-          _id: user._id,
-          email: user.email,
-          username: user.username
-        },
-        token // Send raw token, Bearer prefix handled by client
+        user: cleanUser(user),
+        token
       });
     } catch (error) {
-      res.status(401).json({
+      res.status(400).json({
         success: false,
-        message: "Invalid token"
+        message: "Registration failed"
       });
     }
   },
 
   login: async (req, res) => {
     const { email, password } = req.body;
+    
     if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password required"
       });
     }
+
     try {
       const user = await User.findByCredentials(email, password);
       
@@ -95,24 +89,18 @@ export const userController = {
         });
       }
       
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "24h"
-      });
+      const token = generateToken(user._id);
       
       res.status(200).json({
         success: true,
-        user: {
-          _id: user._id,
-          email: user.email,
-          username: user.username
-        },
+        user: cleanUser(user),
         token,
         message: "Login successful"
       });
     } catch (error) {
       res.status(401).json({
         success: false,
-        message: error.message || "Invalid credentials"
+        message: "Invalid credentials"
       });
     }
   },

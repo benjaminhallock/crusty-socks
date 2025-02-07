@@ -3,22 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import PixelCanvas from "./PixelCanvas";
 import ChatBox from "./ChatBox";
 import GameStatus from "./helpers/GameStatus";
-import { fetchLobby } from "../services/auth";
 import { socketManager } from "../services/socket";
 
-function GameRoom({ user }) {
+const GameRoom = ({ user }) => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [gameData, setGameData] = useState({
     players: [],
     gameState: "waiting",
-    messages: [],
-    isLoading: true,
-    error: null
+    messages: []
   });
 
   useEffect(() => {
-    // Validate user has required fields
     if (!user?.username || !user?.id) {
       navigate('/');
       return;
@@ -27,76 +23,45 @@ function GameRoom({ user }) {
     socketManager.joinLobby(roomId, user.username, user.id);
     localStorage.setItem('currentRoom', roomId);
 
-    const unsubscribe = socketManager.subscribe((data) => {
-      setGameData(prev => ({
-        ...prev,
-        ...data,
-        isLoading: false
-      }));
-    });
+    const cleanup = socketManager.subscribe(setGameData);
 
     return () => {
       localStorage.removeItem('currentRoom');
       if (user?.id) {
         socketManager.leaveLobby(roomId, user.id);
       }
-      unsubscribe();
+      cleanup();
     };
-  }, [roomId, navigate, user]);
+  }, [roomId, user, navigate]);
 
-  // Show loading state
-  if (gameData.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading game...
-      </div>
-    );
-  }
-
-  // Show error state
-  if (gameData.error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="bg-red-50 p-4 rounded-lg text-red-600">
-          {gameData.error}
-        </div>
-      </div>
-    );
-  }
+  const isRoomLeader = user?.id === gameData.players[0]?.userId;
 
   return (
     <div className="container mx-auto min-h-screen pt-20 px-4">
-      <div className="flex flex-col h-[calc(100vh-5rem)] max-w-7xl mx-auto">
-        <div className="flex-1 flex flex-col gap-4">
-          {/* Game status bar */}
-          <GameStatus 
-            gameState={gameData.gameState} 
-            onStartGame={() => {}} // TODO: Implement through socketManager
-            isRoomLeader={user?.isAdmin} 
-          />
-
-          <div className="flex flex-1 gap-4 min-h-0">
-            {/* Drawing canvas */}
-            <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
-              <PixelCanvas 
-                isDrawer={user?.isAdmin} 
-                gameState={gameData.gameState} 
-              />
-            </div>
-            
-            {/* Chat and players list */}
-            <div className="w-96 flex-shrink-0 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg">
-              <ChatBox 
-                players={gameData.players} 
-                messages={gameData.messages} 
-                roomId={roomId} 
-              />
-            </div>
+      <div className="flex flex-col h-[calc(100vh-5rem)] max-w-7xl mx-auto gap-4">
+        <GameStatus 
+          gameState={gameData.gameState}
+          isRoomLeader={isRoomLeader}
+        />
+        
+        <div className="flex flex-1 gap-4 min-h-0">
+          <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+            <PixelCanvas 
+              isDrawer={user?.isAdmin}
+              gameState={gameData.gameState}
+            />
+          </div>
+          <div className="w-96 flex-shrink-0">
+            <ChatBox 
+              players={gameData.players}
+              messages={gameData.messages}
+              roomId={roomId}
+            />
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default GameRoom;

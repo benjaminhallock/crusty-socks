@@ -18,11 +18,18 @@
       "dest": "server/server.js"
     },
     {
+      "src": "/socket.io/(.*)",
+      "dest": "server/server.js"
+    },
+    {
       "handle": "filesystem"
     },
     {
       "src": "/.*",
       "dest": "client/index.html"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

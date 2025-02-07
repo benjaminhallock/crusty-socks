@@ -4,14 +4,10 @@ import Lobby from '../models/lobby.js';
 
 const router = express.Router();
 
-// Get all active lobbies
 router.get('/all', auth, async (req, res) => {
   try {
     const lobbies = await Lobby.find({ isArchived: false });
-    res.status(200).json({
-      success: true,
-      lobbies: lobbies
-    });
+    res.status(200).json({ success: true, lobbies });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -20,13 +16,9 @@ router.get('/all', auth, async (req, res) => {
   }
 });
 
-// Create a new game lobby
 router.post('/create', auth, async (req, res) => {
   try {
-    // Generate a random room ID
     const roomId = Math.random().toString(36).substring(2, 8);
-    
-    // Create new lobby with current user as leader
     const lobby = new Lobby({
       roomId,
       roomLeader: req.user._id,
@@ -38,12 +30,7 @@ router.post('/create', auth, async (req, res) => {
     });
     
     await lobby.save();
-    
-    res.json({
-      success: true,
-      roomId,
-      lobby
-    });
+    res.json({ success: true, roomId, lobby });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -52,7 +39,6 @@ router.post('/create', auth, async (req, res) => {
   }
 });
 
-// Get a specific lobby by room ID
 router.get('/:roomId', auth, async (req, res) => {
   try {
     const lobby = await Lobby.findOne({ roomId: req.params.roomId });
@@ -62,10 +48,7 @@ router.get('/:roomId', auth, async (req, res) => {
         message: "Lobby not found"
       });
     }
-    res.json({
-      success: true,
-      lobby
-    });
+    res.json({ success: true, lobby });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -73,7 +56,5 @@ router.get('/:roomId', auth, async (req, res) => {
     });
   }
 });
-
-
 
 export default router;

@@ -1,74 +1,83 @@
 import mongoose from 'mongoose';
 
 const lobbySchema = new mongoose.Schema({
-  // Basic lobby info
   roomId: {
     type: String,
     required: true,
-    unique: true  // No duplicate room IDs allowed
+    unique: true,
+    index: true
   },
   roomLeader: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
   },
-  isArchived: {
-    type: Boolean,
-    default: false  // Used to "soft delete" lobbies
-  },
-
-  // Player list in the lobby
   players: [{
     userId: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: "User",
-      required: true 
+      ref: "User"
     },
-    username: { 
-      type: String, 
-      required: true 
-    },
-    score: { 
-      type: Number, 
-      default: 50  // Starting score for each player
+    username: String,
+    score: {
+      type: Number,
+      default: 0
     }
   }],
-
-  // Chat message history
   messages: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     user: String,
     message: String,
-    timestamp: Date
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
   }],
-
-  // Game state and settings
   gameState: {
     type: String,
-    default: "waiting",  // Can be: "waiting", "playing", "finished"
+    enum: ['waiting', 'playing', 'finished'],
+    default: 'waiting'
   },
   settings: {
     maxPlayers: {
       type: Number,
-      default: 8
+      default: 8,
+      min: 2,
+      max: 16
     },
     rounds: {
       type: Number,
-      default: 3
-    },
-    customWords: {
-      type: [String],
-      default: []
+      default: 3,
+      min: 1,
+      max: 10
+    }
+  },
+  isArchived: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  canvasState: {
+    pixels: [{
+      index: Number,
+      color: String
+    }],
+    lastUpdate: {
+      type: Date,
+      default: Date.now
     }
   }
 }, { 
-  timestamps: true  // Automatically add createdAt and updatedAt fields
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Helper method to check if a user is in the lobby
-lobbySchema.methods.hasPlayer = function(userId) {
-  return this.players.some(player => player.userId.toString() === userId.toString());
-};
+// Index for faster queries
+lobbySchema.index({ createdAt: -1 });
+lobbySchema.index({ gameState: 1, isArchived: 1 });
+
+// Add compound index to prevent duplicate players in a lobby
+// and ensure a player can only be in one lobby
+lobbySchema.index({ 'players.userId': 1, roomId: 1 }, { unique: true });
 
 const Lobby = mongoose.model('Lobby', lobbySchema);
 export default Lobby;

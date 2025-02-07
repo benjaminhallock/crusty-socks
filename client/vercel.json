@@ -3,7 +3,18 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
-  ]
+    { 
+      "handle": "filesystem" 
+    },
+    { 
+      "src": "/.*", 
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
+      "dest": "/index.html" 
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

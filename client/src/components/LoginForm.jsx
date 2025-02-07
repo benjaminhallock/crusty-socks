@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { login, register } from "../services/auth";
 
 const LoginForm = ({ onLoginSuccess }) => {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isRegister, setIsRegister] = useState(false);
@@ -13,51 +11,35 @@ const LoginForm = ({ onLoginSuccess }) => {
     username: "",
   });
 
-  const inputStyle =
-    "appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm";
-
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(""); // Clear error when user types
-  };
-
-  const validateForm = () => {
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all required fields");
-      return false;
-    }
-    
-    if (isRegister && !formData.username) {
-      setError("Username is required for registration");
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!formData.email || !formData.password || (isRegister && !formData.username)) {
+      setError("Please fill in all required fields");
+      return;
+    }
 
     setIsLoading(true);
     setError("");
 
     try {
-      const response = isRegister
-        ? await register(formData.email, formData.username, formData.password)
-        : await login(formData.email, formData.password);
+      const response = await (isRegister 
+        ? register(formData.email, formData.username, formData.password)
+        : login(formData.email, formData.password));
 
       if (response.success) {
-        await onLoginSuccess(response);
-        // Let the parent component handle navigation via route changes
-      } else {
-        setError(response.message || "Something went wrong. Please try again.");
+        onLoginSuccess(response);
       }
     } catch (error) {
-      setError(error.message || "Something went wrong. Please try again.");
+      setError(error.message || "Authentication failed");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleMode = () => {
+    setIsRegister(!isRegister);
+    setError("");
+    setFormData({ email: "", password: "", username: "" });
   };
 
   return (
@@ -75,60 +57,52 @@ const LoginForm = ({ onLoginSuccess }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-4">
+          <input
+            type="email"
+            name="email"
+            required
+            className="w-full px-3 py-2 border rounded"
+            placeholder="Email address"
+            value={formData.email}
+            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+          />
+          
+          {isRegister && (
             <input
-              type="email"
-              name="email"
+              type="text"
+              name="username"
               required
-              className={inputStyle}
-              placeholder="Email address"
-              value={formData.email}
-              onChange={handleInputChange}
+              className="w-full px-3 py-2 border rounded"
+              placeholder="Username"
+              value={formData.username}
+              onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
             />
-            
-            {isRegister && (
-              <input
-                type="text"
-                name="username"
-                required
-                className={inputStyle}
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleInputChange}
-              />
-            )}
+          )}
 
-            <input
-              type="password"
-              name="password"
-              required
-              className={inputStyle}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-            />
-          </div>
+          <input
+            type="password"
+            name="password"
+            required
+            className="w-full px-3 py-2 border rounded"
+            placeholder="Password"
+            value={formData.password}
+            onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+          />
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2 px-4 border border-transparent rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="w-full py-2 px-4 rounded text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
           >
             {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              setIsRegister(!isRegister);
-              setError("");
-              setFormData({ email: "", password: "", username: "" });
-            }}
+            onClick={toggleMode}
             className="w-full text-indigo-600 hover:text-indigo-500"
           >
-            {isRegister
-              ? "Already have an account? Sign in"
-              : "Need an account? Register"}
+            {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
           </button>
         </form>
       </div>

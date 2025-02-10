@@ -25,14 +25,14 @@ const Admin = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Admin Portal</h1>
+      <h1 className="text-white text-2xl font-bold mb-4">Admin Portal</h1>
 
       <div className="space-y-6">
         <section>
-          <h2 className="text-xl font-semibold mb-2">Users ({data.users.length})</h2>
+          <h2 className="text-white text-xl font-semibold mb-2 dark:text-white">Users ({data.users.length})</h2>
           <ul className="space-y-2">
             {data.users.map(user => (
-              <li key={user._id} className="bg-white p-2 rounded">
+              <li key={user._id} className="bg-white p-2 rounded dark:text-black">
                 {user.username}
               </li>
             ))}
@@ -40,10 +40,11 @@ const Admin = () => {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-2">Active Lobbies ({data.lobbies.length})</h2>
+          <h2 className="text-xl font-semibold mb-2 dark:text-dark-200 text-white">
+          Active Lobbies ({data.lobbies.length})</h2>
           <ul className="space-y-2">
             {data.lobbies.map(lobby => (
-              <li key={lobby._id} className="bg-white p-2 rounded">
+              <li key={lobby._id} className="bg-white p-2 rounded dark:text-black"> 
                 Room: {lobby.roomId} - Players: {lobby.players.length}
               </li>
             ))}

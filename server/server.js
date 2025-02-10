@@ -49,15 +49,15 @@ app.use('/api/lobbys', lobbyRoutes);
 // Socket.io setup
 initializeSocketEvents(io);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Start server
 const startServer = async () => {
     try {
         await connectDB();
         httpServer.listen(PORT, () => {
-            console.error(`Server running on port ${PORT}`);
-            console.error(`Environment: ${process.env.NODE_ENV}`);
+            console.log(`Server running on port ${PORT}`);
+            console.log(`Environment: ${process.env.NODE_ENV}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

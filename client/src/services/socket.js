@@ -1,5 +1,4 @@
 import { io } from 'socket.io-client';
-
 import { ENV_CONFIG } from '../../../shared/constants.js';
 
 class SocketManager {

@@ -24,10 +24,10 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
   };
 
   return (
-    <nav className="bg-gray-800 h-16">
+    <nav className="bg-gray-800 h-12">
       <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
         <Link to="/">
-          <img src="/logo.svg" alt="Logo" className="h-8" />
+          <img src="/logo.svg" alt="Logo" className="h-6" />
         </Link>
         
         <div className="flex gap-4 items-center">

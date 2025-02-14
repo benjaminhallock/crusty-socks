@@ -42,13 +42,13 @@ const GameRoom = ({ user }) => {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
-      <div className="h-full flex flex-col gap-4 py-4">
+      <div className="h-full flex flex-col gap-1 py-1">
         <HiddenWord />
-        <div className="flex-1 flex flex-col lg:flex-row gap-4">
+        <div className="flex-1 flex flex-col lg:flex-row gap-1">
           <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
             <PixelCanvas isDrawer={true} gameState={gameData.gameState} />
           </div>
-          <div className="h-[300px] lg:h-auto lg:w-80">
+          <div className="h-[250px] lg:h-auto lg:w-72">
             <ChatBox
               players={gameData.players}
               messages={gameData.messages}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import './styles/main.css';
 
 import { checkAuth } from "./services/auth";
 import { socketManager } from "./services/socket";

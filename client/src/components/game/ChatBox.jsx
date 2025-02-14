@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import React from 'react';
 
 import { socketManager } from '../../services/socket';
 
@@ -32,7 +33,7 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div id="chatBox" className="flex flex-col h-full">
       <PlayersList players={players} />
       <div className="flex-1 bg-white/95 rounded-lg mt-4 flex flex-col">
         <div className="h-[450px] overflow-y-auto p-4 space-y-2">
@@ -76,12 +77,24 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
 };
 
 const PlayersList = ({ players }) => {
+  const handleInviteLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+  };
+
   // Deduplicate players by username
   const uniquePlayers = Array.from(new Map(players.map(player => [player.username, player])).values());
   
   return (
     <div className="bg-gray-100 rounded-lg p-4 shadow-lg">
-      <h3 className="text-xl font-bold mb-4 text-gray-800">Players</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold text-gray-800">Players</h3>
+        <button 
+          onClick={handleInviteLink} 
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg"
+        >
+          Invite Link
+        </button>
+      </div>
       <ul className="space-y-3">
         {uniquePlayers.map((player, index) => (
           <li

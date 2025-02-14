@@ -21,8 +21,8 @@ const PixelCanvas = ({ isDrawer = true }) => {
   const [startPos, setStartPos] = useState(null);
   
   const GRID_SIZE = 20;
-  const CANVAS_WIDTH = 900;
-  const CANVAS_HEIGHT = 600;
+  const CANVAS_WIDTH = 700; // Reduced width
+  const CANVAS_HEIGHT = 500; // Reduced height
 
   const drawPixel = (ctx, x, y, color) => {
     const gridX = Math.floor(x / GRID_SIZE);
@@ -193,7 +193,7 @@ const PixelCanvas = ({ isDrawer = true }) => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 rounded-lg">
+    <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 rounded-lg">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}

@@ -36,21 +36,21 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
     <div id="chatBox" className="flex flex-col h-full">
       <PlayersList players={players} />
       <div className="flex-1 bg-white/95 rounded-lg mt-2 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="h-[62vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
           {localMessages.map((msg, i) => (
-            <div 
-              key={i} 
-              className={`message p-1 rounded ${
-                msg.username === username 
-                  ? 'bg-indigo-50 ml-4' 
-                  : 'bg-gray-50 mr-4'
-              }`}
-            >
-              <span className="font-semibold text-indigo-600">{msg.username}</span>
-              <p className="text-xs text-gray-700 break-words">{msg.message}</p>
-            </div>
+              <div
+                  key={i}
+                  className={`message p-1 rounded ${
+                      msg.username === username
+                          ? 'bg-indigo-50 ml-4'
+                          : 'bg-gray-50 mr-4'
+                  }`}
+              >
+                <span className="font-semibold text-indigo-600">{msg.username}</span>
+                <p className="text-xs text-gray-700 break-words">{msg.message}</p>
+              </div>
           ))}
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef}/>
         </div>
 
         <form onSubmit={handleSubmit} className="border-t p-2">

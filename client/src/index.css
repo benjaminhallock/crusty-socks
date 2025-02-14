@@ -1,8 +1,14 @@
 @import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+  font-family: 'W95FA';
+  src: url('/w95fa.woff') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 
 @layer base {
   :root {
@@ -10,7 +16,8 @@
   }
   
   html {
-    font-family: "Roboto Mono", monospace;
+    font-family: "W95FA", monospace;
+    letter-spacing: 2px;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }

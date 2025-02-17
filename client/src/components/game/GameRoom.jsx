@@ -5,6 +5,7 @@ import ChatBox from "./ChatBox";
 import HiddenWord from "./HiddenWord";
 import PixelCanvas from "../game/PixelCanvas";
 import { socketManager } from "../../services/socket";
+import PlayerList from "./PlayerList";
 
 const GameRoom = ({ user }) => {
   const { roomId } = useParams();

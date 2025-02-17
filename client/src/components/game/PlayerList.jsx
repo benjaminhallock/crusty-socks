@@ -16,7 +16,7 @@ const PlayerList = ({ players }) => {
           onClick={handleInviteLink} 
           className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
         >
-          Invite Link
+          Invite
         </button>
       </div>
       <ul className="space-y-1 overflow-y-auto">

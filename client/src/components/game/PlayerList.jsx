@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const PlayerList = ({ players }) => {
+  const [showPopup, setShowPopup] = useState(false);
+
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 2000); // Hide popup after 2 seconds
   };
 
   // Deduplicate players by username
   const uniquePlayers = Array.from(new Map(players.map(player => [player.username, player])).values());
 
   return (
-    <div  id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg">
+    <div id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg relative">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800">Players</h3>
-        <button 
-          onClick={handleInviteLink} 
-          className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
-        >
-          Invite
-        </button>
+        <div className="relative">
+          <button 
+            onClick={handleInviteLink} 
+            className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
+          >
+            Invite
+          </button>
+          {showPopup && (
+            <div className="absolute top-0 left-full ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
+              Link copied to clipboard!
+            </div>
+          )}
+        </div>
       </div>
       <ul className="space-y-1 overflow-y-auto">
         {uniquePlayers.map((player, index) => (

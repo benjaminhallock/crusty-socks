@@ -1,6 +1,6 @@
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
-import { ENV_CONFIG } from '../../../shared/constants.js';
+import { ENV_CONFIG } from "../../../shared/constants.js";
 
 class SocketManager {
   constructor() {
@@ -10,61 +10,96 @@ class SocketManager {
     this.currentRoom = null;
   }
 
+  isConnected() {
+    return this.socket && this.socket.connected;
+  }
+
   connect() {
-    if (this.socket) return;
-    
+    if (this.isConnected()) return;
+
     this.socket = io(ENV_CONFIG.SOCKET_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
       autoConnect: true,
       reconnection: true,
       extraHeaders: {
-        'Access-Control-Allow-Origin': ENV_CONFIG.CLIENT_URL
+        "Access-Control-Allow-Origin": ENV_CONFIG.CLIENT_URL,
+      },
+    });
+
+    this.socket.on("playerUpdate", (players) => {
+      if (this.currentRoom) {
+        // Only update if we're in a room
+        this.playerCallbacks.forEach((cb) => cb(players));
       }
     });
-    
-    this.socket.on('playerUpdate', players => {
-      if (this.currentRoom) {  // Only update if we're in a room
-        this.playerCallbacks.forEach(cb => cb(players));
-      }
+
+    this.socket.on("gameStateUpdate", (gameState) => {
+
     });
-    
-    this.socket.on('chatMessage', msg => 
-      this.messageCallbacks.forEach(cb => cb(msg))
+
+    this.socket.on("chatMessage", (msg) =>
+      this.messageCallbacks.forEach((cb) => cb(msg))
     );
 
     // Handle reconnection
-    this.socket.on('reconnect', () => {
+    this.socket.on("reconnect", () => {
       if (this.currentRoom) {
         this.joinLobby(this.currentRoom.roomId, this.currentRoom.username);
       }
     });
   }
 
-  joinLobby(roomId, username) {
-    if (this.socket) {
-      this.currentRoom = { roomId, username };
-      this.socket.emit('joinLobby', { roomId, username });
+  updateGameState(gameState) {
+    if (!this.isConnected()) {
+      throw new Error("Socket is not connected");
     }
+    this.socket.emit("gameStateUpdate", gameState);
+  }
+
+  startGame(roomId) {
+    if (!this.isConnected()) {
+      throw new Error("Socket is not connected");
+    }
+    this.socket.emit("startGame", roomId);
+  }
+
+  joinLobby(roomId, username) {
+    if (!this.isConnected()) {
+      throw new Error("Socket is not connected");
+    }
+    this.currentRoom = { roomId, username };
+    this.socket.emit("joinLobby", { roomId, username });
   }
 
   sendMessage(roomId, message, username) {
-    this.socket?.emit('chatMessage', { roomId, message, username });
+    if (!this.isConnected()) {
+      throw new Error("Socket is not connected");
+    }
+    this.socket.emit("chatMessage", { roomId, message, username });
   }
 
   onMessage(callback) {
+    if (!this.socket) {
+      throw new Error("Socket instance not created");
+    }
     this.messageCallbacks.add(callback);
     return () => this.messageCallbacks.delete(callback);
   }
 
   onPlayerUpdate(callback) {
+    if (!this.socket) {
+      throw new Error("Socket instance not created");
+    }
     this.playerCallbacks.add(callback);
     return () => this.playerCallbacks.delete(callback);
   }
 
   disconnect() {
-    this.socket?.disconnect();
-    this.socket = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
   }
 }
 

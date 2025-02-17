@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
 import React from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { socketManager } from '../../services/socket';
+import LobbySettings from '../lobby/LobbySettings';
 
-const ChatBox = ({ players, messages = [], roomId, username }) => {
+const ChatBox = ({ user, roomId, messages, players }) => {
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState(messages);
   const messagesEndRef = useRef(null);
@@ -27,7 +28,7 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
     e.preventDefault();
     const trimmedInput = input.trim();
     if (trimmedInput) {
-      socketManager.sendMessage(roomId, trimmedInput, username);
+      socketManager.sendMessage(roomId, trimmedInput, user.username);
       setInput("");
     }
   };
@@ -41,7 +42,7 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
               <div
                   key={i}
                   className={`message p-1 rounded ${
-                      msg.username === username
+                      msg.username === user.username
                           ? 'bg-indigo-50 ml-4'
                           : 'bg-gray-50 mr-4'
                   }`}
@@ -81,6 +82,15 @@ const PlayersList = ({ players }) => {
     navigator.clipboard.writeText(window.location.href);
   };
 
+  const onStartGame = () => {
+    if (players.length < 2) {
+      alert("Need at least 2 players to start the game.");
+      return;
+    }
+
+    socketManager.startGame();
+  };
+
   // Deduplicate players by username
   const uniquePlayers = Array.from(new Map(players.map(player => [player.username, player])).values());
   
@@ -88,12 +98,20 @@ const PlayersList = ({ players }) => {
     <div className="bg-gray-100 rounded-lg p-2 shadow-lg">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800">Players</h3>
-        <button 
-          onClick={handleInviteLink} 
-          className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
-        >
-          Invite Link
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleInviteLink} 
+            className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
+          >
+            Invite
+          </button>
+          <button 
+            onClick={onStartGame}
+            className="bg-gray-600 text-white px-2 py-1 rounded-lg"
+          >
+            Start
+          </button>
+        </div>
       </div>
       <ul className="space-y-1">
         {uniquePlayers.map((player, index) => (

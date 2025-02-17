@@ -1,40 +1,26 @@
 import {useEffect, useState} from "react";
 import { useNavigate } from "react-router-dom";
-
-import { socketManager } from "../../services/socket";
-import { fetchLobby, createLobby } from "../../services/auth";
+import { fetchLobby } from "../../services/auth";
+import LobbySettings from "./LobbySettings";
 
 const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
-  const joinRoom = (roomId, username, userId) => {
-    if (!socketManager.socket?.connected) {
-      socketManager.joinLobby(roomId, username, userId);
-    }
-    navigate(`/lobby/${roomId}`);
-  };
-
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate('/');
       return;
     }
   }, [navigate, user]);
 
-  const handleCreateGame = async () => {
-    try {
-      const response = await createLobby();
-      if (response.success) {
-        joinRoom(response.roomId, user.username, user.id);
-      }
-    } catch (error) {
-      console.error("Failed to create game:", error);
-    }
+  const handleCreateGame = () => {
+    navigate('/lobby/new');
   };
 
   const handleJoinGame = async (e) => {
     e.preventDefault();
+    // Extract roomId from the input value (which may be a full URL)
     const roomId = e.target.roomId.value.trim().split("/").pop();
 
     if (!roomId) return;
@@ -42,7 +28,7 @@ const CreateLobby = ({ user }) => {
     try {
       const response = await fetchLobby(roomId);
       if (response.success) {
-        joinRoom(roomId, user.username, user.id);
+        navigate(`/lobby/${roomId}`);
       } else {
         setError("Invalid Room ID.")
       }

@@ -2,17 +2,26 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import ChatBox from "./ChatBox";
+import HiddenWord from "./HiddenWord";
 import PixelCanvas from "../game/PixelCanvas";
 import { socketManager } from "../../services/socket";
-import HiddenWord from "./HiddenWord";
 
 const GameRoom = ({ user }) => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [gameData, setGameData] = useState({
     players: [],
+    playerLimit: 0,
+    revealCharacters: false,
+    currentRound: 0,
+    maxRounds: 3,
+    selectWord: false,
+    selectCategory: false,
     gameState: "waiting",
     messages: [],
+    word: "",
+    roomLeader: "",
+    currentDrawer: "",
   });
 
   useEffect(() => {
@@ -23,6 +32,10 @@ const GameRoom = ({ user }) => {
 
     socketManager.connect();
     socketManager.joinLobby(roomId, user.username);
+
+    socketManager.socket.on("gameStateUpdate", (gameState) => {
+      setGameData((prev) => ({ ...prev, gameState }));
+    });
 
     const unsubPlayer = socketManager.onPlayerUpdate((players) =>
       setGameData((prev) => ({ ...prev, players }))
@@ -43,18 +56,17 @@ const GameRoom = ({ user }) => {
   return (
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
       <div className="h-full flex flex-col gap-1 py-1">
-        <HiddenWord />
+        <HiddenWord word={gameData.word} />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
           <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
             <PixelCanvas isDrawer={true} gameState={gameData.gameState} />
           </div>
           <div className="h-[250px] lg:h-auto lg:w-72">
             <ChatBox
-              players={gameData.players}
-              messages={gameData.messages}
-              roomId={roomId}
-              username={user?.username}
-              showInviteButton={true}
+              user={user} 
+              roomId={roomId} 
+              messages={gameData.messages} 
+              players={gameData.players} 
             />
           </div>
         </div>

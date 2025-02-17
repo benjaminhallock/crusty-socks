@@ -24,8 +24,18 @@ export const fetchLobby = (roomId) => {
   return makeApiCall(API_ENDPOINTS.GET_LOBBY(roomId));
 };
 
-export const createLobby = () => 
-  makeApiCall(API_ENDPOINTS.CREATE_LOBBY, { method: "POST" });
+export const createLobby = (
+  { playerLimit, revealCharacters, maxRounds, selectWord, selectCategory }
+) => makeApiCall(API_ENDPOINTS.CREATE_LOBBY, { method: "POST",
+  body: JSON.stringify({ playerLimit, revealCharacters, maxRounds, selectWord, selectCategory })
+}).then(response => {
+  if (response.success && response.roomId) {
+  return response;
+  }
+  else {
+    throw new Error("Failed to create lobby");
+  }
+});
 
 export const login = (email, password) => 
   makeApiCall(API_ENDPOINTS.LOGIN, {

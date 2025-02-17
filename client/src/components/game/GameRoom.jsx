@@ -5,6 +5,7 @@ import ChatBox from "./ChatBox";
 import PixelCanvas from "../game/PixelCanvas";
 import { socketManager } from "../../services/socket";
 import HiddenWord from "./HiddenWord";
+import PlayerList from "./PlayerList";
 
 const GameRoom = ({ user }) => {
   const { roomId } = useParams();
@@ -45,10 +46,13 @@ const GameRoom = ({ user }) => {
       <div className="h-full flex flex-col gap-1 py-1">
         <HiddenWord />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
+          <div className="lg:w-72">
+            <PlayerList players={gameData.players} />
+          </div>
           <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
             <PixelCanvas isDrawer={true} gameState={gameData.gameState} />
           </div>
-          <div className="h-[250px] lg:h-auto lg:w-72">
+          <div className="lg:w-72">
             <ChatBox
               players={gameData.players}
               messages={gameData.messages}

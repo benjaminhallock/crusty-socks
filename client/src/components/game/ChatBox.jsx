@@ -34,9 +34,9 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
 
   return (
     <div id="chatBox" className="flex flex-col h-full">
-      <PlayersList players={players} />
+      {/* <PlayersList players={players} /> */}
       <div className="flex-1 bg-white/95 rounded-lg mt-2 flex flex-col">
-        <div className="h-[62vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+        <div className="h-[78vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
           {localMessages.map((msg, i) => (
               <div
                   key={i}
@@ -75,7 +75,6 @@ const ChatBox = ({ players, messages = [], roomId, username }) => {
     </div>
   );
 };
-
 const PlayersList = ({ players }) => {
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -86,30 +85,7 @@ const PlayersList = ({ players }) => {
   
   return (
     <div className="bg-gray-100 rounded-lg p-2 shadow-lg">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-gray-800">Players</h3>
-        <button 
-          onClick={handleInviteLink} 
-          className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
-        >
-          Invite Link
-        </button>
-      </div>
-      <ul className="space-y-1">
-        {uniquePlayers.map((player, index) => (
-          <li
-            key={`player-${player.username}-${index}`}
-            className="flex items-center gap-2 bg-gray-200 p-2 rounded-md hover:bg-gray-300 transition-colors duration-200"
-          >
-            <span 
-              className={`w-2 h-2 rounded-full ${
-                player.isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-              }`}
-            />
-            <span className="text-gray-800 font-medium text-sm">{player.username}</span>
-          </li>
-        ))}
-      </ul>
+     
     </div>
   );
 };

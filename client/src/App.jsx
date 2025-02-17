@@ -11,6 +11,7 @@ import Navbar from "./components/common/Navbar";
 import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
+import PlayerList from "./components/game/PlayerList";
 
 function App() {
   const [user, setUser] = useState(null);

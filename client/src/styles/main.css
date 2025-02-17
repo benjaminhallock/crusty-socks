@@ -2,3 +2,10 @@
   margin-top: 1px;
   margin-bottom: 1px;
 }
+#playerList{
+  height: 624px; /* cant use full for height */
+}
+#chatBox{
+  margin-top: -8px;
+  padding-bottom: -130px;
+}

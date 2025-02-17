@@ -35,9 +35,9 @@ const ChatBox = ({ user, roomId, messages, players }) => {
 
   return (
     <div id="chatBox" className="flex flex-col h-full">
-      <PlayersList players={players} />
+      {/* <PlayersList players={players} /> */}
       <div className="flex-1 bg-white/95 rounded-lg mt-2 flex flex-col">
-        <div className="h-[62vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+        <div className="h-[78vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
           {localMessages.map((msg, i) => (
               <div
                   key={i}
@@ -76,7 +76,6 @@ const ChatBox = ({ user, roomId, messages, players }) => {
     </div>
   );
 };
-
 const PlayersList = ({ players }) => {
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);

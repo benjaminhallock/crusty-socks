@@ -12,6 +12,7 @@ import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
 import LobbySettings from "./components/lobby/LobbySettings";
+import MusicPlayer from "./components/common/MusicPlayer";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -78,6 +79,7 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen">
         <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
+        <MusicPlayer />
         <main className="h-[calc(100vh-4rem)]">
           <Routes>
             <Route

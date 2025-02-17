@@ -79,8 +79,8 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen">
         <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
-        <MusicPlayer />
         <main className="h-[calc(100vh-4rem)]">
+        {/* <MusicPlayer /> */}
           <Routes>
             <Route
               path="/"
@@ -108,6 +108,7 @@ function App() {
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          
         </main>
       </div>
     </BrowserRouter>

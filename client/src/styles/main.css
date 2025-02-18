@@ -2,10 +2,34 @@
   margin-top: 1px;
   margin-bottom: 1px;
 }
-#playerList{
+#playerList {
   height: 624px; /* cant use full for height */
 }
-#chatBox{
+#chatBox {
   margin-top: -8px;
   padding-bottom: -130px;
+}
+#soundButton {
+  height: 115px;
+  width: 115px;
+  margin-bottom: 25px;
+  margin-left: 50px; 
+}
+#themeButton {
+  margin-right: 200px;
+}
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+}
+.navbar-left {
+  display: flex;
+  align-items: center;
+}
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }

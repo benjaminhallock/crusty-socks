@@ -17,6 +17,12 @@ import MusicPlayer from "./components/common/MusicPlayer";
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(() => {
+    return localStorage.getItem('isPlaying') === 'true';
+  });
+  const [isMuted, setIsMuted] = useState(() => {
+    return localStorage.getItem('isMuted') === 'true';
+  });
 
   useEffect(() => {
     console.log("Auth effect running"); // Debug log
@@ -67,6 +73,22 @@ function App() {
     setUser(null);
   };
 
+  const handlePlayPause = () => {
+    setIsPlaying(prevState => !prevState);
+  };
+
+  const handleMuteUnmute = () => {
+    setIsMuted(prevState => !prevState);
+  };
+
+  useEffect(() => {
+    localStorage.setItem('isPlaying', isPlaying);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    localStorage.setItem('isMuted', isMuted);
+  }, [isMuted]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -78,9 +100,9 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen">
-        <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
+        <Navbar isLoggedIn={!!user} onLogout={handleLogout} onPlayPause={handlePlayPause} isPlaying={isPlaying} onMuteUnmute={handleMuteUnmute} isMuted={isMuted} />
         <main className="h-[calc(100vh-4rem)]">
-        {/* <MusicPlayer /> */}
+          <MusicPlayer isPlaying={isPlaying} isMuted={isMuted} />
           <Routes>
             <Route
               path="/"
@@ -108,7 +130,6 @@ function App() {
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
-          
         </main>
       </div>
     </BrowserRouter>

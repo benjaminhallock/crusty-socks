@@ -54,7 +54,6 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
               <span>{player.username}</span>
               <span className="score">{player.score}</span>
             </span>
-
           </li>
         ))}
       </ul>

@@ -44,8 +44,8 @@ const LoginForm = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl animate-slide-in">
         <img className="mx-auto h-40 w-auto" src="/logo.svg" alt="Logo" />
         <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
           {isRegister ? "Create an account" : "Sign in"}

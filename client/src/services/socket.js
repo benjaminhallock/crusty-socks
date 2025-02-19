@@ -33,22 +33,18 @@ class SocketManager {
       });
 
       // Add event handlers after socket creation
-      this.socket.on("chatMessage", (message) => {
+      this.socket.on(SOCKET_EVENTS.CHAT_MESSAGE, (message) => {
         this.messageCallbacks.forEach((callback) => callback(message));
       });
 
-      this.socket.on("playerUpdate", (players) => {
+      this.socket.on(SOCKET_EVENTS.PLAYER_UPDATE, (players) => {
         this.playerCallbacks.forEach((callback) => callback(players));
       });
 
       this.socket.on(SOCKET_EVENTS.GAME_STATE_UPDATE, ({ lobby }) => {
         // Handle the game state update here
-        console.log('Received lobby update:', { lobby });
+        console.log("Received lobby update:", { lobby });
         this.gameStateCallbacks.forEach((callback) => callback({ lobby }));
-      });
-
-      this.socket.on("gameStateUpdate", (data) => {
-        this.gameStateCallbacks.forEach((callback) => callback(data));
       });
     }
     this.socket.on("connect", () => {
@@ -58,8 +54,8 @@ class SocketManager {
     if (this.isConnected() && userData) {
       this.socket.userId = userData.userId;
       this.socket.user = userData;
-      this.socket.emit("authenticate", userData);
     }
+
     this.socket.on("disconnect", () => {
       console.log("Socket disconnected");
     });
@@ -77,7 +73,7 @@ class SocketManager {
       throw new Error("Socket is not connected");
     }
     this.currentRoom = { roomId, username };
-    this.socket.emit("joinLobby", { roomId, username });
+    this.socket.emit(SOCKET_EVENTS.JOIN_LOBBY, { roomId, username });
   }
 
   sendMessage(roomId, message, username) {

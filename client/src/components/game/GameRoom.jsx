@@ -37,15 +37,12 @@ const GameRoom = ({ user }) => {
           if (!response.success) {
             navigate("/");
           } else {
-            const updatedGameData = {
-              ...response.lobby,
-              gameState: response.lobby.gameState || GAME_STATE.WAITING, // Ensure gameState is set
-            };
-            setGameData(updatedGameData);
+            console.log("Fetched lobby data:", response.lobby);
             setLobbyId(response.lobby.roomId);
             socketManager.joinLobby(response.lobby.roomId, user.username);
             socketManager.onGameStateUpdate((data) => {
-              if (data.lobby.gameState) {
+              console.log("Received game state update:", data);
+              if (data.lobby) {
                 gameData.gameState = data.lobby.gameState;
                 gameData.currentDrawer = data.lobby.currentDrawer;
                 gameData.currentWord = data.lobby.currentWord;

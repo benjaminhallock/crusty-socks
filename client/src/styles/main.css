@@ -33,3 +33,9 @@
   align-items: center;
   gap: 20px;
 }
+.score {
+  text-align: right;
+}
+
+
+

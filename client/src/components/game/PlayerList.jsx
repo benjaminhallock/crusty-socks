@@ -50,9 +50,11 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
                 drawerUsername === player.username ? "bg-green-500" : "bg-blue-500"
               }`}
             />
-            <span className="text-gray-800 font-medium text-sm">
-              {player.username}
+            <span className="flex justify-between w-full text-gray-800 font-medium text-sm">
+              <span>{player.username}</span>
+              <span className="score">{player.score}</span>
             </span>
+
           </li>
         ))}
       </ul>

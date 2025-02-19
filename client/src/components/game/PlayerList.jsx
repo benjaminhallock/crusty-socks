@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { socketManager } from '../../services/socket';
 
-const PlayerList = ({ players }) => {
+const PlayerList = ({ players, drawerUsername, roomId }) => {
   const [showPopup, setShowPopup] = useState(false);
 
   const handleInviteLink = () => {
@@ -24,6 +25,12 @@ const PlayerList = ({ players }) => {
             className="bg-indigo-600 text-white px-2 py-1 rounded-lg"
           >
             Invite
+          </button>
+          <button className="bg-green-600 text-white px-2 py-1 rounded-lg"
+          onClick={() => {
+            socketManager.startGame(roomId);
+          }}>
+            Start Game 
           </button>
           {showPopup && (
             <div className="absolute top-0 left-full ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">

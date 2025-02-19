@@ -78,9 +78,10 @@ const GameRoom = ({ user }) => {
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
       <div className="h-full flex flex-col gap-1 py-1">
         <HiddenWord
-          isDrawer={gameData.currentDrawer === user.username}
-          word={gameData.word}
+          word={gameData.currentWord}
+          isDrawing={gameData.currentDrawer === user.username}
           isRevealing={gameData.revealCharacters}
+          gameState={gameData.gameState}
         />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
           <div className="lg:w-72">
@@ -127,7 +128,7 @@ const GameRoom = ({ user }) => {
               </div>
             ))}
 
-          {gameData.gameState === GAME_STATE.PLAYING && (
+          {gameData.gameState === GAME_STATE.DRAWING && (
             <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
               <PixelCanvas
                 drawerUsername={gameData.currentDrawer}

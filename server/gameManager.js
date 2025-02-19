@@ -41,7 +41,7 @@ export class GameManager {
         });
       });
 
-      socket.on('wordSelected', async ({ roomId, word }) => {
+      socket.on('selectWord', async ({ roomId, word }) => {
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) return;
 
@@ -49,14 +49,10 @@ export class GameManager {
         lobby.gameState = GAME_STATE.DRAWING;
         await lobby.save();
 
-        // Emit word to drawer only
-        socket.emit(SOCKET_EVENTS.WORD_SELECTED, word);
-
         console.log('Emitting lobby update to all players');
         // Emit game state update to all players
         io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
-          gameState: lobby.gameState,
-          drawer: lobby.drawer,
+          lobby,
         });
       });
 

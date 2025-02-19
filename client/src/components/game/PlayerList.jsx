@@ -16,7 +16,7 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
   );
 
   return (
-    <div id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg relative">
+    <div id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg relative flex-1 flex flex-col">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800">Players</h3>
         <div className="relative">

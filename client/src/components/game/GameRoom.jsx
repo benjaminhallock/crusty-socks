@@ -84,7 +84,7 @@ const GameRoom = ({ user }) => {
           gameState={gameData.gameState}
         />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
-          <div className="lg:w-72">
+          <div className="lg:w-72 flex flex-col">
             <PlayerList
               players={gameData.players}
               drawerUsername={gameData.currentDrawer}

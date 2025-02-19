@@ -1,7 +1,7 @@
-import {useEffect, useState} from "react";
-import { useNavigate } from "react-router-dom";
-import { fetchLobby } from "../../services/auth";
-import LobbySettings from "./LobbySettings";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { fetchLobby } from '../../services/auth';
 
 const CreateLobby = ({ user }) => {
   const navigate = useNavigate();

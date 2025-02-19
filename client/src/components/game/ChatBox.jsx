@@ -1,12 +1,13 @@
 import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 
-import { socketManager } from '../../services/socket';
 import LobbySettings from '../lobby/LobbySettings';
+import { socketManager } from '../../services/socket';
 
 const ChatBox = ({ user, roomId, messages, players }) => {
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState(messages);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -14,10 +15,30 @@ const ChatBox = ({ user, roomId, messages, players }) => {
   };
 
   useEffect(() => {
-    const cleanup = socketManager.onMessage((message) => {
-      setLocalMessages(prev => [...prev, message]);
-    });
-    return () => cleanup();
+    let mounted = true;
+
+    if (mounted) {
+      setLocalMessages(messages);
+    }
+    
+    let cleanup;
+    try {
+      // Ensure socket is connected
+      if (!socketManager.isConnected()) {
+        socketManager.connect();
+      }
+      
+      cleanup = socketManager.onMessage((message) => {
+        setLocalMessages(prev => [...prev, message]);
+      });
+      
+      setError(null);
+    } catch (err) {
+      setError("Failed to connect to chat");
+      console.error("Socket connection error:", err);
+    }
+
+    return () => cleanup && cleanup();
   }, []);
 
   useEffect(() => {
@@ -32,6 +53,10 @@ const ChatBox = ({ user, roomId, messages, players }) => {
       setInput("");
     }
   };
+
+  if (error) {
+    return <div className="text-red-500 p-4">{error}</div>;
+  }
 
   return (
     <div id="chatBox" className="flex flex-col h-full">

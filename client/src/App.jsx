@@ -25,9 +25,7 @@ function App() {
   });
 
   useEffect(() => {
-    console.log("Auth effect running"); // Debug log
-    let mounted = true; // Track if component is mounted
-
+    let mounted = true;
     const checkUserAuth = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -38,11 +36,13 @@ function App() {
       try {
         const response = await checkAuth();
         if (mounted && response.success) {
+          console.log("User authenticated"); // Debug log
           const userData = { ...response.user, id: response.user._id };
           setUser(userData);
-          socketManager.connect(userData);
+          socketManager.connect();
         }
       } catch (error) {
+        console.error("Authentication error:", error);
         if (mounted) {
           localStorage.clear();
           setIsLoading(false);
@@ -55,10 +55,9 @@ function App() {
     checkUserAuth();
 
     return () => {
-      mounted = false; // Cleanup to prevent setting state on unmounted component
-      console.log("Auth effect cleanup"); // Debug log
+      mounted = false;
     };
-  }, []); // Empty dependency array since this should only run once
+  }, []); 
 
   const handleLogin = ({ user: userData, token }) => {
     const userInfo = { ...userData, id: userData._id };

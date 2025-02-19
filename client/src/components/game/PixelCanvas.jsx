@@ -11,7 +11,7 @@ const ToolButton = ({ active, onClick, children }) => (
   </button>
 );
 
-const PixelCanvas = ({ isDrawer = true }) => {
+const PixelCanvas = ({ isDrawer, drawerUsername }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");

@@ -10,7 +10,9 @@ const PlayerList = ({ players }) => {
   };
 
   // Deduplicate players by username
-  const uniquePlayers = Array.from(new Map(players.map(player => [player.username, player])).values());
+  const uniquePlayers = Array.from(
+    new Map(players.map((player) => [player.username, player])).values()
+  );
 
   return (
     <div id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg relative">
@@ -36,12 +38,14 @@ const PlayerList = ({ players }) => {
             key={`player-${player.username}-${index}`}
             className="flex items-center gap-2 bg-gray-200 p-2 rounded-md hover:bg-gray-300 transition-colors duration-200"
           >
-            <span 
+            <span
               className={`w-2 h-2 rounded-full ${
-                player.isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                drawerUsername === player.username ? "bg-green-500" : "bg-blue-500"
               }`}
             />
-            <span className="text-gray-800 font-medium text-sm">{player.username}</span>
+            <span className="text-gray-800 font-medium text-sm">
+              {player.username}
+            </span>
           </li>
         ))}
       </ul>

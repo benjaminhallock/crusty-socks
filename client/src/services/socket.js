@@ -1,12 +1,16 @@
 import { io } from "socket.io-client";
 
 import { ENV_CONFIG } from "../../../shared/constants.js";
+import { SOCKET_EVENTS } from "../../../shared/constants.js";
 
 class SocketManager {
   constructor() {
     this.socket = null;
+    //A callback is 1+ functions that get called on a socket emit,
+    // You can add a callback function to the set using the onMessage method
     this.messageCallbacks = new Set();
     this.playerCallbacks = new Set();
+    this.gameStateCallbacks = new Set();
     this.currentRoom = null;
   }
 
@@ -14,47 +18,51 @@ class SocketManager {
     return this.socket && this.socket.connected;
   }
 
-  connect() {
+  connect(userData) {
     if (this.isConnected()) return;
 
-    this.socket = io(ENV_CONFIG.SOCKET_URL, {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-      extraHeaders: {
-        "Access-Control-Allow-Origin": ENV_CONFIG.CLIENT_URL,
-      },
-    });
+    if (!this.socket) {
+      this.socket = io(ENV_CONFIG.SOCKET_URL, {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+        autoConnect: false,
+        reconnection: true,
+        extraHeaders: {
+          "Access-Control-Allow-Origin": ENV_CONFIG.CLIENT_URL,
+        },
+      });
 
-    this.socket.on("playerUpdate", (players) => {
-      if (this.currentRoom) {
-        // Only update if we're in a room
-        this.playerCallbacks.forEach((cb) => cb(players));
-      }
-    });
+      // Add event handlers after socket creation
+      this.socket.on("chatMessage", (message) => {
+        this.messageCallbacks.forEach((callback) => callback(message));
+      });
 
-    this.socket.on("gameStateUpdate", (gameState) => {
+      this.socket.on("playerUpdate", (players) => {
+        this.playerCallbacks.forEach((callback) => callback(players));
+      });
 
-    });
+      this.socket.on(SOCKET_EVENTS.GAME_STATE_UPDATE, ({ lobby }) => {
+        // Handle the game state update here
+        console.log('Received lobby update:', { lobby });
+        this.gameStateCallbacks.forEach((callback) => callback({ lobby }));
+      });
 
-    this.socket.on("chatMessage", (msg) =>
-      this.messageCallbacks.forEach((cb) => cb(msg))
-    );
-
-    // Handle reconnection
-    this.socket.on("reconnect", () => {
-      if (this.currentRoom) {
-        this.joinLobby(this.currentRoom.roomId, this.currentRoom.username);
-      }
-    });
-  }
-
-  updateGameState(gameState) {
-    if (!this.isConnected()) {
-      throw new Error("Socket is not connected");
+      this.socket.on("gameStateUpdate", (data) => {
+        this.gameStateCallbacks.forEach((callback) => callback(data));
+      });
     }
-    this.socket.emit("gameStateUpdate", gameState);
+    this.socket.on("connect", () => {
+      console.log("Socket connected");
+    });
+    this.socket.connect();
+    if (this.isConnected() && userData) {
+      this.socket.userId = userData.userId;
+      this.socket.user = userData;
+      this.socket.emit("authenticate", userData);
+    }
+    this.socket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
   }
 
   startGame(roomId) {
@@ -76,11 +84,19 @@ class SocketManager {
     if (!this.isConnected()) {
       throw new Error("Socket is not connected");
     }
+    // Remove this.io reference as it doesn't exist
     this.socket.emit("chatMessage", { roomId, message, username });
   }
 
+  selectWord(roomId, word) {
+    if (!this.isConnected()) {
+      throw new Error("Socket is not connected");
+    }
+    this.socket.emit("selectWord", { roomId, word });
+  }
+
   onMessage(callback) {
-    if (!this.socket) {
+    if (!this.isConnected()) {
       throw new Error("Socket instance not created");
     }
     this.messageCallbacks.add(callback);
@@ -88,11 +104,21 @@ class SocketManager {
   }
 
   onPlayerUpdate(callback) {
-    if (!this.socket) {
+    if (!this.isConnected) {
       throw new Error("Socket instance not created");
     }
     this.playerCallbacks.add(callback);
     return () => this.playerCallbacks.delete(callback);
+  }
+
+  onGameStateUpdate(callback) {
+    this.gameStateCallbacks.add(callback);
+
+    if (!this.isConnected()) {
+      this.connect();
+    }
+
+    return () => this.gameStateCallbacks.delete(callback);
   }
 
   disconnect() {

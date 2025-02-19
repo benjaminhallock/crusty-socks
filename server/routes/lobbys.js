@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { GAME_STATE } from '../../shared/constants.js';
 import { auth } from '../middleware/auth.js';
 import Lobby from '../models/lobby.js';
 
@@ -23,16 +24,23 @@ router.post('/create', auth, async (req, res) => {
     const lobby = new Lobby({
       roomId,
       roomLeader: req.user._id,
+      gameState: GAME_STATE.WAITING, // Explicitly set gameState
       players: [{
         userId: req.user._id,
         username: req.user.username,
         score: 0
-      }]
+      }],
+      playerLimit: 8,
+      revealCharacters: true,
+      maxRounds: 3,
+      selectWord: true,
+      selectCategory: true
     });
     
     await lobby.save();
     res.json({ success: true, roomId, lobby });
   } catch (error) {
+    console.error('Create lobby error:', error);
     res.status(400).json({
       success: false,
       message: 'Failed to create lobby'

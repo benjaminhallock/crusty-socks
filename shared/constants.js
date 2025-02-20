@@ -106,7 +106,8 @@ export const GAME_STATE = {
   PICKING_WORD: 'picking_word',
   DRAWING: 'drawing',
   ROUND_END: 'round_end',
-  GAME_END: 'game_end'
+  GAME_END: 'game_end',
+  FINISHED: 'finished'
 };
 
 // Environment-specific settings

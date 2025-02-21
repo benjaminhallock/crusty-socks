@@ -1,94 +1,143 @@
 import { GAME_STATE, SOCKET_EVENTS } from "../shared/constants.js";
 import { WORD_LIST } from "../shared/constants.js";
 import Lobby from "./models/lobby.js";
+import User from "./models/user.js";
 
-export class GameManager {
+/**
+ * GameManager Class
+ * Central hub for managing game state, player connections, and real-time game events
+ * Handles all socket.io events for the game's server-side logic
+ */
+class GameManager {
   constructor(io) {
-    this.io = io;
-    this.activeConnections = new Map(); // socketId -> {roomId, username}
+    console.log('Initializing GameManager');
+    this.io = io; // Socket.io server instance
+    // Map to track active player connections: socketId -> {roomId, username}
+    this.activeConnections = new Map();
     this.setupSocketListeners(io);
   }
 
   setupSocketListeners(io) {
-    //A socket represents a player's connection to the server
-    //They call socket.emit to send messages to the server
+    console.log('Setting up socket event listeners');
+    
     io.on("connection", (socket) => {
-      // Handle the start game event
+      console.log('New player connected:', socket.id);
+
+      // Send immediate acknowledgment of connection
+      socket.emit('connect_ack', { id: socket.id });
+
+      // Handle initial connection error
+      socket.on("error", (error) => {
+        console.error("Socket error:", error);
+        socket.emit("error", "Connection error occurred");
+      });
+
+      // Game initialization event
       socket.on("startGame", async (roomId) => {
-        socket.join(roomId); //delete later
-
-        console.log("Starting game in room:", roomId);
+        console.log('Starting new game in room:', roomId);
+        socket.join(roomId);
+        
         const lobby = await Lobby.findOne({ roomId });
-        if (!lobby) return console.error("Lobby not found:", roomId);
+        if (!lobby) {
+          console.error("Cannot start game - Lobby not found:", roomId);
+          return;
+        }
 
-        // Pick random drawer and words
+        // Initialize game state with random drawer and words
         const drawerIndex = Math.floor(Math.random() * lobby.players.length);
         const drawer = lobby.players[drawerIndex];
-
-        // Select 3 random words
         const words = WORD_LIST.sort(() => 0.5 - Math.random()).slice(0, 3);
+        
+        console.log('Selected drawer:', drawer.username);
+        console.log('Selected words:', words);
 
+        // Update lobby state
         lobby.currentDrawer = drawer.username;
         lobby.gameState = GAME_STATE.PICKING_WORD;
         lobby.currentWord = words.join(", ");
         await lobby.save();
 
-        console.log("Sharing lobby object to roomid:", roomId, lobby);
-
-        // Emit game state to all players
-        io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
-          lobby,
-        });
+        // Broadcast new game state to all players in room
+        io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
 
+      // Chat message handling
       socket.on("chatMessage", async ({ roomId, message, username }) => {
-        if (!roomId || !message || !username) return;
+        console.log('New chat message:', { roomId, username, message });
+        
+        if (!roomId || !message || !username) {
+          console.error('Invalid chat message data');
+          return;
+        }
 
         const messageData = { username, message, timestamp: Date.now() };
+        
+        // Store message in database and broadcast to room
         await Lobby.findOneAndUpdate(
           { roomId },
           { $push: { messages: messageData } }
         );
-
         io.to(roomId).emit("chatMessage", messageData);
       });
 
+      // Word selection handling
       socket.on("selectWord", async ({ roomId, word }) => {
+        console.log('Word selected for room:', { roomId, word });
+        
         const lobby = await Lobby.findOne({ roomId });
-        if (!lobby) return;
+        if (!lobby) {
+          console.error('Cannot select word - Lobby not found');
+          return;
+        }
 
+        // Update game state and broadcast
         lobby.currentWord = word;
         lobby.gameState = GAME_STATE.DRAWING;
         await lobby.save();
-
-        console.log("Emitting lobby update to all players");
-        // Emit game state update to all players
-        io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
-          lobby,
-        });
+        
+        io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
 
-      // Handle join lobby event
+      // Lobby join handling
       socket.on(SOCKET_EVENTS.JOIN_LOBBY, async ({ roomId, username }) => {
-        if (!roomId || !username) return;
+        console.log('Player joining lobby:', { roomId, username });
+        
+        if (!roomId || !username) {
+          console.error('Invalid lobby join data');
+          return;
+        }
+
+        // Find user by username
+        const user = await User.findOne({ username });
+        if (!user) {
+          console.error("Cannot join - User not found:", username);
+          return;
+        }
 
         try {
-          // Step 1: Find a lobby and add my username to the players list
           let lobby = await Lobby.findOne({ roomId });
           if (!lobby) {
-            console.log("Cant find lobby to join:", roomId);
+            console.error("Cannot join - Lobby not found:", roomId);
             return;
           }
-          lobby.players.push({ username });
+
+          // Check if player is already in lobby
+          if (lobby.players.find((p) => p.userId === user._id)) {
+            console.error("Player already in lobby:", user.username);
+            return;
+          }
+
+          // Add player to lobby
+          lobby.players.push({ username: user.username, userId: user._id, score: 1000 });
           await lobby.save();
+          
+          // Set up socket room and track connection
           socket.join(roomId);
           socket.roomId = roomId;
           this.activeConnections.set(socket.id, { roomId, username });
 
-          // Emit game state update to all players
-          io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
-            lobby,
-          });
+          // Broadcast updates to all players
+          io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
           io.to(roomId).emit("chatMessage", {
             username: "Server",
             message: `${username} has joined the lobby`,
@@ -99,31 +148,42 @@ export class GameManager {
         }
       });
 
-      // Handle the update canvas event
+      // Canvas update handling
       socket.on("updateCanvas", async ({ roomId, pixels }) => {
-        if (!roomId || !pixels) return;
+        console.log('Canvas update received for room:', roomId);
+        
+        if (!roomId || !pixels) {
+          console.error('Invalid canvas update data');
+          return;
+        }
 
+        // Store canvas state and broadcast update
         const lobby = await Lobby.findOneAndUpdate(
           { roomId },
           { canvasState: { pixels, lastUpdate: Date.now() } },
           { new: true }
         );
-
         io.to(roomId).emit("canvasUpdate", lobby.canvasState);
       });
 
+      // Disconnect handling
       socket.on("disconnect", async () => {
+        console.log('Player disconnected:', socket.id);
+        
         const connection = this.activeConnections.get(socket.id);
         if (connection) {
           const { roomId, username } = connection;
-
+          
+          // Remove player from lobby
           const lobby = await Lobby.findOneAndUpdate(
             { roomId },
             { $pull: { players: { username } } },
             { new: true }
           );
 
+          // Clean up empty lobbies or update player list
           if (lobby && lobby.players.length === 0) {
+            console.log('Removing empty lobby:', roomId);
             await Lobby.deleteOne({ roomId });
           } else if (lobby) {
             io.to(roomId).emit("playerUpdate", lobby.players);
@@ -132,22 +192,11 @@ export class GameManager {
           this.activeConnections.delete(socket.id);
         }
       });
-
-      socket.on("chatMessage", async ({ roomId, message, username }) => {
-        if (!roomId || !message || !username) return;
-
-        const messageData = { username, message, timestamp: Date.now() };
-        await Lobby.findOneAndUpdate(
-          { roomId },
-          { $push: { messages: messageData } }
-        );
-
-        io.to(roomId).emit("chatMessage", messageData);
-      });
     });
   }
 }
 
+// Export factory function to create GameManager instance
 export const initializeSocketEvents = (io) => {
   return new GameManager(io);
 };

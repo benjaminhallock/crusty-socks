@@ -36,10 +36,10 @@ function App() {
       try {
         const response = await checkAuth();
         if (mounted && response.success) {
-          console.log("User authenticated"); // Debug log
+          console.log("User authenticated:", response.user);
           const userData = { ...response.user, id: response.user._id };
           setUser(userData);
-          socketManager.connect();
+          socketManager.connect(userData);
         }
       } catch (error) {
         console.error("Authentication error:", error);
@@ -63,7 +63,7 @@ function App() {
     const userInfo = { ...userData, id: userData._id };
     localStorage.setItem("token", token);
     setUser(userInfo);
-    socketManager.connect(userInfo);
+    socketManager.connect(userInfo);  // Connect socket right after successful login
   };
 
   const handleLogout = () => {

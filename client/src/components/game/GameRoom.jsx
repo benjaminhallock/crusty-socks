@@ -29,6 +29,7 @@ const GameRoom = ({ user }) => {
 
   useEffect(() => {
     let isMounted = true;
+    socketManager.connect(user);
 
     const fetchData = async () => {
       try {
@@ -39,7 +40,9 @@ const GameRoom = ({ user }) => {
           } else {
             console.log("Fetched lobby data:", response.lobby);
             setLobbyId(response.lobby.roomId);
+            // Join the lobby
             socketManager.joinLobby(response.lobby.roomId, user.username);
+
             socketManager.onGameStateUpdate((data) => {
               console.log("Received game state update:", data);
               if (data.lobby) {

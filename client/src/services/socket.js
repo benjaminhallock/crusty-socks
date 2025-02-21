@@ -1,123 +1,167 @@
 import { io } from "socket.io-client";
-
 import { ENV_CONFIG } from "../../../shared/constants.js";
 import { SOCKET_EVENTS } from "../../../shared/constants.js";
 
+/**
+ * SocketManager Class
+ * Manages all real-time socket connections and event handling for the game
+ * Implements the Singleton pattern - only one instance exists across the app
+ */
 class SocketManager {
   constructor() {
+    console.log('Initializing SocketManager');
     this.socket = null;
-    //A callback is 1+ functions that get called on a socket emit,
-    // You can add a callback function to the set using the onMessage method
-    this.messageCallbacks = new Set();
-    this.playerCallbacks = new Set();
-    this.gameStateCallbacks = new Set();
+    // Sets to store callback functions for different event types
+    this.messageCallbacks = new Set(); // Handles chat messages
+    this.playerCallbacks = new Set();  // Handles player updates (joins/leaves)
+    this.gameStateCallbacks = new Set(); // Handles game state changes
     this.currentRoom = null;
   }
 
+  // Check if socket connection is active
   isConnected() {
-    return this.socket && this.socket.connected;
+    const connected = this.socket && this.socket.connected;
+    console.log('Socket connection status:', connected);
+    return connected;
   }
 
+  // Initialize socket connection with user data
   connect(userData) {
+    console.log('Attempting socket connection with user data:', userData);
     if (this.isConnected()) return;
 
     if (!this.socket) {
+      console.log('Creating new socket instance');
       this.socket = io(ENV_CONFIG.SOCKET_URL, {
         withCredentials: true,
-        transports: ["websocket", "polling"],
+        transports: ['polling'],
         autoConnect: false,
         reconnection: true,
-        extraHeaders: {
-          "Access-Control-Allow-Origin": ENV_CONFIG.CLIENT_URL,
-        },
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 45000
       });
 
-      // Add event handlers after socket creation
+      // Set up event listeners for different socket events
       this.socket.on(SOCKET_EVENTS.CHAT_MESSAGE, (message) => {
-        this.messageCallbacks.forEach((callback) => callback(message));
+        console.log('Received chat message:', message);
+        this.messageCallbacks.forEach(callback => callback(message));
       });
 
       this.socket.on(SOCKET_EVENTS.PLAYER_UPDATE, (players) => {
-        this.playerCallbacks.forEach((callback) => callback(players));
+        console.log('Received player update:', players);
+        this.playerCallbacks.forEach(callback => callback(players));
       });
 
       this.socket.on(SOCKET_EVENTS.GAME_STATE_UPDATE, ({ lobby }) => {
-        // Handle the game state update here
-        console.log("Received lobby update:", { lobby });
-        this.gameStateCallbacks.forEach((callback) => callback({ lobby }));
+        console.log('Received game state update:', lobby);
+        this.gameStateCallbacks.forEach(callback => callback({ lobby }));
       });
     }
+
+    // Connection status handlers
     this.socket.on("connect", () => {
-      console.log("Socket connected");
+      console.log("Socket successfully connected", this.socket.id);
     });
+
+    this.socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error.message);
+    });
+
+    this.socket.on("connect_timeout", () => {
+      console.error("Socket connection timeout");
+    });
+
+    this.socket.on("error", (error) => {
+      console.error("Socket error:", error);
+    });
+
+    this.socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected - reason:", reason);
+      if (reason === "transport close" || reason === "transport error") {
+        console.log("Attempting reconnection...");
+      }
+    });
+
     this.socket.connect();
+
+    // Associate user data with socket if available
     if (this.isConnected() && userData) {
+      console.log('Attaching user data to socket:', userData);
       this.socket.userId = userData.userId;
       this.socket.user = userData;
     }
-
-    this.socket.on("disconnect", () => {
-      console.log("Socket disconnected");
-    });
   }
 
+  // Game control methods
   startGame(roomId) {
+    console.log('Initiating game start for room:', roomId);
     if (!this.isConnected()) {
-      throw new Error("Socket is not connected");
+      throw new Error("Cannot start game - Socket is not connected");
     }
     this.socket.emit("startGame", roomId);
   }
 
+  // Room management methods
   joinLobby(roomId, username) {
+    console.log('Joining lobby:', { roomId, username });
     if (!this.isConnected()) {
-      throw new Error("Socket is not connected");
+      throw new Error("Cannot join lobby - Socket is not connected");
     }
     this.currentRoom = { roomId, username };
     this.socket.emit(SOCKET_EVENTS.JOIN_LOBBY, { roomId, username });
   }
 
+  // Chat functionality
   sendMessage(roomId, message, username) {
+    console.log('Sending chat message:', { roomId, message, username });
     if (!this.isConnected()) {
-      throw new Error("Socket is not connected");
+      throw new Error("Cannot send message - Socket is not connected");
     }
-    // Remove this.io reference as it doesn't exist
     this.socket.emit("chatMessage", { roomId, message, username });
   }
 
+  // Game action methods
   selectWord(roomId, word) {
+    console.log('Selecting word for game:', { roomId, word });
     if (!this.isConnected()) {
-      throw new Error("Socket is not connected");
+      throw new Error("Cannot select word - Socket is not connected");
     }
     this.socket.emit("selectWord", { roomId, word });
   }
 
+  // Event subscription methods
   onMessage(callback) {
+    console.log('Adding new message callback');
     if (!this.isConnected()) {
-      throw new Error("Socket instance not created");
+      throw new Error("Cannot subscribe to messages - Socket instance not created");
     }
     this.messageCallbacks.add(callback);
     return () => this.messageCallbacks.delete(callback);
   }
 
   onPlayerUpdate(callback) {
+    console.log('Adding new player update callback');
     if (!this.isConnected) {
-      throw new Error("Socket instance not created");
+      throw new Error("Cannot subscribe to player updates - Socket instance not created");
     }
     this.playerCallbacks.add(callback);
     return () => this.playerCallbacks.delete(callback);
   }
 
   onGameStateUpdate(callback) {
+    console.log('Adding new game state callback');
     this.gameStateCallbacks.add(callback);
-
     if (!this.isConnected()) {
       this.connect();
     }
-
     return () => this.gameStateCallbacks.delete(callback);
   }
 
+  // Cleanup method
   disconnect() {
+    console.log('Disconnecting socket');
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -125,4 +169,5 @@ class SocketManager {
   }
 }
 
+// Export a singleton instance
 export const socketManager = new SocketManager();

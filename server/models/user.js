@@ -47,6 +47,10 @@ userSchema.pre('save', async function(next) {
   }
 });
 
+userSchema.statics.findByUsername = async function(username) {
+  return this.findOne({ username });
+}
+
 userSchema.statics.findByCredentials = async function(email, password) {
   const user = await this.findOne({ email }).select('+password');
   if (!user || !await bcrypt.compare(password, user.password)) {

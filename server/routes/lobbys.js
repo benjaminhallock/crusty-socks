@@ -25,11 +25,9 @@ router.post('/create', auth, async (req, res) => {
       roomId,
       roomLeader: req.user._id,
       gameState: GAME_STATE.WAITING, // Explicitly set gameState
-      players: [{
-        userId: req.user._id,
-        username: req.user.username,
-        score: 0
-      }],
+      players: [],
+      messages: [],
+      canvasState: { pixels: [], lastUpdate: Date.now() },
       playerLimit: 8,
       revealCharacters: true,
       maxRounds: 3,
@@ -38,7 +36,7 @@ router.post('/create', auth, async (req, res) => {
     });
     
     await lobby.save();
-    res.json({ success: true, roomId, lobby });
+    res.status(201).json({ success: true, roomId, lobby });
   } catch (error) {
     console.error('Create lobby error:', error);
     res.status(400).json({

@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect } from "react";
 
+/**
+ * ToolButton Component
+ * Reusable button component for drawing tools with active state styling
+ */
 const ToolButton = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
@@ -11,20 +15,34 @@ const ToolButton = ({ active, onClick, children }) => (
   </button>
 );
 
+/**
+ * PixelCanvas Component
+ * Main drawing interface for the game
+ * Handles all drawing tools, canvas interactions, and state management
+ */
 const PixelCanvas = ({ isDrawer, drawerUsername }) => {
+  console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
+  
+  // Core canvas state and refs
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [currentTool, setCurrentTool] = useState("brush");
-  const [history, setHistory] = useState([]);
-  const [redoStates, setRedoStates] = useState([]);
-  const [startPos, setStartPos] = useState(null);
-  
-  const GRID_SIZE = 20;
-  const CANVAS_WIDTH = 700; // Reduced width
-  const CANVAS_HEIGHT = 500; // Reduced height
+  const [history, setHistory] = useState([]); // For undo functionality
+  const [redoStates, setRedoStates] = useState([]); // For redo functionality
+  const [startPos, setStartPos] = useState(null); // For line tool
 
+  // Canvas configuration constants
+  const GRID_SIZE = 20;
+  const CANVAS_WIDTH = 700;
+  const CANVAS_HEIGHT = 500;
+
+  /**
+   * Draws a single pixel on the grid
+   * Handles both regular drawing and eraser functionality
+   */
   const drawPixel = (ctx, x, y, color) => {
+    console.log('Drawing pixel:', { x, y, color, tool: currentTool });
     const gridX = Math.floor(x / GRID_SIZE);
     const gridY = Math.floor(y / GRID_SIZE);
     
@@ -35,13 +53,21 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
     }
   };
 
+  /**
+   * Saves current canvas state for undo functionality
+   */
   const saveState = () => {
+    console.log('Saving canvas state');
     const canvas = canvasRef.current;
     setHistory([...history, canvas.toDataURL()]);
-    setRedoStates([]); // Clear redo states when new action is performed
+    setRedoStates([]); // Clear redo stack on new action
   };
 
+  /**
+   * Draws a line between two points using Bresenham's algorithm
+   */
   const drawLine = (ctx, start, end) => {
+    console.log('Drawing line:', { start, end });
     const dx = Math.abs(end.x - start.x);
     const dy = Math.abs(end.y - start.y);
     const steps = Math.max(dx, dy);
@@ -53,12 +79,19 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
     }
   };
 
+  /**
+   * Gets color of pixel at specific coordinates
+   */
   const getPixelColor = (ctx, x, y) => {
     const pixel = ctx.getImageData(x, y, 1, 1).data;
     return `#${[...pixel.slice(0, 3)].map(x => x.toString(16).padStart(2, '0')).join('')}`;
   };
 
+  /**
+   * Implements flood fill (paint bucket) tool using stack-based approach
+   */
   const floodFill = (ctx, startX, startY, fillColor) => {
+    console.log('Starting flood fill:', { startX, startY, fillColor });
     const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     const pixels = imageData.data;
     
@@ -72,9 +105,10 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
       ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
     };
 
+    // Stack-based flood fill implementation
     const stack = [[Math.floor(startX / GRID_SIZE), Math.floor(startY / GRID_SIZE)]];
     const visited = new Set();
-
+    
     while (stack.length) {
       const [x, y] = stack.pop();
       const key = `${x},${y}`;
@@ -82,10 +116,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
       if (visited.has(key)) continue;
       if (x < 0 || x >= CANVAS_WIDTH / GRID_SIZE || y < 0 || y >= CANVAS_HEIGHT / GRID_SIZE) continue;
       if (getPixelColor(ctx, x * GRID_SIZE, y * GRID_SIZE) !== targetColor) continue;
-
+      
       visited.add(key);
       fillPixel(x, y);
-
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
   };

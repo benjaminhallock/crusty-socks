@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get('/all', auth, async (req, res) => {
   try {
-    const lobbies = await Lobby.find({ isArchived: false });
+    const lobbies = await Lobby.find({});
     res.status(200).json({ success: true, lobbies });
   } catch (error) {
     res.status(400).json({

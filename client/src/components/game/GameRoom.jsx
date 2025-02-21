@@ -25,6 +25,8 @@ const GameRoom = ({ user }) => {
     messages: [],
     currentWord: "",
     currentDrawer: "",
+    canvasState: null,
+    timeLeft: 60,
   });
 
   useEffect(() => {
@@ -40,23 +42,33 @@ const GameRoom = ({ user }) => {
           } else {
             console.log("Fetched lobby data:", response.lobby);
             setLobbyId(response.lobby.roomId);
-            // Join the lobby
             socketManager.joinLobby(response.lobby.roomId, user.username);
+            
+            // Immediately update game state with fetched data
+            setGameData(prevData => ({
+              ...prevData,
+              gameState: response.lobby.gameState,
+              currentDrawer: response.lobby.currentDrawer,
+              currentWord: response.lobby.currentWord,
+              maxRounds: response.lobby.maxRounds,
+              revealCharacters: response.lobby.revealCharacters,
+              selectWord: response.lobby.selectWord,
+              selectCategory: response.lobby.selectCategory,
+              playerLimit: response.lobby.playerLimit,
+              players: response.lobby.players,
+              messages: response.lobby.messages,
+              canvasState: response.lobby.canvasState,
+              timeLeft: response.lobby.timeLeft || 60,
+              currentRound: response.lobby.currentRound
+            }));
 
+            // Set up socket listeners for updates
             socketManager.onGameStateUpdate((data) => {
-              console.log("Received game state update:", data);
               if (data.lobby) {
-                gameData.gameState = data.lobby.gameState;
-                gameData.currentDrawer = data.lobby.currentDrawer;
-                gameData.currentWord = data.lobby.currentWord;
-                gameData.maxRounds = data.lobby.maxRounds;
-                gameData.revealCharacters = data.lobby.revealCharacters;
-                gameData.selectWord = data.lobby.selectWord;
-                gameData.selectCategory = data.lobby.selectCategory;
-                gameData.playerLimit = data.lobby.playerLimit;
-                gameData.players = data.lobby.players;
-                gameData.messages = data.lobby.messages;
-                setGameData({ ...gameData });
+                setGameData(prevData => ({
+                  ...prevData,
+                  ...data.lobby
+                }));
               }
             });
           }
@@ -74,6 +86,27 @@ const GameRoom = ({ user }) => {
     };
   }, [roomId, navigate, user.username]);
 
+  // Timer effect
+  useEffect(() => {
+    let timer;
+    if (gameData.gameState === GAME_STATE.DRAWING && gameData.timeLeft > 0) {
+      timer = setInterval(() => {
+        setGameData(prev => {
+          const newTimeLeft = prev.timeLeft - 1;
+          if (newTimeLeft <= 0) {
+            socketManager.timeUp(roomId);
+          }
+          return {
+            ...prev,
+            timeLeft: newTimeLeft
+          };
+        });
+      }, 1000);
+    }
+
+    return () => clearInterval(timer);
+  }, [gameData.gameState, gameData.timeLeft, roomId]);
+
   return (
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
       <div className="h-full flex flex-col gap-1 py-1">
@@ -82,6 +115,7 @@ const GameRoom = ({ user }) => {
           isDrawing={gameData.currentDrawer === user.username}
           isRevealing={gameData.revealCharacters}
           gameState={gameData.gameState}
+          timeLeft={gameData.timeLeft}
         />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
           <div className="lg:w-72 flex flex-col">
@@ -91,8 +125,6 @@ const GameRoom = ({ user }) => {
               roomId={lobbyId}
             />
           </div>
-
-          {console.log("gameData.gameState", gameData.gameState)}
 
           {gameData.gameState === GAME_STATE.WAITING && (
             <div className="flex-1 text-center">
@@ -133,6 +165,7 @@ const GameRoom = ({ user }) => {
               <PixelCanvas
                 drawerUsername={gameData.currentDrawer}
                 isDrawer={gameData.currentDrawer === user.username}
+                canvasState={gameData.canvasState}
               />
             </div>
           )}
@@ -148,7 +181,7 @@ const GameRoom = ({ user }) => {
               user={user}
               roomId={roomId}
               messages={gameData.messages}
-              players={gameData.players}
+              gameState={gameData.gameState}
             />
           </div>
         </div>

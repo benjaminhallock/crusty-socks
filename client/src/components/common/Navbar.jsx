@@ -24,7 +24,7 @@ const Navbar = ({ isLoggedIn, onLogout, onMuteUnmute, isMuted }) => {
   };
 
   return (
-    <nav className="bg-gray-800 h-12">
+    <nav className="bg-purple-500/10 backdrop-blur-md h-12">
       <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
         <div className="flex items-center">
           <Link to="/">
@@ -34,25 +34,25 @@ const Navbar = ({ isLoggedIn, onLogout, onMuteUnmute, isMuted }) => {
         <div className="flex items-center space-x-4">
           <button
             onClick={toggleTheme}
-            className="text-gray-300 hover:text-white transition"
+            className="text-gray-700 hover:text-gray-900 transition"
             aria-label="Toggle theme"
           >
             {isDark ? '🌞' : '🌙'}
           </button>
-          <button onClick={onMuteUnmute} className="text-gray-300 hover:text-white transition">
+          <button onClick={onMuteUnmute} className="text-gray-700 hover:text-gray-900 transition">
             <img src={isMuted ? "/soundOff.png" : "/soundOn.png"} alt={isMuted ? "Unmute" : "Mute"} id="soundButton" />
           </button>
           {isLoggedIn ? (
             <>
               <Link 
                 to="/admin" 
-                className="text-gray-300 hover:text-white transition"
+                className="text-gray-100 hover:text-gray-900 transition"
               >
                 Admin
               </Link>
               <button
                 onClick={onLogout}
-                className="text-gray-300 hover:text-white transition"
+                className="text-gray-100 hover:text-gray-900 transition"
               >
                 Logout
               </button>
@@ -60,7 +60,7 @@ const Navbar = ({ isLoggedIn, onLogout, onMuteUnmute, isMuted }) => {
           ) : (
             <Link 
               to="/" 
-              className="text-gray-300 hover:text-white transition"
+              className="text-gray-100 hover:text-gray-900 transition"
             >
               Login
             </Link>

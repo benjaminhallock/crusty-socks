@@ -17,8 +17,9 @@ export const SOCKET_EVENTS = {
   JOIN_LOBBY: "joinLobby",
   START_GAME: "startGame",
   GAME_STATE_UPDATE: "gameStateUpdate",
-  UPDATE_CANVAS: "updateCanvas",
+  CANVAS_UPDATE: "canvasUpdate",
   CHAT_MESSAGE: "chatMessage",
+  CHECK_WORD_GUESS: "checkWordGuess",
   WORD_SELECTED: "wordSelected",
   PLAYER_UPDATE: "playerUpdate",
 };

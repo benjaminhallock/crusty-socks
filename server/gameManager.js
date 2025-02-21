@@ -10,7 +10,7 @@ import User from "./models/user.js";
  */
 class GameManager {
   constructor(io) {
-    console.log('Initializing GameManager');
+    console.log("Initializing GameManager");
     this.io = io; // Socket.io server instance
     // Map to track active player connections: socketId -> {roomId, username}
     this.activeConnections = new Map();
@@ -18,13 +18,13 @@ class GameManager {
   }
 
   setupSocketListeners(io) {
-    console.log('Setting up socket event listeners');
-    
+    console.log("Setting up socket event listeners");
+
     io.on("connection", (socket) => {
-      console.log('New player connected:', socket.id);
+      console.log("New player connected:", socket.id);
 
       // Send immediate acknowledgment of connection
-      socket.emit('connect_ack', { id: socket.id });
+      socket.emit("connect_ack", { id: socket.id });
 
       // Handle initial connection error
       socket.on("error", (error) => {
@@ -34,9 +34,9 @@ class GameManager {
 
       // Game initialization event
       socket.on("startGame", async (roomId) => {
-        console.log('Starting new game in room:', roomId);
+        console.log("Starting new game in room:", roomId);
         socket.join(roomId);
-        
+
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) {
           console.error("Cannot start game - Lobby not found:", roomId);
@@ -47,9 +47,9 @@ class GameManager {
         const drawerIndex = Math.floor(Math.random() * lobby.players.length);
         const drawer = lobby.players[drawerIndex];
         const words = WORD_LIST.sort(() => 0.5 - Math.random()).slice(0, 3);
-        
-        console.log('Selected drawer:', drawer.username);
-        console.log('Selected words:', words);
+
+        console.log("Selected drawer:", drawer.username);
+        console.log("Selected words:", words);
 
         // Update lobby state
         lobby.currentDrawer = drawer.username;
@@ -63,15 +63,15 @@ class GameManager {
 
       // Chat message handling
       socket.on("chatMessage", async ({ roomId, message, username }) => {
-        console.log('New chat message:', { roomId, username, message });
-        
+        console.log("New chat message:", { roomId, username, message });
+
         if (!roomId || !message || !username) {
-          console.error('Invalid chat message data');
+          console.error("Invalid chat message data");
           return;
         }
 
         const messageData = { username, message, timestamp: Date.now() };
-        
+
         // Store message in database and broadcast to room
         await Lobby.findOneAndUpdate(
           { roomId },
@@ -82,11 +82,11 @@ class GameManager {
 
       // Word selection handling
       socket.on("selectWord", async ({ roomId, word }) => {
-        console.log('Word selected for room:', { roomId, word });
-        
+        console.log("Word selected for room:", { roomId, word });
+
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) {
-          console.error('Cannot select word - Lobby not found');
+          console.error("Cannot select word - Lobby not found");
           return;
         }
 
@@ -94,16 +94,16 @@ class GameManager {
         lobby.currentWord = word;
         lobby.gameState = GAME_STATE.DRAWING;
         await lobby.save();
-        
+
         io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
 
       // Lobby join handling
       socket.on(SOCKET_EVENTS.JOIN_LOBBY, async ({ roomId, username }) => {
-        console.log('Player joining lobby:', { roomId, username });
-        
+        console.log("Player joining lobby:", { roomId, username });
+
         if (!roomId || !username) {
-          console.error('Invalid lobby join data');
+          console.error("Invalid lobby join data");
           return;
         }
 
@@ -128,9 +128,13 @@ class GameManager {
           }
 
           // Add player to lobby
-          lobby.players.push({ username: user.username, userId: user._id, score: 1000 });
+          lobby.players.push({
+            username: user.username,
+            userId: user._id,
+            score: 1000,
+          });
           await lobby.save();
-          
+
           // Set up socket room and track connection
           socket.join(roomId);
           socket.roomId = roomId;
@@ -149,31 +153,117 @@ class GameManager {
       });
 
       // Canvas update handling
-      socket.on("updateCanvas", async ({ roomId, pixels }) => {
-        console.log('Canvas update received for room:', roomId);
-        
-        if (!roomId || !pixels) {
-          console.error('Invalid canvas update data');
+      socket.on(SOCKET_EVENTS.CANVAS_UPDATE, async ({ roomId, canvasData }) => {
+        if (!roomId || !canvasData) {
+          console.error("Invalid canvas update data");
           return;
         }
 
-        // Store canvas state and broadcast update
-        const lobby = await Lobby.findOneAndUpdate(
-          { roomId },
-          { canvasState: { pixels, lastUpdate: Date.now() } },
-          { new: true }
-        );
-        io.to(roomId).emit("canvasUpdate", lobby.canvasState);
+        try {
+          // Store canvas state in the lobby
+          Lobby.findOneAndUpdate(
+            { roomId },
+            { canvasState: { data: canvasData, lastUpdate: Date.now() } },
+            { new: true }
+          ).catch((err) => console.error("Error saving canvas state:", err));
+
+          // Broadcast the update to all clients in the room except the sender
+          socket.to(roomId).emit("canvasUpdate", canvasData);
+        } catch (error) {
+          console.error("Error updating canvas:", error);
+        }
+      });
+
+      // Word guess checking
+      socket.on(
+        SOCKET_EVENTS.CHECK_WORD_GUESS,
+        async ({ roomId, guess, username }) => {
+          const lobby = await Lobby.findOne({ roomId });
+          if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) {
+            console.error("Lobby not found or not in drawing state");
+            return;
+          }
+
+          // Don't allow the drawer to guess
+          if (username === lobby.currentDrawer) {
+            console.error("Drawer cannot guess the word");
+            return;
+          }
+
+          const isCorrect =
+            lobby.currentWord.toLowerCase() === guess.toLowerCase();
+
+          if (!isCorrect) {
+            // Emit failed guess message
+            io.to(roomId).emit("chatMessage", {
+              username: username,
+              message: `Guessed "${guess}" - Incorrect guess!`,
+              timestamp: Date.now(),
+            });
+          }
+
+          if (isCorrect) {
+            // Check if player has already guessed correctly
+            const playerIndex = lobby.players.findIndex(
+              (p) => p.username === username
+            );
+            if (
+              playerIndex !== -1 &&
+              !lobby.players[playerIndex].hasGuessedCorrect
+            ) {
+              // Add points and mark as guessed
+              lobby.players[playerIndex].score += 100;
+              lobby.players[playerIndex].hasGuessedCorrect = true;
+              await lobby.save();
+
+              // Emit success message
+              io.to(roomId).emit("chatMessage", {
+                username: "Server",
+                message: `${username} guessed the word correctly! (+100 points)`,
+                timestamp: Date.now(),
+              });
+
+              // Calculate remaining players who haven't guessed
+              const remainingPlayers = lobby.players.filter(
+                (player) =>
+                  !player.hasGuessedCorrect &&
+                  player.username !== lobby.currentDrawer
+              );
+
+              // If no players left to guess, end the round
+              if (remainingPlayers.length === 0) {
+                io.to(roomId).emit("chatMessage", {
+                  username: "Server",
+                  message: "Everyone has guessed the word! Round ending...",
+                  timestamp: Date.now(),
+                });
+
+                // Short delay before ending round
+                setTimeout(async () => {
+                  await this.endRound(io, roomId, lobby, true);
+                }, 3000);
+              }
+            }
+          }
+        }
+      );
+
+      // Handle timer completion
+      socket.on("timeUp", async (roomId) => {
+        const lobby = await Lobby.findOne({ roomId });
+        if (!lobby) return;
+
+        await this.endRound(io, roomId, lobby, false);
       });
 
       // Disconnect handling
       socket.on("disconnect", async () => {
-        console.log('Player disconnected:', socket.id);
-        
+        console.log("Player disconnected:", socket.id);
+
         const connection = this.activeConnections.get(socket.id);
         if (connection) {
           const { roomId, username } = connection;
-          
+
           // Remove player from lobby
           const lobby = await Lobby.findOneAndUpdate(
             { roomId },
@@ -183,7 +273,7 @@ class GameManager {
 
           // Clean up empty lobbies or update player list
           if (lobby && lobby.players.length === 0) {
-            console.log('Removing empty lobby:', roomId);
+            console.log("Removing empty lobby:", roomId);
             await Lobby.deleteOne({ roomId });
           } else if (lobby) {
             io.to(roomId).emit("playerUpdate", lobby.players);
@@ -193,6 +283,70 @@ class GameManager {
         }
       });
     });
+  }
+
+  async endRound(io, roomId, lobby, allGuessedCorrectly) {
+    lobby.gameState = GAME_STATE.WAITING;
+    lobby.currentDrawer = "";
+    lobby.currentWord = "";
+    lobby.canvasState = null;
+    lobby.timeLeft = 60;
+
+    // Reset player guess states and add points to drawer if everyone guessed
+    if (allGuessedCorrectly) {
+      const drawerIndex = lobby.players.findIndex(
+        (p) => p.username === lobby.currentDrawer
+      );
+      if (drawerIndex !== -1) {
+        lobby.players[drawerIndex].score += 50; // Bonus points for drawer if everyone guesses
+      }
+    }
+
+    // Reset player guess states
+    lobby.players.forEach((player) => {
+      player.hasGuessedCorrect = false;
+    });
+
+    // Check if round is over by checking if all players have drawn
+    const availablePlayers = lobby.players.filter(
+      (p) => p.username !== lobby.currentDrawer && !p.hasDrawn
+    );
+
+    if (availablePlayers.length > 0) {
+      const nextDrawerIndex = Math.floor(
+        Math.random() * availablePlayers.length
+      );
+      lobby.currentDrawer = availablePlayers[nextDrawerIndex].username;
+      const playerIndex = lobby.players.findIndex(
+        (p) => p.username === lobby.currentDrawer
+      );
+      if (playerIndex !== -1) {
+        lobby.players[playerIndex].hasDrawn = true;
+      }
+    } else {
+      // If all players have drawn, reset and pick randomly
+      lobby.round += 1;
+      if (lobby.round >= lobby.maxRounds) {
+        lobby.gameState = GAME_STATE.FINISHED;
+        lobby.players.sort((a, b) => b.score - a.score);
+      } else {
+        // Reset player drawing state for next round
+        lobby.players.forEach((player) => {
+          player.hasDrawn = false;
+        });
+      }
+    }
+    // Send round end message
+    io.to(roomId).emit("chatMessage", {
+      username: "Server",
+      message: allGuessedCorrectly
+        ? `Round ended - Everyone guessed correctly! Drawer got +50 points!`
+        : `Round ended - The word was "${lobby.currentWord}"`,
+      timestamp: Date.now(),
+    });
+
+    await lobby.save();
+    io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
   }
 }
 

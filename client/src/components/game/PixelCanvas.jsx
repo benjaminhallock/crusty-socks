@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { socketManager } from "../../services/socket";
 
 /**
  * ToolButton Component
@@ -20,9 +21,8 @@ const ToolButton = ({ active, onClick, children }) => (
  * Main drawing interface for the game
  * Handles all drawing tools, canvas interactions, and state management
  */
-const PixelCanvas = ({ isDrawer, drawerUsername }) => {
-  console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
-  
+const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
+  // console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
   // Core canvas state and refs
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -42,7 +42,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
    * Handles both regular drawing and eraser functionality
    */
   const drawPixel = (ctx, x, y, color) => {
-    console.log('Drawing pixel:', { x, y, color, tool: currentTool });
     const gridX = Math.floor(x / GRID_SIZE);
     const gridY = Math.floor(y / GRID_SIZE);
     
@@ -50,6 +49,10 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
         gridY >= 0 && gridY < CANVAS_HEIGHT / GRID_SIZE) {
       ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
       ctx.fillRect(gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+
+      // Send canvas update through socket
+      const canvasData = canvasRef.current.toDataURL();
+      socketManager.updateCanvas(canvasData);
     }
   };
 
@@ -124,7 +127,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
   };
 
   const handleDraw = (e) => {
-    if (!isDrawing || !isDrawer) return;
+    if (!isDrawing || !isDrawer) return; // Prevent non-drawers from drawing
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -139,6 +142,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
     if (currentTool === "fill") {
       saveState();
       floodFill(ctx, x, y, currentColor);
+      // Send canvas update after fill
+      const canvasData = canvas.toDataURL();
+      socketManager.updateCanvas(canvasData);
       setIsDrawing(false);
     } else if (currentTool === "line" && startPos) {
       const prevImg = new Image();
@@ -147,6 +153,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(prevImg, 0, 0);
         drawLine(ctx, startPos, { x, y });
+        // Send canvas update after line draw
+        const canvasData = canvas.toDataURL();
+        socketManager.updateCanvas(canvasData);
       };
     } else {
       drawPixel(ctx, x, y, currentColor);
@@ -154,6 +163,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
   };
 
   const handleMouseDown = (e) => {
+    if (!isDrawer) return; // Prevent non-drawers from drawing
     setIsDrawing(true);
     if (currentTool === "line") {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -168,11 +178,17 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
   };
 
   const handleMouseUp = () => {
+    if (!isDrawer) return; // Prevent non-drawers from drawing
+    
     setIsDrawing(false);
     if (currentTool !== "line") {
       saveState();
     }
     setStartPos(null);
+
+    // Send final canvas update after mouse up
+    const canvasData = canvasRef.current.toDataURL();
+    socketManager.updateCanvas(canvasData);
   };
 
   const undo = () => {
@@ -217,13 +233,55 @@ const PixelCanvas = ({ isDrawer, drawerUsername }) => {
     link.click();
   };
 
+  // Initialize canvas and load saved state
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    saveState();
+    
+    if (canvasState?.data) {
+      const img = new Image();
+      img.src = canvasState.data;
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        saveState(); // Save loaded state for undo/redo
+      };
+    } else {
+      // Initialize with white background if no saved state
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      saveState();
+    }
   }, []);
+
+  // Add useEffect to listen for canvas updates from other players
+  useEffect(() => {
+    if (!isDrawer) {
+      socketManager.onCanvasUpdate((canvasData) => {
+        const img = new Image();
+        img.src = canvasData;
+        img.onload = () => {
+          const ctx = canvasRef.current.getContext("2d");
+          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.drawImage(img, 0, 0);
+        };
+      });
+    }
+  }, [isDrawer]);
+
+  // Add effect to load initial canvas state
+  useEffect(() => {
+    if (canvasState?.data) {
+      const img = new Image();
+      img.src = canvasState.data;
+      img.onload = () => {
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(img, 0, 0);
+        saveState(); // Save this as the initial state for undo/redo
+      };
+    }
+  }, [canvasState]);
 
   return (
     <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 rounded-lg">

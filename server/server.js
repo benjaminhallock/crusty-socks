@@ -38,44 +38,23 @@ const io = new Server(httpServer, {
             : ENV_CONFIG.CLIENT_URL,
         methods: ["GET", "POST"],
         credentials: true,
+        allowedHeaders: ["*"]
     },
-    maxHttpBufferSize: 1e8,
+    allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
-    transports: ['polling', 'websocket'],
-    allowUpgrades: true,
+    transports: ['websocket', 'polling'],
     path: '/socket.io/',
     connectTimeout: 45000,
 });
 
-// Socket middleware for logging
-io.use((socket, next) => {
-    console.log('Socket middleware - attempting connection:', socket.id);
-    const headers = socket.handshake.headers;
-    console.log('Connection headers:', headers);
-    next();
-});
-
 io.engine.on('connection_error', (err) => {
     console.error('Socket.io engine connection error:', err);
-    console.error('Error details:', {
-        code: err.code,
-        message: err.message,
-        context: err.context
-    });
 });
 
 // Attach connection listeners
 io.on('connect', (socket) => {
     console.log('Client connected:', socket.id);
-    
-    socket.on('disconnect', (reason) => {
-        console.log('Client disconnected:', socket.id, 'Reason:', reason);
-    });
-
-    socket.conn.on('upgrade', (transport) => {
-        console.log('Connection upgraded:', transport.name);
-    });
 });
 
 io.on('connect_error', (err) => {

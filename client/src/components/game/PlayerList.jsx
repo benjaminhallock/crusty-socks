@@ -10,11 +10,6 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
     setTimeout(() => setShowPopup(false), 2000); // Hide popup after 2 seconds
   };
 
-  // Deduplicate players by username
-  const uniquePlayers = Array.from(
-    new Map(players.map((player) => [player.username, player])).values()
-  );
-
   return (
     <div id="playerList" className="bg-gray-100 rounded-lg p-2 shadow-lg relative flex-1 flex flex-col">
       <div className="flex justify-between items-center mb-2">
@@ -40,7 +35,7 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
         </div>
       </div>
       <ul className="space-y-1 overflow-y-auto">
-        {uniquePlayers.map((player, index) => (
+        {players.map((player, index) => (
           <li
             key={`player-${player.username}-${index}`}
             className="flex items-center gap-2 bg-gray-200 p-2 rounded-md hover:bg-gray-300 transition-colors duration-200"

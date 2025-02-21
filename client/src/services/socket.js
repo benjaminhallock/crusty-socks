@@ -15,13 +15,14 @@ class SocketManager {
     this.messageCallbacks = new Set(); // Handles chat messages
     this.playerCallbacks = new Set();  // Handles player updates (joins/leaves)
     this.gameStateCallbacks = new Set(); // Handles game state changes
+    this.canvasCallbacks = new Set(); // Add new callback set for canvas updates
     this.currentRoom = null;
   }
 
   // Check if socket connection is active
   isConnected() {
     const connected = this.socket && this.socket.connected;
-    console.log('Socket connection status:', connected);
+    // console.log('Socket connection status:', connected);
     return connected;
   }
 
@@ -58,11 +59,33 @@ class SocketManager {
         console.log('Received game state update:', lobby);
         this.gameStateCallbacks.forEach(callback => callback({ lobby }));
       });
+
+      this.socket.on(SOCKET_EVENTS.CANVAS_UPDATE, (canvasData) => {
+        // console.log('Received canvas update');
+        this.canvasCallbacks.forEach(callback => callback(canvasData));
+      });
+
+      this.socket.on("wordGuessResult", (result) => {
+        if (result.correct) {
+          // Don't show the actual word in chat
+          this.messageCallbacks.forEach(callback => 
+            callback({
+              username: "Server",
+              message: `${result.username} guessed the word correctly! (+${result.points} points)`,
+              timestamp: Date.now()
+            })
+          );
+        }
+      });
     }
 
     // Connection status handlers
     this.socket.on("connect", () => {
       console.log("Socket successfully connected", this.socket.id);
+    });
+
+    this.socket.on("connect_ack", (data) => {
+      console.log('Client connection acknowledged:', data);
     });
 
     this.socket.on("connect_error", (error) => {
@@ -100,7 +123,7 @@ class SocketManager {
     if (!this.isConnected()) {
       throw new Error("Cannot start game - Socket is not connected");
     }
-    this.socket.emit("startGame", roomId);
+    this.socket.emit(SOCKET_EVENTS.START_GAME, roomId);
   }
 
   // Room management methods
@@ -119,7 +142,12 @@ class SocketManager {
     if (!this.isConnected()) {
       throw new Error("Cannot send message - Socket is not connected");
     }
-    this.socket.emit("chatMessage", { roomId, message, username });
+    
+    // Don't emit chat message if it's a potential word guess
+    // The server will handle emitting the success message if it's correct
+    if (!this.currentRoom?.currentWord?.toLowerCase().includes(message.toLowerCase())) {
+      this.socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, { roomId, message, username });
+    }
   }
 
   // Game action methods
@@ -129,6 +157,35 @@ class SocketManager {
       throw new Error("Cannot select word - Socket is not connected");
     }
     this.socket.emit("selectWord", { roomId, word });
+  }
+
+  checkWordGuess(roomId, guess, username) {
+    if (!this.isConnected() || !this.currentRoom) {
+      throw new Error("Cannot check word - Socket is not connected or no room joined");
+    }
+    this.socket.emit(SOCKET_EVENTS.CHECK_WORD_GUESS, { 
+      roomId, 
+      guess, 
+      username 
+    });
+  }
+
+  updateCanvas(canvasData) {
+    // console.log('Sending canvas update');
+    if (!this.isConnected() || !this.currentRoom) {
+      throw new Error("Cannot update canvas - Socket is not connected or no room joined");
+    }
+    this.socket.emit(SOCKET_EVENTS.CANVAS_UPDATE, { 
+      roomId: this.currentRoom.roomId, 
+      canvasData 
+    });
+  }
+
+  timeUp(roomId) {
+    if (!this.isConnected()) {
+      throw new Error("Cannot send time up - Socket is not connected");
+    }
+    this.socket.emit("timeUp", roomId);
   }
 
   // Event subscription methods
@@ -157,6 +214,15 @@ class SocketManager {
       this.connect();
     }
     return () => this.gameStateCallbacks.delete(callback);
+  }
+
+  onCanvasUpdate(callback) {
+    console.log('Adding new canvas update callback');
+    if (!this.isConnected()) {
+      throw new Error("Cannot subscribe to canvas updates - Socket instance not created");
+    }
+    this.canvasCallbacks.add(callback);
+    return () => this.canvasCallbacks.delete(callback);
   }
 
   // Cleanup method

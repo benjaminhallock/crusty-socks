@@ -35,6 +35,14 @@ const lobbySchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+        hasGuessedCorrect: {
+          type: Boolean,
+          default: false,
+        },
+        hasDrawn: {
+          type: Boolean,
+          default: false,
+        },
       },
     ],
 
@@ -63,7 +71,7 @@ const lobbySchema = new mongoose.Schema(
     // Game mode settings
     revealCharacters: {
       type: Boolean,
-      default: true, // Show partial word characters
+      default: false, // Show partial word characters
     },
     selectWord: {
       type: Boolean,
@@ -93,13 +101,14 @@ const lobbySchema = new mongoose.Schema(
 
     // Drawing canvas state
     canvasState: {
-      pixels: [
-        {
-          index: Number,
-          color: String,
-        },
-      ],
+      data: String,
       lastUpdate: Date,
+    },
+
+    // Timer for the game
+    timeLeft: {
+      type: Number,
+      default: 60,
     },
   },
   {

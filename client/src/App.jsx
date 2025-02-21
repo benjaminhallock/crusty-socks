@@ -17,15 +17,11 @@ import MusicPlayer from "./components/common/MusicPlayer";
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(() => {
-    return localStorage.getItem('isPlaying') === 'true';
-  });
-  const [isMuted, setIsMuted] = useState(() => {
-    return localStorage.getItem('isMuted') === 'true';
-  });
 
   useEffect(() => {
-    let mounted = true;
+    console.log("Auth effect running"); // Debug log
+    let mounted = true; // Track if component is mounted
+
     const checkUserAuth = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -36,13 +32,11 @@ function App() {
       try {
         const response = await checkAuth();
         if (mounted && response.success) {
-          console.log("User authenticated:", response.user);
           const userData = { ...response.user, id: response.user._id };
           setUser(userData);
           socketManager.connect(userData);
         }
       } catch (error) {
-        console.error("Authentication error:", error);
         if (mounted) {
           localStorage.clear();
           setIsLoading(false);
@@ -55,15 +49,16 @@ function App() {
     checkUserAuth();
 
     return () => {
-      mounted = false;
+      mounted = false; // Cleanup to prevent setting state on unmounted component
+      console.log("Auth effect cleanup"); // Debug log
     };
-  }, []); 
+  }, []); // Empty dependency array since this should only run once
 
   const handleLogin = ({ user: userData, token }) => {
     const userInfo = { ...userData, id: userData._id };
     localStorage.setItem("token", token);
     setUser(userInfo);
-    socketManager.connect(userInfo);  // Connect socket right after successful login
+    socketManager.connect(userInfo);
   };
 
   const handleLogout = () => {
@@ -71,22 +66,6 @@ function App() {
     socketManager.disconnect();
     setUser(null);
   };
-
-  const handlePlayPause = () => {
-    setIsPlaying(prevState => !prevState);
-  };
-
-  const handleMuteUnmute = () => {
-    setIsMuted(prevState => !prevState);
-  };
-
-  useEffect(() => {
-    localStorage.setItem('isPlaying', isPlaying);
-  }, [isPlaying]);
-
-  useEffect(() => {
-    localStorage.setItem('isMuted', isMuted);
-  }, [isMuted]);
 
   if (isLoading) {
     return (
@@ -99,15 +78,17 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen">
-        <Navbar isLoggedIn={!!user} onLogout={handleLogout} onPlayPause={handlePlayPause} isPlaying={isPlaying} onMuteUnmute={handleMuteUnmute} isMuted={isMuted} />
+        <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
         <main className="h-[calc(100vh-4rem)]">
-          <MusicPlayer isPlaying={isPlaying} isMuted={isMuted} />
           <Routes>
             <Route
               path="/"
               element={
                 user ? (
-                  <CreateLobby user={user} />
+                  <>
+                    <CreateLobby user={user} />
+                    <MusicPlayer />
+                  </>
                 ) : (
                   <LoginForm onLoginSuccess={handleLogin} />
                 )
@@ -116,16 +97,41 @@ function App() {
             <Route
               path="/lobby/new"
               element={
-                user ? <LobbySettings user={user} /> : <Navigate to="/" />
+                user ? (
+                  <>
+                    <LobbySettings user={user} />
+                    <MusicPlayer />
+                  </>
+                ) : (
+                  <Navigate to="/" />
+                )
               }
             />
             <Route
               path="/lobby/:roomId"
-              element={user ? <GameRoom user={user} /> : <Navigate to="/" />}
+              element={
+                user ? (
+                  <>
+                    <GameRoom user={user} />
+                    <MusicPlayer />
+                  </>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
             />
             <Route
               path="/admin"
-              element={user ? <Admin /> : <Navigate to="/" />}
+              element={
+                user ? (
+                  <>
+                    <Admin />
+                    <MusicPlayer />
+                  </>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

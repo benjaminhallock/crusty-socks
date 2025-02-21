@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 
 const tracks = [
-  './audio/testTrack1.mp3',
-  './audio/testTrack2.mp3',
-  './audio/testTrack3.mp3'
+  '/audio/testTrack1.mp3',
+  '/audio/testTrack2.mp3',
+  '/audio/testTrack3.mp3'
 ];
 
 const MusicPlayer = ({ isPlaying, isMuted }) => {
@@ -22,7 +22,7 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
 
       lastTrackIndexRef.current = nextTrackIndex;
       audio.src = tracks[nextTrackIndex];
-      console.log(`Playing track: ${tracks[nextTrackIndex]}`);
+      console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
       audio.play().catch(error => {
         console.error('Autoplay prevented:', error);
       });
@@ -38,15 +38,6 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
       localStorage.setItem('currentTime', audio.currentTime);
     };
 
-    const handleUserInteraction = () => {
-      document.removeEventListener('click', handleUserInteraction);
-      if (isPlaying) {
-        audio.play().catch(error => {
-          console.error('Autoplay prevented:', error);
-        });
-      }
-    };
-
     audio.addEventListener('ended', handleTrackEnd);
     audio.addEventListener('timeupdate', handleTimeUpdate);
 
@@ -57,24 +48,19 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
       lastTrackIndexRef.current = parseInt(savedTrackIndex, 10);
       audio.src = tracks[lastTrackIndexRef.current];
       audio.currentTime = savedTime ? parseFloat(savedTime) : 0;
-      console.log(`Resuming track: ${tracks[lastTrackIndexRef.current]} from ${audio.currentTime}s`);
+      console.log(`Now Playing Track: ${tracks[lastTrackIndexRef.current]}`);
       if (isPlaying) {
         audio.play().catch(error => {
           console.error('Autoplay prevented:', error);
-          document.addEventListener('click', handleUserInteraction);
         });
       }
     } else {
       playRandomTrack();
-      if (isPlaying) {
-        document.addEventListener('click', handleUserInteraction);
-      }
     }
 
     return () => {
       audio.removeEventListener('ended', handleTrackEnd);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
-      document.removeEventListener('click', handleUserInteraction);
     };
   }, [isPlaying]);
 
@@ -86,11 +72,17 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
   useEffect(() => {
     const audio = audioRef.current;
     if (isPlaying) {
+      audio.currentTime = 0; // Reset to the beginning of the track
+      let nextTrackIndex;
+      do {
+        nextTrackIndex = Math.floor(Math.random() * tracks.length);
+      } while (nextTrackIndex === lastTrackIndexRef.current);
+
+      lastTrackIndexRef.current = nextTrackIndex;
+      audio.src = tracks[nextTrackIndex];
+      console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
       audio.play().catch(error => {
         console.error('Autoplay prevented:', error);
-        document.addEventListener('click', () => {
-          audio.play().catch(err => console.error('Autoplay prevented:', err));
-        });
       });
     } else {
       audio.pause();

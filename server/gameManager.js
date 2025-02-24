@@ -74,8 +74,8 @@ class GameManager {
 
         // Store message in database and broadcast to room
         await Lobby.findOneAndUpdate(
-          { roomId },
-          { $push: { messages: messageData } }
+            { roomId },
+            { $push: { messages: messageData } }
         );
         io.to(roomId).emit("chatMessage", messageData);
       });
@@ -162,9 +162,9 @@ class GameManager {
         try {
           // Store canvas state in the lobby
           Lobby.findOneAndUpdate(
-            { roomId },
-            { canvasState: { data: canvasData, lastUpdate: Date.now() } },
-            { new: true }
+              { roomId },
+              { canvasState: { data: canvasData, lastUpdate: Date.now() } },
+              { new: true }
           ).catch((err) => console.error("Error saving canvas state:", err));
 
           // Broadcast the update to all clients in the room except the sender
@@ -176,82 +176,82 @@ class GameManager {
 
       // Word guess checking
       socket.on(
-        SOCKET_EVENTS.CHECK_WORD_GUESS,
-        async ({ roomId, guess, username }) => {
-          const lobby = await Lobby.findOne({ roomId });
-          if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) {
-            console.error("Lobby not found or not in drawing state");
-            return;
-          }
+          SOCKET_EVENTS.CHECK_WORD_GUESS,
+          async ({ roomId, guess, username }) => {
+            const lobby = await Lobby.findOne({ roomId });
+            if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) {
+              console.error("Lobby not found or not in drawing state");
+              return;
+            }
 
-          // Don't allow the drawer to guess
-          if (username === lobby.currentDrawer) {
-            console.error("Drawer cannot guess the word");
-            return;
-          }
+            // Don't allow the drawer to guess
+            if (username === lobby.currentDrawer) {
+              console.error("Drawer cannot guess the word");
+              return;
+            }
 
-          const isCorrect =
-            lobby.currentWord.toLowerCase() === guess.toLowerCase();
+            const isCorrect =
+                lobby.currentWord.toLowerCase() === guess.toLowerCase();
 
-          if (!isCorrect) {
-            // Emit failed guess message
-            io.to(roomId).emit("chatMessage", {
-              username: username,
-              message: `Guessed "${guess}" - Incorrect guess!`,
-              timestamp: Date.now(),
-            });
-          }
-
-          if (isCorrect) {
-            // Check if player has already guessed correctly
-            const playerIndex = lobby.players.findIndex(
-              (p) => p.username === username
-            );
-            if (
-              playerIndex !== -1 &&
-              !lobby.players[playerIndex].hasGuessedCorrect
-            ) {
-              // Add points and mark as guessed
-              lobby.players[playerIndex].score += 100;
-              lobby.players[playerIndex].hasGuessedCorrect = true;
-              await lobby.save();
-
-              // Emit success message
+            if (!isCorrect) {
+              // Emit failed guess message
               io.to(roomId).emit("chatMessage", {
-                username: "Server",
-                message: `${username} guessed the word correctly! (+100 points)`,
+                username: username,
+                message: `Guessed "${guess}" - Incorrect guess!`,
                 timestamp: Date.now(),
               });
+            }
 
-              // Calculate remaining players who haven't guessed
-              const remainingPlayers = lobby.players.filter(
-                (player) =>
-                  !player.hasGuessedCorrect &&
-                  player.username !== lobby.currentDrawer
+            if (isCorrect) {
+              // Check if player has already guessed correctly
+              const playerIndex = lobby.players.findIndex(
+                  (p) => p.username === username
               );
+              if (
+                  playerIndex !== -1 &&
+                  !lobby.players[playerIndex].hasGuessedCorrect
+              ) {
+                // Add points and mark as guessed
+                lobby.players[playerIndex].score += 100;
+                lobby.players[playerIndex].hasGuessedCorrect = true;
+                await lobby.save();
 
-              // If no players left to guess, end the round
-              if (remainingPlayers.length === 0) {
+                // Emit success message
                 io.to(roomId).emit("chatMessage", {
                   username: "Server",
-                  message: "Everyone has guessed the word! Round ending...",
+                  message: `${username} guessed the word correctly! (+100 points)`,
                   timestamp: Date.now(),
                 });
 
-                // Short delay before ending round
-                setTimeout(async () => {
-                  await this.endRound(io, roomId, lobby, true);
-                }, 3000);
+                // Calculate remaining players who haven't guessed
+                const remainingPlayers = lobby.players.filter(
+                    (player) =>
+                        !player.hasGuessedCorrect &&
+                        player.username !== lobby.currentDrawer
+                );
+
+                // If no players left to guess, end the round
+                if (remainingPlayers.length === 0) {
+                  io.to(roomId).emit("chatMessage", {
+                    username: "Server",
+                    message: "Everyone has guessed the word! Round ending...",
+                    timestamp: Date.now(),
+                  });
+
+                  // Short delay before ending round
+                  setTimeout(async () => {
+                    await this.endRound(io, roomId, lobby, true);
+                  }, 3000);
+                }
               }
             }
           }
-        }
       );
 
       // Handle timer completion
       socket.on("timeUp", async (roomId) => {
         const lobby = await Lobby.findOne({ roomId });
-        if (!lobby) return;
+        if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) return; // Ensure we're in the correct state
 
         await this.endRound(io, roomId, lobby, false);
       });
@@ -266,9 +266,9 @@ class GameManager {
 
           // Remove player from lobby
           const lobby = await Lobby.findOneAndUpdate(
-            { roomId },
-            { $pull: { players: { username } } },
-            { new: true }
+              { roomId },
+              { $pull: { players: { username } } },
+              { new: true }
           );
 
           // Clean up empty lobbies or update player list
@@ -293,7 +293,7 @@ class GameManager {
     // Reset player guess states and add points to drawer if everyone guessed
     if (allGuessedCorrectly) {
       const drawerIndex = lobby.players.findIndex(
-        (p) => p.username === lobby.currentDrawer
+          (p) => p.username === lobby.currentDrawer
       );
       if (drawerIndex !== -1) {
         lobby.players[drawerIndex].score += 50; // Bonus points for drawer if everyone guesses
@@ -307,16 +307,16 @@ class GameManager {
 
     // Check if round is over by checking if all players have drawn
     const availablePlayers = lobby.players.filter(
-      (p) => p.username !== lobby.currentDrawer && !p.hasDrawn
+        (p) => p.username !== lobby.currentDrawer && !p.hasDrawn
     );
 
     if (availablePlayers.length > 0) {
       const nextDrawerIndex = Math.floor(
-        Math.random() * availablePlayers.length
+          Math.random() * availablePlayers.length
       );
       lobby.currentDrawer = availablePlayers[nextDrawerIndex].username;
       const playerIndex = lobby.players.findIndex(
-        (p) => p.username === lobby.currentDrawer
+          (p) => p.username === lobby.currentDrawer
       );
       if (playerIndex !== -1) {
         lobby.players[playerIndex].hasDrawn = true;
@@ -338,8 +338,8 @@ class GameManager {
     io.to(roomId).emit("chatMessage", {
       username: "Server",
       message: allGuessedCorrectly
-        ? `Round ended - Everyone guessed correctly! Drawer got +50 points!`
-        : `Round ended - The word was "${lobby.currentWord}"`,
+          ? `Round ended - Everyone guessed correctly! Drawer got +50 points!`
+          : `Round ended - The word was "${lobby.currentWord}"`,
       timestamp: Date.now(),
     });
 

@@ -287,8 +287,6 @@ class GameManager {
 
   async endRound(io, roomId, lobby, allGuessedCorrectly) {
     lobby.gameState = GAME_STATE.WAITING;
-    lobby.currentDrawer = "";
-    lobby.currentWord = "";
     lobby.canvasState = null;
     lobby.timeLeft = 60;
 

@@ -102,23 +102,23 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
       // Handle success message for correct guess
       if (msg.message.includes("guessed the word correctly")) {
         return (
-          <div key={index} className="message p-2 rounded-lg bg-green-100 my-2">
-            <p className="text-green-700 font-semibold">{msg.message}</p>
+          <div key={index} className="message p-2 rounded-lg bg-green-100 dark:bg-green-900 my-2">
+            <p className="text-green-700 dark:text-green-200 font-semibold">{msg.message}</p>
           </div>
         );
       }
       // Handle round end message
       if (msg.message.includes("Round ended")) {
         return (
-          <div key={index} className="message p-2 rounded-lg bg-blue-100 my-2">
-            <p className="text-blue-700 font-semibold">{msg.message}</p>
+          <div key={index} className="message p-2 rounded-lg bg-blue-100 dark:bg-blue-900 my-2">
+            <p className="text-blue-700 dark:text-blue-200 font-semibold">{msg.message}</p>
           </div>
         );
       }
       // Default server message
       return (
-        <div key={index} className="message p-2 rounded-lg bg-gray-100 my-2">
-          <p className="text-gray-600 italic">{msg.message}</p>
+        <div key={index} className="message p-2 rounded-lg bg-gray-100 dark:bg-gray-800 my-2">
+          <p className="text-gray-600 dark:text-gray-400 italic">{msg.message}</p>
         </div>
       );
     }
@@ -129,14 +129,14 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
         key={index}
         className={`message p-2 rounded-lg ${
           msg.username === user.username
-            ? "bg-indigo-50 ml-4"
-            : "bg-gray-50 mr-4"
+            ? "bg-indigo-50 dark:bg-indigo-900/50 ml-4"
+            : "bg-gray-50 dark:bg-gray-800 mr-4"
         } my-1`}
       >
-        <span className="font-semibold text-indigo-600">
+        <span className="font-semibold text-indigo-600 dark:text-indigo-400">
           {msg.username}
         </span>
-        <p className="text-gray-700 break-words">{msg.message}</p>
+        <p className="text-gray-700 dark:text-gray-300 break-words">{msg.message}</p>
       </div>
     );
   };
@@ -145,26 +145,26 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
   return (
     <div id="chatBox" className="flex flex-col h-full">
       {/* Chat messages container */}
-      <div className="flex-1 bg-white/95 rounded-lg mt-2 flex flex-col">
-        <div className="h-[78vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div className="flex-1 bg-white/95 dark:bg-gray-800/95 rounded-lg mt-2 flex flex-col transition-colors">
+        <div className="h-[78vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
           {localMessages.map((msg, i) => renderMessage(msg, i))}
           <div ref={messagesEndRef} /> {/* Auto-scroll anchor */}
         </div>
 
         {/* Message input form */}
-        <form onSubmit={handleSubmit} className="border-t p-2">
+        <form onSubmit={handleSubmit} className="border-t dark:border-gray-700 p-2">
           <div className="flex gap-1">
             <input
               type="text"
               value={input}
               onChange={handleInputChange}
               placeholder="Type your message..."
-              className="flex-1 px-2 py-1 text-xs border rounded-lg bg-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 px-2 py-1 text-xs border rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
             />
             <button
               type="submit"
               disabled={!input.trim()}
-              className="bg-indigo-600 text-white px-2 py-1 rounded-lg disabled:opacity-50"
+              className="bg-indigo-600 text-white px-2 py-1 rounded-lg disabled:opacity-50 hover:bg-indigo-700"
             >
               Send
             </button>

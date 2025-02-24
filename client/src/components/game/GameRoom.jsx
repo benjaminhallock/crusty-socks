@@ -117,7 +117,7 @@ const GameRoom = ({ user }) => {
   }, [gameData.gameState, gameData.timeLeft, roomId]);
 
   return (
-      <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16">
+      <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16 dark:bg-gray-900 transition-colors">
         <div className="h-full flex flex-col gap-1 py-1">
           <HiddenWord
               word={gameData.currentWord}
@@ -136,7 +136,7 @@ const GameRoom = ({ user }) => {
             </div>
 
             {gameData.gameState === GAME_STATE.WAITING && (
-                <div className="flex-1 flex items-center justify-center"></div>
+                <div className="flex-1 flex items-center justify-center dark:text-white"></div>
             )}
 
             {gameData.gameState === GAME_STATE.PICKING_WORD &&

@@ -43,9 +43,9 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
               ${player.hasDrawn ? 'opacity-50' : 'hover:bg-gray-300'}`}
           >
             {drawerUsername === player.username ? (
-              <img src="/gifPencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
+              <img src="/gifpencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
             ) : (
-              <div className="w-8 h-8 bg-blue-500 rounded-full"></div>
+              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
             )}
             <span className="flex justify-between w-full text-gray-800 font-medium text-sm">
               <span>{player.username}</span>

@@ -1,8 +1,10 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import MusicPlayer from "./MusicPlayer";
+import Button from "./ui/Button";
 
 const Navbar = ({ isLoggedIn, onLogout }) => {
+  const navigate = useNavigate();
   const [isDark, setIsDark] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -12,11 +14,11 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
   const toggleTheme = () => {
     setIsDark(!isDark);
     if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
+      document.documentElement.classList.remove("dark");
+      localStorage.theme = "light";
     } else {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
+      document.documentElement.classList.add("dark");
+      localStorage.theme = "dark";
     }
   };
 
@@ -26,68 +28,78 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
     setTimeout(() => {
       setShowPlayButton(false);
       setAnimatePlayButton(false);
-    }, 500); 
+    }, 500);
   };
 
   const handleMuteUnmute = () => {
-    setIsMuted(prevState => !prevState);
+    setIsMuted((prevState) => !prevState);
   };
 
   return (
-    <nav className="bg-gray-800 h-12">
+    <nav className="bg-white/30 backdrop-blur-md dark:bg-black/30 h-12 transition-colors">
       <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
-        <Link to="/">
-          <img src="/logo.svg" alt="Logo" className="h-6" />
-        </Link>
         
-        <div className="flex gap-4 items-center">
+        <button onClick={() => navigate("/")} variant="dark" className="h-8">
+          <img src="/logo.svg" alt="Logo" className="h-6" />
+        </button>
+
+        <div className="flex gap-2 items-center ml-auto">
           {isLoggedIn ? (
             <>
-              <Link 
-                to="/admin" 
-                className="text-gray-300 hover:text-white transition"
+              <Button
+                onClick={() => navigate("/admin")}
+                variant="dark"
+                className="text-sm"
               >
                 Admin
-              </Link>
-              <button
+              </Button>
+              <Button
                 onClick={onLogout}
-                className="text-gray-300 hover:text-white transition"
+                variant="dark"
+                className="text-sm"
               >
                 Logout
-              </button>
+              </Button>
             </>
           ) : (
-            <Link 
-              to="/" 
-              className="text-gray-300 hover:text-white transition"
+            <Button
+              onClick={() => navigate("/")}
+              variant="dark"
+              className="text-sm"
             >
               Login
-            </Link>
+            </Button>
           )}
-        </div>
-        <div className="navbar-actions">
-          <button
+          <Button
             onClick={toggleTheme}
-            className="text-gray-300 hover:text-white transition"
+            variant="dark"
             aria-label="Toggle theme"
+            className="text-sm"
           >
-            {isDark ? '🌞' : '🌙'}
-          </button>
+            {isDark ? "Light Mode" : "Dark Mode"}
+          </Button>
           {showPlayButton ? (
-            <button 
-              onClick={handlePlayMusic} 
-              className={`play-music-button ${animatePlayButton ? 'shoot-off-screen' : ''}`}
-              style={{ fontSize: '0.875rem' }} 
+            <Button
+              onClick={handlePlayMusic}
+              variant="dark"
+              className={`text-sm play-music-button ${
+                animatePlayButton ? "shoot-off-screen" : ""
+              }`}
             >
               Play Music
-            </button>
+            </Button>
           ) : (
-            <button 
-              onClick={handleMuteUnmute} 
-              className="text-gray-300 hover:text-white transition"
+            <Button
+              onClick={handleMuteUnmute}
+              variant="dark"
+              className="text-sm"
             >
-              <img src={isMuted ? "/soundOff.png" : "/soundOn.png"} alt={isMuted ? "Unmute" : "Mute"} id="soundButton" />
-            </button>
+              <img
+                src={isMuted ? "/soundOff.png" : "/soundOn.png"}
+                alt={isMuted ? "Unmute" : "Mute"}
+                id="soundButton"
+              />
+            </Button>
           )}
         </div>
       </div>

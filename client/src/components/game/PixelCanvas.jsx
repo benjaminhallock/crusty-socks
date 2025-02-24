@@ -94,7 +94,8 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
    * Implements flood fill (paint bucket) tool using stack-based approach
    */
   const floodFill = (ctx, startX, startY, fillColor) => {
-    console.log('Starting flood fill:', { startX, startY, fillColor });
+    if (!ctx) return; // Ensure context is valid
+
     const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     const pixels = imageData.data;
     
@@ -108,7 +109,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
     };
 
-    // Stack-based flood fill implementation
     const stack = [[Math.floor(startX / GRID_SIZE), Math.floor(startY / GRID_SIZE)]];
     const visited = new Set();
     
@@ -127,11 +127,14 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   const handleDraw = (e) => {
-    if (!isDrawing || !isDrawer) return; // Prevent non-drawers from drawing
-    
+    if (!isDrawing || !isDrawer) return;
+
     const canvas = canvasRef.current;
+    if (!canvas) return; // Ensure canvas is valid
+
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext("2d");
+    if (!ctx) return; // Ensure context is valid
     
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -142,7 +145,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     if (currentTool === "fill") {
       saveState();
       floodFill(ctx, x, y, currentColor);
-      // Send canvas update after fill
       const canvasData = canvas.toDataURL();
       socketManager.updateCanvas(canvasData);
       setIsDrawing(false);
@@ -153,7 +155,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(prevImg, 0, 0);
         drawLine(ctx, startPos, { x, y });
-        // Send canvas update after line draw
         const canvasData = canvas.toDataURL();
         socketManager.updateCanvas(canvasData);
       };
@@ -163,7 +164,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   const handleMouseDown = (e) => {
-    if (!isDrawer) return; // Prevent non-drawers from drawing
+    if (!isDrawer) return;
     setIsDrawing(true);
     if (currentTool === "line") {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -178,17 +179,29 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   const handleMouseUp = () => {
-    if (!isDrawer) return; // Prevent non-drawers from drawing
-    
+    if (!isDrawer) return;
     setIsDrawing(false);
     if (currentTool !== "line") {
       saveState();
     }
     setStartPos(null);
-
-    // Send final canvas update after mouse up
     const canvasData = canvasRef.current.toDataURL();
     socketManager.updateCanvas(canvasData);
+  };
+
+  const handleTouchStart = (e) => {
+    e.preventDefault();
+    handleMouseDown(e.touches[0]);
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    handleDraw(e.touches[0]);
+  };
+
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
+    handleMouseUp();
   };
 
   const undo = () => {
@@ -237,7 +250,8 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    
+    if (!ctx) return; // Ensure context is valid
+
     if (canvasState?.data) {
       const img = new Image();
       img.src = canvasState.data;
@@ -262,6 +276,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
         img.src = canvasData;
         img.onload = () => {
           const ctx = canvasRef.current.getContext("2d");
+          if (!ctx) return; // Ensure context is valid
           ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
           ctx.drawImage(img, 0, 0);
         };
@@ -276,6 +291,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       img.src = canvasState.data;
       img.onload = () => {
         const ctx = canvasRef.current.getContext("2d");
+        if (!ctx) return; // Ensure context is valid
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         ctx.drawImage(img, 0, 0);
         saveState(); // Save this as the initial state for undo/redo
@@ -302,6 +318,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
         onMouseMove={handleDraw}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
       
       {isDrawer && (
@@ -312,6 +331,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
             onChange={(e) => setCurrentColor(e.target.value)}
             className="w-10 h-10 rounded cursor-pointer"
             title="Choose color"
+            aria-label="Choose color"
           />
           <div className="flex gap-2">
             <ToolButton

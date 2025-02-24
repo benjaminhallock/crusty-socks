@@ -43,7 +43,7 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
               ${player.hasDrawn ? 'opacity-50' : 'hover:bg-gray-300 dark:hover:bg-gray-600'}`}
           >
             {drawerUsername === player.username ? (
-              <img src="/gifpencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
+              <img src="../gifPencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
             ) : (
               <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
             )}

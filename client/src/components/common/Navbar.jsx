@@ -94,11 +94,7 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
               variant="dark"
               className="text-sm"
             >
-              <img
-                src={isMuted ? "/soundOff.png" : "/soundOn.png"}
-                alt={isMuted ? "Unmute" : "Mute"}
-                id="soundButton"
-              />
+              {isMuted ? "Unmute" : "Mute"}
             </Button>
           )}
         </div>

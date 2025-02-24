@@ -49,7 +49,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
   };
 
   return (
-    <div className="flex items-center text-black justify-center h-24 w-full bg-white rounded-lg shadow-lg p-4">
+    <div className="flex items-center text-gray-900 dark:text-gray-100 justify-center h-24 w-full bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-lg p-4 transition-colors">
       <div className="text-center">
         {gameState === GAME_STATE.WAITING && <p>Waiting for players...</p>}
 
@@ -68,7 +68,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
               <>
                 <p className="text-2xl font-mono tracking-wider">{getMaskedWord()}</p>
                 {showWordReveal && (
-                  <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white p-6 rounded-lg shadow-xl z-50 animate-fade-in">
+                  <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 dark:bg-gray-800/90 text-white p-6 rounded-lg shadow-xl z-50 animate-fade-in">
                     <p className="text-xl">The word was:</p>
                     <p className="text-3xl font-bold mt-2">{word}</p>
                   </div>
@@ -76,7 +76,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
               </>
             )}
             {!showWordReveal && (
-              <p className={`text-sm mt-2 ${timeLeft <= 10 ? 'text-red-500 font-bold animate-pulse' : ''}`}>
+              <p className={`text-sm mt-2 ${timeLeft <= 10 ? 'text-red-500 dark:text-red-400 font-bold animate-pulse' : 'dark:text-gray-300'}`}>
                 Time left: {timeLeft}s
               </p>
             )}
@@ -85,7 +85,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
 
         {gameState === GAME_STATE.FINISHED && (
           <div>
-            <p>Game Over!</p>
+            <p className="dark:text-gray-300">Game Over!</p>
             <p className="text-xl font-bold mt-2">Final word: {word}</p>
           </div>
         )}

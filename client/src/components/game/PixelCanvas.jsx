@@ -30,7 +30,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   const [currentTool, setCurrentTool] = useState("brush");
   const [history, setHistory] = useState([]); // For undo functionality
   const [redoStates, setRedoStates] = useState([]); // For redo functionality
-  const [startPos, setStartPos] = useState(null); // For line tool
 
   // Canvas configuration constants
   const GRID_SIZE = 20;
@@ -67,22 +66,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   /**
-   * Draws a line between two points using Bresenham's algorithm
-   */
-  const drawLine = (ctx, start, end) => {
-    console.log('Drawing line:', { start, end });
-    const dx = Math.abs(end.x - start.x);
-    const dy = Math.abs(end.y - start.y);
-    const steps = Math.max(dx, dy);
-    
-    for (let i = 0; i <= steps; i++) {
-      const x = start.x + (end.x - start.x) * (i / steps);
-      const y = start.y + (end.y - start.y) * (i / steps);
-      drawPixel(ctx, x, y, currentColor);
-    }
-  };
-
-  /**
    * Gets color of pixel at specific coordinates
    */
   const getPixelColor = (ctx, x, y) => {
@@ -94,35 +77,44 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
    * Implements flood fill (paint bucket) tool using stack-based approach
    */
   const floodFill = (ctx, startX, startY, fillColor) => {
-    if (!ctx) return; // Ensure context is valid
+    if (!ctx) return;
 
-    const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    const pixels = imageData.data;
+    // Convert to grid coordinates immediately
+    const gridX = Math.floor(startX / GRID_SIZE);
+    const gridY = Math.floor(startY / GRID_SIZE);
     
-    const startPos = (Math.floor(startY / GRID_SIZE) * GRID_SIZE * CANVAS_WIDTH + Math.floor(startX / GRID_SIZE) * GRID_SIZE) * 4;
-    const targetColor = getPixelColor(ctx, Math.floor(startX / GRID_SIZE) * GRID_SIZE, Math.floor(startY / GRID_SIZE) * GRID_SIZE);
-    
+    // Get target color once
+    const targetColor = getPixelColor(ctx, gridX * GRID_SIZE, gridY * GRID_SIZE);
     if (targetColor === fillColor) return;
 
-    const fillPixel = (x, y) => {
-      ctx.fillStyle = fillColor;
-      ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-    };
-
-    const stack = [[Math.floor(startX / GRID_SIZE), Math.floor(startY / GRID_SIZE)]];
     const visited = new Set();
+    const stack = [[gridX, gridY]];
     
-    while (stack.length) {
+    // Batch all fill operations
+    ctx.fillStyle = fillColor;
+    
+    while (stack.length > 0) {
       const [x, y] = stack.pop();
       const key = `${x},${y}`;
       
       if (visited.has(key)) continue;
       if (x < 0 || x >= CANVAS_WIDTH / GRID_SIZE || y < 0 || y >= CANVAS_HEIGHT / GRID_SIZE) continue;
-      if (getPixelColor(ctx, x * GRID_SIZE, y * GRID_SIZE) !== targetColor) continue;
+      
+      const currentColor = getPixelColor(ctx, x * GRID_SIZE, y * GRID_SIZE);
+      if (currentColor !== targetColor) continue;
       
       visited.add(key);
-      fillPixel(x, y);
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      
+      // Fill current pixel
+      ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+      
+      // Add neighbors to stack
+      stack.push(
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1]
+      );
     }
   };
 
@@ -145,19 +137,12 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     if (currentTool === "fill") {
       saveState();
       floodFill(ctx, x, y, currentColor);
+      // Move socket update outside of fill operation
       const canvasData = canvas.toDataURL();
-      socketManager.updateCanvas(canvasData);
-      setIsDrawing(false);
-    } else if (currentTool === "line" && startPos) {
-      const prevImg = new Image();
-      prevImg.src = history[history.length - 1];
-      prevImg.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(prevImg, 0, 0);
-        drawLine(ctx, startPos, { x, y });
-        const canvasData = canvas.toDataURL();
+      requestAnimationFrame(() => {
         socketManager.updateCanvas(canvasData);
-      };
+      });
+      setIsDrawing(false);
     } else {
       drawPixel(ctx, x, y, currentColor);
     }
@@ -166,25 +151,12 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   const handleMouseDown = (e) => {
     if (!isDrawer) return;
     setIsDrawing(true);
-    if (currentTool === "line") {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = canvasRef.current.width / rect.width;
-      const scaleY = canvasRef.current.height / rect.height;
-      setStartPos({
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-      });
-      saveState();
-    }
   };
 
   const handleMouseUp = () => {
     if (!isDrawer) return;
     setIsDrawing(false);
-    if (currentTool !== "line") {
-      saveState();
-    }
-    setStartPos(null);
+    saveState();
     const canvasData = canvasRef.current.toDataURL();
     socketManager.updateCanvas(canvasData);
   };
@@ -300,7 +272,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   }, [canvasState]);
 
   return (
-    <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 rounded-lg">
+    <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
@@ -312,7 +284,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
           touchAction: "none"
         }}
         className={`border-2 rounded-lg bg-white/100 ${
-          isDrawer ? "border-indigo-800 cursor-crosshair" : "border-gray-200"
+          isDrawer ? "border-indigo-800 dark:border-indigo-400 cursor-crosshair" : "border-gray-200 dark:border-gray-700"
         }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleDraw}
@@ -324,7 +296,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       />
       
       {isDrawer && (
-        <div className="flex items-center gap-4 bg-white/50 p-3 rounded-lg">
+        <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-3 rounded-lg transition-colors">
           <input
             type="color"
             value={currentColor}
@@ -339,12 +311,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
               onClick={() => setCurrentTool("brush")}
             >
               Brush
-            </ToolButton>
-            <ToolButton
-              active={currentTool === "line"}
-              onClick={() => setCurrentTool("line")}
-            >
-              Line
             </ToolButton>
             <ToolButton
               active={currentTool === "fill"}

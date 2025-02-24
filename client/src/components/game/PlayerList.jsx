@@ -38,13 +38,15 @@ const PlayerList = ({ players, drawerUsername, roomId }) => {
         {players.map((player, index) => (
           <li
             key={`player-${player.username}-${index}`}
-            className="flex items-center gap-2 bg-gray-200 p-2 rounded-md hover:bg-gray-300 transition-colors duration-200"
+            className={`flex items-center gap-2 p-2 rounded-md transition-colors duration-200 
+              ${player.hasGuessed ? 'bg-green-200' : 'bg-gray-200'} 
+              ${player.hasDrawn ? 'opacity-50' : 'hover:bg-gray-300'}`}
           >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                drawerUsername === player.username ? "bg-green-500" : "bg-blue-500"
-              }`}
-            />
+            {drawerUsername === player.username ? (
+              <img src="/gifPencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
+            ) : (
+              <div className="w-8 h-8 bg-blue-500 rounded-full"></div>
+            )}
             <span className="flex justify-between w-full text-gray-800 font-medium text-sm">
               <span>{player.username}</span>
               <span className="score">{player.score}</span>

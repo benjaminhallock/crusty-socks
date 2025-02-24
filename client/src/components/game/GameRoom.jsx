@@ -127,36 +127,34 @@ const GameRoom = ({ user }) => {
           </div>
 
           {gameData.gameState === GAME_STATE.WAITING && (
-            <div className="flex-1 text-center">
-              <p>Waiting for players to join...</p>
+            <div className="flex-1 flex items-center justify-center">
             </div>
           )}
 
           {gameData.gameState === GAME_STATE.PICKING_WORD &&
             (gameData.currentDrawer === user.username ? (
-              <div className="flex-1 text-center">
-                <p>It's your turn to draw! Please pick a word.</p>
-                { gameData.currentWord.split(",").map((word, index) => (
-                  <button
-                    key={index}
-                    className="m-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 height:100px"
-                    onClick={() =>
-                      socketManager.selectWord(roomId, word.trim())
-                    }
-                  >
-                    {word.trim()}
-                  </button>
-                ))}
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <p className="text-2xl font-bold mb-6 text-white">It's your turn to draw! Please pick a word.</p>
+                <div className="flex flex-wrap gap-4 justify-center">
+                  {gameData.currentWord.split(",").map((word, index) => (
+                    <button
+                      key={index}
+                      className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                      onClick={() => socketManager.selectWord(roomId, word.trim())}
+                    >
+                      {word.trim()}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="flex-1 text-center">
-                <p>Waiting for the drawer to pick a word...</p>
-                <button className="m-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                </button>
-                <button className="m-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                </button>
-                <button className="m-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                </button>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <p className="text-2xl font-bold mb-6">Waiting for the drawer to pick a word...</p>
+                <div className="flex gap-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="w-32 h-16 bg-blue-500 rounded-xl animate-pulse"></div>
+                  ))}
+                </div>
               </div>
             ))}
 
@@ -171,8 +169,8 @@ const GameRoom = ({ user }) => {
           )}
 
           {gameData.gameState === GAME_STATE.FINISHED && (
-            <div className="flex-1 text-center">
-              <p>Game Over! Thanks for playing!</p>
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-3xl font-bold">Game Over! Thanks for playing!</p>
             </div>
           )}
 

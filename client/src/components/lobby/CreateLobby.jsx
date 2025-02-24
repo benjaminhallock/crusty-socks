@@ -63,7 +63,7 @@ const CreateLobby = ({ user }) => {
             type="text"
             name="roomId"
             placeholder="Enter Room ID or paste invite link"
-            className="w-full px-4 py-2 rounded-lg border mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-white px-4 py-2 rounded-lg border mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
             required
           />
           <button

@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
 // Socket Events
 export const SOCKET_EVENTS = {
   JOIN_LOBBY: "joinLobby",
+  LEAVE_LOBBY: "leaveLobby",
   START_GAME: "startGame",
   GAME_STATE_UPDATE: "gameStateUpdate",
   CANVAS_UPDATE: "canvasUpdate",

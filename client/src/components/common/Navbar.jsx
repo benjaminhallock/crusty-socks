@@ -1,7 +1,8 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import MusicPlayer from "./MusicPlayer";
+import { useNavigate } from "react-router-dom";
+
 import Button from "./ui/Button";
+import MusicPlayer from "./MusicPlayer";
 
 const Navbar = ({ isLoggedIn, onLogout }) => {
   const navigate = useNavigate();

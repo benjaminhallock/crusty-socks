@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import { GAME_STATE } from "../../../../shared/constants";
 
 const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {

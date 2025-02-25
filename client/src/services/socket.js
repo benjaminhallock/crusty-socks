@@ -1,6 +1,7 @@
-import { io } from "socket.io-client";
-import { ENV_CONFIG } from "../../../shared/constants.js";
-import { SOCKET_EVENTS } from "../../../shared/constants.js";
+import { io } from 'socket.io-client';
+
+import { ENV_CONFIG } from '../../../shared/constants.js';
+import { SOCKET_EVENTS } from '../../../shared/constants.js';
 
 /**
  * SocketManager Class
@@ -65,12 +66,12 @@ class SocketManager {
         this.canvasCallbacks.forEach(callback => callback(canvasData));
       });
 
-      this.socket.on("wordGuessResult", (result) => {
+      this.socket.on('wordGuessResult', (result) => {
         if (result.correct) {
           // Don't show the actual word in chat
           this.messageCallbacks.forEach(callback => 
             callback({
-              username: "Server",
+              username: 'Server',
               message: `${result.username} guessed the word correctly! (+${result.points} points)`,
               timestamp: Date.now()
             })
@@ -80,30 +81,30 @@ class SocketManager {
     }
 
     // Connection status handlers
-    this.socket.on("connect", () => {
-      console.log("Socket successfully connected", this.socket.id);
+    this.socket.on('connect', () => {
+      console.log('Socket successfully connected', this.socket.id);
     });
 
-    this.socket.on("connect_ack", (data) => {
+    this.socket.on('connect_ack', (data) => {
       console.log('Client connection acknowledged:', data);
     });
 
-    this.socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error.message);
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
     });
 
-    this.socket.on("connect_timeout", () => {
-      console.error("Socket connection timeout");
+    this.socket.on('connect_timeout', () => {
+      console.error('Socket connection timeout');
     });
 
-    this.socket.on("error", (error) => {
-      console.error("Socket error:", error);
+    this.socket.on('error', (error) => {
+      console.error('Socket error:', error);
     });
 
-    this.socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected - reason:", reason);
-      if (reason === "transport close" || reason === "transport error") {
-        console.log("Attempting reconnection...");
+    this.socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected - reason:', reason);
+      if (reason === 'transport close' || reason === 'transport error') {
+        console.log('Attempting reconnection...');
       }
     });
 
@@ -121,7 +122,7 @@ class SocketManager {
   startGame(roomId) {
     console.log('Initiating game start for room:', roomId);
     if (!this.isConnected()) {
-      throw new Error("Cannot start game - Socket is not connected");
+      throw new Error('Cannot start game - Socket is not connected');
     }
     this.socket.emit(SOCKET_EVENTS.START_GAME, roomId);
   }
@@ -130,7 +131,7 @@ class SocketManager {
   joinLobby(roomId, username) {
     console.log('Joining lobby:', { roomId, username });
     if (!this.isConnected()) {
-      throw new Error("Cannot join lobby - Socket is not connected");
+      throw new Error('Cannot join lobby - Socket is not connected');
     }
     this.currentRoom = { roomId, username };
     this.socket.emit(SOCKET_EVENTS.JOIN_LOBBY, { roomId, username });
@@ -140,7 +141,7 @@ class SocketManager {
   sendMessage(roomId, message, username) {
     console.log('Sending chat message:', { roomId, message, username });
     if (!this.isConnected()) {
-      throw new Error("Cannot send message - Socket is not connected");
+      throw new Error('Cannot send message - Socket is not connected');
     }
     
     // Don't emit chat message if it's a potential word guess
@@ -154,14 +155,14 @@ class SocketManager {
   selectWord(roomId, word) {
     console.log('Selecting word for game:', { roomId, word });
     if (!this.isConnected()) {
-      throw new Error("Cannot select word - Socket is not connected");
+      throw new Error('Cannot select word - Socket is not connected');
     }
-    this.socket.emit("selectWord", { roomId, word });
+    this.socket.emit('selectWord', { roomId, word });
   }
 
   checkWordGuess(roomId, guess, username) {
     if (!this.isConnected() || !this.currentRoom) {
-      throw new Error("Cannot check word - Socket is not connected or no room joined");
+      throw new Error('Cannot check word - Socket is not connected or no room joined');
     }
     this.socket.emit(SOCKET_EVENTS.CHECK_WORD_GUESS, { 
       roomId, 
@@ -173,7 +174,7 @@ class SocketManager {
   updateCanvas(canvasData) {
     // console.log('Sending canvas update');
     if (!this.isConnected() || !this.currentRoom) {
-      throw new Error("Cannot update canvas - Socket is not connected or no room joined");
+      throw new Error('Cannot update canvas - Socket is not connected or no room joined');
     }
     this.socket.emit(SOCKET_EVENTS.CANVAS_UPDATE, { 
       roomId: this.currentRoom.roomId, 
@@ -183,16 +184,16 @@ class SocketManager {
 
   timeUp(roomId) {
     if (!this.isConnected()) {
-      throw new Error("Cannot send time up - Socket is not connected");
+      throw new Error('Cannot send time up - Socket is not connected');
     }
-    this.socket.emit("timeUp", roomId);
+    this.socket.emit('timeUp', roomId);
   }
 
   // Event subscription methods
   onMessage(callback) {
     console.log('Adding new message callback');
     if (!this.isConnected()) {
-      throw new Error("Cannot subscribe to messages - Socket instance not created");
+      throw new Error('Cannot subscribe to messages - Socket instance not created');
     }
     this.messageCallbacks.add(callback);
     return () => this.messageCallbacks.delete(callback);
@@ -200,8 +201,8 @@ class SocketManager {
 
   onPlayerUpdate(callback) {
     console.log('Adding new player update callback');
-    if (!this.isConnected) {
-      throw new Error("Cannot subscribe to player updates - Socket instance not created");
+    if (!this.isConnected()) {
+      throw new Error('Cannot subscribe to player updates - Socket instance not created');
     }
     this.playerCallbacks.add(callback);
     return () => this.playerCallbacks.delete(callback);
@@ -219,10 +220,23 @@ class SocketManager {
   onCanvasUpdate(callback) {
     console.log('Adding new canvas update callback');
     if (!this.isConnected()) {
-      throw new Error("Cannot subscribe to canvas updates - Socket instance not created");
+      throw new Error('Cannot subscribe to canvas updates - Socket instance not created');
     }
     this.canvasCallbacks.add(callback);
     return () => this.canvasCallbacks.delete(callback);
+  }
+
+  leaveLobby(roomId, username) {
+    console.log('Leaving lobby:', { roomId, username });
+    if (!this.isConnected()) {
+      throw new Error('Cannot leave lobby - Socket is not connected');
+    }
+    this.socket.emit(SOCKET_EVENTS.LEAVE_LOBBY, { roomId, username });
+  }
+
+  offGameStateUpdate() {
+    console.log('Removing game state callbacks');
+    this.gameStateCallbacks.clear();
   }
 
   // Cleanup method

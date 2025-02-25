@@ -34,7 +34,11 @@ const GameRoom = ({ user }) => {
 
   useEffect(() => {
     let isMounted = true;
-    socketManager.connect(user);
+    
+    // Ensure socket is connected
+    if (!socketManager.isConnected()) {
+      socketManager.connect(user);
+    }
 
     const fetchData = async () => {
       try {
@@ -86,8 +90,10 @@ const GameRoom = ({ user }) => {
 
     return () => {
       isMounted = false;
+
+      socketManager.offGameStateUpdate();
     };
-  }, [roomId, navigate, user.username]);
+  }, [roomId, navigate, user]);
 
   // Timer effect
   useEffect(() => {
@@ -132,6 +138,7 @@ const GameRoom = ({ user }) => {
                   players={gameData.players}
                   drawerUsername={gameData.currentDrawer}
                   roomId={lobbyId}
+                  gameState={gameData.gameState}
               />
             </div>
 

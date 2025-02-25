@@ -36,9 +36,9 @@ const io = new Server(httpServer, {
         origin: process.env.NODE_ENV === 'development' 
             ? ['http://localhost:5174', 'http://127.0.0.1:5174'] 
             : ENV_CONFIG.CLIENT_URL,
-        methods: ["GET", "POST"],
+        methods: ['GET', 'POST'],
         credentials: true,
-        allowedHeaders: ["*"]
+        allowedHeaders: ['*']
     },
     allowEIO3: true,
     pingTimeout: 60000,
@@ -81,7 +81,7 @@ const startServer = async () => {
         httpServer.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
             console.log(`Environment: ${process.env.NODE_ENV}`);
-            console.log(`Socket.IO path: /socket.io/`);
+            console.log('Socket.IO path: /socket.io/');
         });
     } catch (error) {
         console.error('Failed to start server:', error);

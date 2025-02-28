@@ -62,7 +62,7 @@ const lobbySchema = new mongoose.Schema(
     // Game progression tracking
     currentRound: {
       type: Number,
-      default: 0,
+      default: 1,
     },
     maxRounds: {
       type: Number,

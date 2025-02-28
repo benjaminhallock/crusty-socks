@@ -11,8 +11,8 @@ const Button = ({
   const variants = {
     primary: 'bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white',
     secondary: 'bg-gray-600 dark:bg-gray-500 hover:bg-gray-700 dark:hover:bg-gray-600 text-white',
-    light: 'bg-white text-gray-800 hover:bg-gray-100 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600',
-    dark: 'bg-gray-800 text-white hover:bg-gray-700 dark:bg-yellow-100 dark:text-gray-800 dark:hover:bg-gray-100'
+    light: 'bg-white text-gray-800 hover:bg-gray-100 dark:bg-white-100 dark:text-white dark:hover:bg-gray-600',
+    dark: 'bg-gray-800 text-white hover:bg-gray-700 dark:bg-purple-700 dark:hover:bg-purple-600',
   };
 
   return (

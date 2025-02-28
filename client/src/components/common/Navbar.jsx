@@ -41,7 +41,7 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
         
         <button onClick={() => navigate("/")} variant="dark" className="h-8">
-          <img src="/logo.svg" alt="Logo" className="h-6" />
+          <img src="/logo.svg" alt="Logo" className="h-8" />
         </button>
 
         <div className="flex gap-2 items-center ml-auto">
@@ -95,6 +95,11 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
               variant="dark"
               className="text-sm"
             >
+              <img 
+                src={isMuted ? "/soundOff.png" : "/soundOn.png"} 
+                alt={isMuted ? "Muted" : "Unmuted"}
+                className="h-6 w-6 mr-1 inline"
+              />
               {isMuted ? "Unmute" : "Mute"}
             </Button>
           )}

@@ -62,61 +62,108 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   const saveState = () => {
     console.log('Saving canvas state');
     const canvas = canvasRef.current;
+    if (!canvas) return; // Add null check
+    
     setHistory([...history, canvas.toDataURL()]);
     setRedoStates([]); // Clear redo stack on new action
   };
 
   /**
    * Gets color of pixel at specific coordinates
+   * Optimized for performance by directly accessing pixel data
    */
   const getPixelColor = (ctx, x, y) => {
     const pixel = ctx.getImageData(x, y, 1, 1).data;
-    return `#${[...pixel.slice(0, 3)].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+    // Compare by individual components rather than creating string for better performance
+    return [pixel[0], pixel[1], pixel[2]];
   };
 
   /**
-   * Implements flood fill (paint bucket) tool using stack-based approach
+   * Converts RGB array to hex color string
    */
-  const floodFill = (ctx, startX, startY, fillColor) => {
+  const rgbToHex = (r, g, b) => {
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  };
+
+  /**
+   * Converts hex color string to RGB array
+   */
+  const hexToRgb = (hex) => {
+    hex = hex.replace('#', '');
+    return [
+      parseInt(hex.substring(0, 2), 16),
+      parseInt(hex.substring(2, 4), 16),
+      parseInt(hex.substring(4, 6), 16)
+    ];
+  };
+
+  /**
+   * Compare if two colors are the same (within tolerance)
+   */
+  const colorsEqual = (color1, color2) => {
+    return color1[0] === color2[0] && color1[1] === color2[1] && color1[2] === color2[2];
+  };
+
+  /**
+   * Implements simplified flood fill (paint bucket) tool
+   * Uses a simple, reliable approach for filling connected pixels
+   */
+  const floodFill = (ctx, startX, startY, fillColorHex) => {
     if (!ctx) return;
 
-    // Convert to grid coordinates immediately
+    // Convert to grid coordinates
     const gridX = Math.floor(startX / GRID_SIZE);
     const gridY = Math.floor(startY / GRID_SIZE);
     
-    // Get target color once
-    const targetColor = getPixelColor(ctx, gridX * GRID_SIZE, gridY * GRID_SIZE);
-    if (targetColor === fillColor) return;
-
-    const visited = new Set();
+    // Get target color at starting position
+    const targetColorData = ctx.getImageData(gridX * GRID_SIZE, gridY * GRID_SIZE, 1, 1).data;
+    const targetColor = `rgb(${targetColorData[0]}, ${targetColorData[1]}, ${targetColorData[2]})`;
+    
+    // Don't fill if target is the same as fill color
+    if (targetColor === fillColorHex) return false;
+    
+    // Simple stack-based flood fill
     const stack = [[gridX, gridY]];
+    const width = Math.floor(CANVAS_WIDTH / GRID_SIZE);
+    const height = Math.floor(CANVAS_HEIGHT / GRID_SIZE);
+    const visited = new Set();
+    const pixelsToFill = [];
     
-    // Batch all fill operations
-    ctx.fillStyle = fillColor;
+    // Reasonable limit to prevent browser hanging
+    const maxPixels = 2500;
     
-    while (stack.length > 0) {
+    while (stack.length > 0 && pixelsToFill.length < maxPixels) {
       const [x, y] = stack.pop();
       const key = `${x},${y}`;
       
-      if (visited.has(key)) continue;
-      if (x < 0 || x >= CANVAS_WIDTH / GRID_SIZE || y < 0 || y >= CANVAS_HEIGHT / GRID_SIZE) continue;
+      // Skip if outside canvas or already visited
+      if (x < 0 || y < 0 || x >= width || y >= height || visited.has(key)) {
+        continue;
+      }
       
-      const currentColor = getPixelColor(ctx, x * GRID_SIZE, y * GRID_SIZE);
-      if (currentColor !== targetColor) continue;
+      // Check if pixel matches target color
+      const pixelData = ctx.getImageData(x * GRID_SIZE, y * GRID_SIZE, 1, 1).data;
+      const pixelColor = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
       
+      if (pixelColor !== targetColor) {
+        continue;
+      }
+      
+      // Mark as visited and add to fill list
       visited.add(key);
+      pixelsToFill.push([x, y]);
       
-      // Fill current pixel
-      ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-      
-      // Add neighbors to stack
-      stack.push(
-        [x + 1, y],
-        [x - 1, y],
-        [x, y + 1],
-        [x, y - 1]
-      );
+      // Add 4-connected neighbors to stack
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
+    
+    // Fill all the collected pixels
+    ctx.fillStyle = fillColorHex;
+    for (const [x, y] of pixelsToFill) {
+      ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+    }
+    
+    return pixelsToFill.length > 0;
   };
 
   const handleDraw = (e) => {
@@ -137,12 +184,11 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
 
     if (currentTool === "fill") {
       saveState();
-      floodFill(ctx, x, y, currentColor);
-      // Move socket update outside of fill operation
-      const canvasData = canvas.toDataURL();
-      requestAnimationFrame(() => {
-        socketManager.updateCanvas(canvasData);
-      });
+      const filled = floodFill(ctx, x, y, currentColor);
+      if (filled) {
+        // Only send update if something was filled
+        socketManager.updateCanvas(canvas.toDataURL());
+      }
       setIsDrawing(false);
     } else {
       drawPixel(ctx, x, y, currentColor);
@@ -185,11 +231,16 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       setRedoStates([...redoStates, currentState]);
       setHistory(history.slice(0, -1));
 
+      const canvas = canvasRef.current;
+      if (!canvas) return; // Add null check
+      
       const img = new Image();
       img.src = prevState;
       img.onload = () => {
-        const ctx = canvasRef.current.getContext("2d");
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return; // Add null check for context
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
       };
     }
@@ -202,54 +253,71 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       setHistory([...history, nextState]);
       setRedoStates(redoStates.slice(0, -1));
 
+      const canvas = canvasRef.current;
+      if (!canvas) return; // Add null check
+      
       const img = new Image();
       img.src = nextState;
       img.onload = () => {
-        const ctx = canvasRef.current.getContext("2d");
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return; // Add null check for context
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
       };
     }
   };
 
   const saveToPng = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return; // Add null check
+    
     const link = document.createElement('a');
     link.download = 'pixel-art.png';
-    link.href = canvasRef.current.toDataURL();
+    link.href = canvas.toDataURL();
     link.click();
   };
 
   // Initialize canvas and load saved state
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return; // Add null check
+    
     const ctx = canvas.getContext("2d");
-    if (!ctx) return; // Ensure context is valid
+    if (!ctx) return;
 
-    if (canvasState?.data) {
-      const img = new Image();
-      img.src = canvasState.data;
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        saveState(); // Save loaded state for undo/redo
-      };
-    } else {
-      // Initialize with white background if no saved state
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      saveState();
-    }
-  }, []);
+    // Wait for next tick to ensure canvas is fully initialized
+    setTimeout(() => {
+      if (canvasState?.data) {
+        const img = new Image();
+        img.src = canvasState.data;
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          saveState(); // Save loaded state for undo/redo
+        };
+      } else {
+        // Initialize with white background if no saved state
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        saveState();
+      }
+    }, 0);
+  }, [canvasRef.current]);
 
   // Add useEffect to listen for canvas updates from other players
   useEffect(() => {
     if (!isDrawer) {
       socketManager.onCanvasUpdate((canvasData) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return; // Add null check
+        
         const img = new Image();
         img.src = canvasData;
         img.onload = () => {
-          const ctx = canvasRef.current.getContext("2d");
-          if (!ctx) return; // Ensure context is valid
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          
           ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
           ctx.drawImage(img, 0, 0);
         };
@@ -260,15 +328,26 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   // Add effect to load initial canvas state
   useEffect(() => {
     if (canvasState?.data) {
-      const img = new Image();
-      img.src = canvasState.data;
-      img.onload = () => {
-        const ctx = canvasRef.current.getContext("2d");
-        if (!ctx) return; // Ensure context is valid
-        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        ctx.drawImage(img, 0, 0);
-        saveState(); // Save this as the initial state for undo/redo
-      };
+      // Add a small delay to ensure canvas is fully initialized
+      setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return; // Add null check
+        
+        const img = new Image();
+        img.src = canvasState.data;
+        img.onload = () => {
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          
+          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.drawImage(img, 0, 0);
+          
+          // Only save state if we successfully rendered
+          if (canvasRef.current) {
+            saveState();
+          }
+        };
+      }, 50);
     }
   }, [canvasState]);
 

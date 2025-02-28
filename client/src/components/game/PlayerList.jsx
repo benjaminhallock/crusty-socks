@@ -29,8 +29,9 @@ const PlayerList = ({ players, drawerUsername, roomId, gameState }) => {
             Invite
           </button>
           <button
-            className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700"
+            className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => socketManager.startGame(roomId)}
+            disabled={gameState !== GAME_STATE.WAITING}
           >
             Start Game
           </button>

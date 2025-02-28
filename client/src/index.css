@@ -28,10 +28,10 @@ body {
   scrollbar-width: none;
 }
 
-body::before {
-  content: "";
+/* More reliable background implementation */
+#app-background {
   @apply fixed inset-0 bg-no-repeat bg-center bg-cover opacity-90 -z-10;
-  background-image: url("/wallpaper.svg");
+  background-image: url('/wallpaper.svg');
 }
 
 ::-webkit-scrollbar {

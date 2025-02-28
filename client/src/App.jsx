@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import "./styles/main.css";
 import { checkAuth } from "./services/auth";
@@ -11,15 +11,41 @@ import Navbar from "./components/common/Navbar";
 import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
-import MusicPlayer from "./components/common/MusicPlayer";
 import LobbySettings from "./components/lobby/LobbySettings";
+
+// Protected route component
+const ProtectedRoute = ({ user, children }) => {
+  const location = useLocation();
+  
+  if (!user) {
+    // Save the attempted URL for redirection after login
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
+  
+  return children;
+};
 
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [bgLoaded, setBgLoaded] = useState(false);
+
+  // Load background image
+  useEffect(() => {
+    const bgImage = new Image();
+    bgImage.src = '/wallpaper.svg';
+    bgImage.onload = () => {
+      setBgLoaded(true);
+    };
+    bgImage.onerror = (err) => {
+      console.error("Failed to load background:", err);
+      // Set as loaded anyway so the app continues to work
+      setBgLoaded(true);
+    };
+  }, []);
 
   useEffect(() => {
-    console.log("Auth effect running"); // Debug log
+    console.log("Loading user authentication..."); // Debug log
     let mounted = true; // Track if component is mounted
 
     const checkUserAuth = async () => {
@@ -78,6 +104,15 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen">
+        {/* Background element - always present */}
+        <div 
+          id="app-background" 
+          style={{ 
+            opacity: bgLoaded ? 0.9 : 0,
+            transition: 'opacity 0.5s ease-in-out'
+          }}
+        />
+
         <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
         <main className="h-[calc(100vh-4rem)]">
           <Routes>
@@ -87,7 +122,6 @@ function App() {
                 user ? (
                   <>
                     <CreateLobby user={user} />
-                    <MusicPlayer />
                   </>
                 ) : (
                   <LoginForm onLoginSuccess={handleLogin} />
@@ -97,40 +131,31 @@ function App() {
             <Route
               path="/lobby/new"
               element={
-                user ? (
+                <ProtectedRoute user={user}>
                   <>
                     <LobbySettings user={user} />
-                    <MusicPlayer />
                   </>
-                ) : (
-                  <Navigate to="/" />
-                )
+                </ProtectedRoute>
               }
             />
             <Route
               path="/lobby/:roomId"
               element={
-                user ? (
+                <ProtectedRoute user={user}>
                   <>
                     <GameRoom user={user} />
-                    <MusicPlayer />
                   </>
-                ) : (
-                  <Navigate to="/" />
-                )
+                </ProtectedRoute>
               }
             />
             <Route
               path="/admin"
               element={
-                user ? (
+                <ProtectedRoute user={user}>
                   <>
                     <Admin />
-                    <MusicPlayer />
                   </>
-                ) : (
-                  <Navigate to="/" />
-                )
+                </ProtectedRoute>
               }
             />
             <Route path="*" element={<Navigate to="/" />} />

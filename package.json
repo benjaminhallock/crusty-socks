@@ -2,7 +2,7 @@
   "name": "crustysocks",
   "version": "1.0.0",
   "description": "A simple pixel art pictionary game",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm start",
@@ -11,12 +11,11 @@
     "build": "cd client && npm run build",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "lint": "concurrently \"cd client && npm run lint\" \"cd server && npm run lint\"",
-    "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\"",
-    "deploy": "vercel --prod"
-  },
+    "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\""
+    },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/benjaminhallock/crustysocks.git"
+    "url": "git+https://github.com/benjaminhallock/crusty-socks.git"
   },
   "keywords": [],
   "author": "",

@@ -1,21 +1,44 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
     port: 5174,
     strictPort: true,
-    open: true
+    open: true,
+    host: true,
+
   },
   build: {
     target: 'esnext',
     minify: 'esbuild',
     sourcemap: true,
-    outDir: '../server/public',
-    emptyOutDir: true
+    outDir: 'dist',
+    emptyOutDir: true,
+    assetsDir: 'assets',
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('.svg')) {
+            return 'svg';
+          }
+        }
+      }
+    }
   },
+  publicDir: 'public',
+  assetsInclude: ['**/*.svg', '**/*.woff'],
   define: {
     'process.env': {}
-  }
+  },
+  base: process.env.NODE_ENV === 'production' ? '/crustysocks/' : '/' // Add this for GitHub Pages
 });

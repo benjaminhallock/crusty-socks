@@ -20,25 +20,24 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const httpServer = createServer(app);
 
-// CORS configuration for Express
+// Completely disable CORS for local development
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'development' 
-        ? ['http://localhost:5174', 'http://127.0.0.1:5174'] 
-        : ENV_CONFIG.CLIENT_URL,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: true, // Reflects the request origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Access-Control-Allow-Origin']
+    maxAge: 86400,
+    preflightContinue: true,
+    optionsSuccessStatus: 200,
+    allowedHeaders: '*'
 };
 
-// Initialize socket server with separate CORS config
+// Initialize socket server with completely open CORS config
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.NODE_ENV === 'development' 
-            ? ['http://localhost:5174', 'http://127.0.0.1:5174'] 
-            : ENV_CONFIG.CLIENT_URL,
-        methods: ['GET', 'POST'],
+        origin: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         credentials: true,
-        allowedHeaders: ['*']
+        allowedHeaders: '*'
     },
     allowEIO3: true,
     pingTimeout: 60000,
@@ -63,6 +62,7 @@ io.on('connect_error', (err) => {
 
 // Middleware
 app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // Routes

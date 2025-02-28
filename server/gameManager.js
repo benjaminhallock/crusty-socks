@@ -35,8 +35,10 @@ class GameManager {
       // Game initialization event
       socket.on('startGame', async (roomId) => {
         console.log('Starting new game in room:', roomId);
+        //When the user connects, make their socket join the "room" group.
         socket.join(roomId);
 
+        //Find a lobby assuming it was created with POST request
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) {
           console.error('Cannot start game - Lobby not found:', roomId);
@@ -51,7 +53,7 @@ class GameManager {
         console.log('Selected drawer:', drawer.username);
         console.log('Selected words:', words);
 
-        // Update lobby state
+        // Update lobby state for random word/user
         lobby.currentDrawer = drawer.username;
         lobby.gameState = GAME_STATE.PICKING_WORD;
         lobby.currentWord = words.join(', ');

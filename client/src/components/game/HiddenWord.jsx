@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import { GAME_STATE } from "../../../../shared/constants";
 
-const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
+const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft, rounds, maxRounds }) => {
   const [revealedIndices, setRevealedIndices] = useState([]);
   const [showWordReveal, setShowWordReveal] = useState(false);
 
@@ -50,7 +50,13 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft }) => {
   };
 
   return (
-    <div className="flex items-center text-gray-900 dark:text-gray-100 justify-center h-24 w-full bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-lg p-4 transition-colors">
+    <div className="flex items-center text-gray-900 dark:text-gray-100 justify-center h-24 w-full bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-lg p-4 transition-colors relative">
+      {/* Round tracker */}
+      <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex flex-col items-center">
+        <div className="text-sm font-semibold">Round</div>
+        <div className="text-lg font-bold">{rounds}/{maxRounds}</div>
+      </div>
+
       <div className="text-center">
         {gameState === GAME_STATE.WAITING && <p>Waiting for players...</p>}
 

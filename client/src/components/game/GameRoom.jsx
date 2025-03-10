@@ -5,8 +5,9 @@ import ChatBox from "./ChatBox";
 import HiddenWord from "./HiddenWord";
 import PlayerList from "./PlayerList";
 import PixelCanvas from "./PixelCanvas";
+import GameSettings from "./GameSettings";
 import { fetchLobby } from "../../services/auth";
-import { socketManager } from "../../services/socket";
+import { socketManager } from "../../services/socket.js" 
 import { GAME_STATE } from "../../../../shared/constants";
 
 const GameRoom = ({ user }) => {
@@ -146,6 +147,14 @@ const GameRoom = ({ user }) => {
               roomId={lobbyId}
               gameState={gameData.gameState}
             />
+            {/* Add game settings display */}
+            <GameSettings 
+              revealCharacters={gameData.revealCharacters}
+              maxRounds={gameData.maxRounds}
+              selectWord={gameData.selectWord}
+              selectCategory={gameData.selectCategory}
+              playerLimit={gameData.playerLimit}
+            />
           </div>
 
           {gameData.gameState === GAME_STATE.WAITING && (
@@ -159,7 +168,7 @@ const GameRoom = ({ user }) => {
                   It's your turn to draw! Please pick a word.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center">
-                  {gameData.currentWord.split(",").map((word, index) => (
+                  {gameData.currentWord.split(",").slice(0, gameData.selectWord).map((word, index) => (
                     <button
                       key={index}
                       className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"

@@ -193,7 +193,7 @@ class SocketManager {
   onMessage(callback) {
     console.log('Adding new message callback');
     if (!this.isConnected()) {
-      throw new Error('Cannot subscribe to messages - Socket instance not created');
+      throw new Error('sages - Socket instance not created');
     }
     this.messageCallbacks.add(callback);
     return () => this.messageCallbacks.delete(callback);

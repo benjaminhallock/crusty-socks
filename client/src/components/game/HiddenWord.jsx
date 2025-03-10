@@ -7,12 +7,35 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft, rounds,
   const [showWordReveal, setShowWordReveal] = useState(false);
 
   useEffect(() => {
-    if (isRevealing && gameState === GAME_STATE.DRAWING && !isDrawing) {
+    // Reset revealed indices when a new word is chosen
+    setRevealedIndices([]);
+  }, [word]);
+
+  useEffect(() => {
+    if (isRevealing && gameState === GAME_STATE.DRAWING && !isDrawing && word) {
       const wordLength = word.length;
-      const interval = Math.floor(60 / (wordLength * 0.7)); // Reveal 70% of letters over 60s
+      // Calculate what percentage of non-space characters to reveal
+      const revealPercentage = isRevealing / 100; // Convert from 0-100 to 0-1
+      const nonSpaceChars = word.replace(/\s/g, '').length;
+      const charsToReveal = Math.ceil(nonSpaceChars * revealPercentage);
+      
+      // Don't set up timer if reveal rate is 0%
+      if (revealPercentage <= 0) return;
+      
+      // Calculate interval - distribute reveals across 80% of the round time
+      // This ensures most letters are revealed before time runs out
+      const totalTime = 60; // round time in seconds
+      const revealTime = totalTime * 0.8; // use 80% of the round time for reveals
+      const interval = revealTime / charsToReveal;
       
       const timer = setInterval(() => {
         setRevealedIndices(prev => {
+          // If we've already revealed enough characters, don't reveal more
+          if (prev.length >= charsToReveal) {
+            clearInterval(timer);
+            return prev;
+          }
+          
           const availableIndices = Array.from({ length: wordLength }, (_, i) => i)
             .filter(i => !prev.includes(i) && word[i] !== ' ');
           

@@ -16,8 +16,6 @@ export const connectDB = async () => {
       autoIndex: process.env.NODE_ENV !== 'production',
       maxPoolSize: 10
     });
-    // Allowing console for important server status messages
-    console.info('MongoDB connected');
   } catch (error) {
     // Allowing console for critical errors
     console.error('MongoDB connection error:', error);

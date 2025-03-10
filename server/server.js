@@ -77,11 +77,18 @@ const PORT = process.env.PORT || 3001;
 // Start server
 const startServer = async () => {
     try {
-        await connectDB();
+        try {
+            await connectDB();
+            console.info('Database connected successfully');
+        } catch (dbError) {
+            console.error('Database connection failed:', dbError.message);
+            throw new Error(`Failed to connect to database: ${dbError.message}`);
+        }
         httpServer.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
             console.log(`Environment: ${process.env.NODE_ENV}`);
-            console.log('Socket.IO path: /socket.io/');
+            console.log(`Socket.IO path: ${io.path()}`);
+            console.log(`CORS options: ${JSON.stringify(corsOptions)}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

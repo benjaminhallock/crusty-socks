@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     open: true,
-    host: true,
+    host: false,
 
   },
   build: {

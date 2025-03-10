@@ -167,10 +167,10 @@ const LobbySettings = ({ user }) => {
             </label>
             <div className="relative w-full md:w-auto">
               <select
-                id="category"
-                value={gameState.selectCategory}
-                onChange={(e) => setSelectCategory(e.target.value)}
-                className="appearance-none w-full md:w-80 px-5 py-4 text-xl text-indigo-800 bg-white/90 rounded-xl 
+                  id="category"
+                  value={gameState.selectCategory}
+                  onChange={(e) => setSelectCategory(e.target.value)}
+                  className="appearance-none w-full md:w-80 px-5 py-4 text-xl text-indigo-800 bg-white/90 rounded-xl
                   focus:outline-none focus:ring-4 focus:ring-indigo-300 border-2 border-indigo-200 
                   cursor-pointer shadow-md transition-all hover:border-indigo-400 pl-6"
               >
@@ -180,6 +180,7 @@ const LobbySettings = ({ user }) => {
                 <option value="objects">Objects 📱</option>
                 <option value="vehicles">Vehicles 🚗</option>
                 <option value="sports">Sports ⚽</option>
+                <option value="video games">Video Games 👾</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

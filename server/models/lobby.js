@@ -81,7 +81,7 @@ const lobbySchema = new mongoose.Schema(
     },
     selectWord: {
       type: Number,
-      default: 1,
+      default: 3,
       min: 1,
       max: 5,
     },
@@ -111,14 +111,19 @@ const lobbySchema = new mongoose.Schema(
       data: String,
       lastUpdate: Date,
     },
-
-    // Timer for the game
-    timeLeft: {
+    roundTime: {
       type: Number,
-      default: 60,
+      default: 60, // Default round time in seconds
+      min: 30,
+      max: 180,
     },
-  },
-  {
+    // Timer end timestamp
+    startTime: {
+      type: Date,
+      default: null,
+    },
+    },
+    {
     timestamps: true, // Adds createdAt and updatedAt
   }
 );

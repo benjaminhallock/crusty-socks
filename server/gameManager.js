@@ -34,37 +34,47 @@ class GameManager {
 
       // Game initialization event
       socket.on("startGame", async (roomId) => {
-        console.log("Starting new game in room:", roomId);
-        //When the user connects, make their socket join the "room" group.
-        socket.join(roomId);
-
-        //Find a lobby assuming it was created with POST request
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) {
           console.error("Cannot start game - Lobby not found:", roomId);
           return;
         }
 
-        // Initialize game state with random drawer and words
-        const drawerIndex = Math.floor(Math.random() * lobby.players.length);
-        const drawer = lobby.players[drawerIndex];
+        // Select a random drawer where hasDrawn is false
+        const availablePlayers = lobby.players.filter(
+          (player) => !player.hasDrawn
+        );
+        if (availablePlayers.length === 0) {
+          // this shouldn't happen because we cleanup at the end of round.
+          console.error("No available players to draw");
+          return;
+        }
+        // Randomly select a drawer from available players
+        const drawerIndex = Math.floor(Math.random() * availablePlayers.length);
+        const drawer = availablePlayers[drawerIndex];
 
         // Determine the category to use for word selection
         const availableCategories = Object.keys(WORD_LIST);
         let selectedCategory;
+        // Use the requested category if valid, otherwise pick random
+        if (lobby.selectCategory && lobby.selectCategory !== "random") {
+          // Find category case-insensitively
+          const lowerCaseCategory = lobby.selectCategory.toLowerCase();
+          selectedCategory = availableCategories.find(
+            (cat) => cat.toLowerCase() === lowerCaseCategory
+          );
+        }
 
-        // Handle random category selection or validate user-selected category
-        if (!lobby.selectCategory || lobby.selectCategory === "random") {
-          // Pick a random category if none specified or random requested
-          selectedCategory = availableCategories[Math.floor(Math.random() * availableCategories.length)];
-        } else {
-          // Try to use the requested category (case insensitive)
-          const normalizedCategory = lobby.selectCategory.toLowerCase();
-          if (WORD_LIST[normalizedCategory]) {
-            selectedCategory = normalizedCategory;
-          } else {
-            console.error(`Invalid category: "${lobby.selectCategory}", falling back to random`);
-            selectedCategory = availableCategories[Math.floor(Math.random() * availableCategories.length)];
+        // Default to random if category wasn't found or not specified
+        if (!selectedCategory) {
+          selectedCategory =
+            availableCategories[
+              Math.floor(Math.random() * availableCategories.length)
+            ];
+          if (lobby.selectCategory && lobby.selectCategory !== "random") {
+            console.warn(
+              `Category "${lobby.selectCategory}" not found, using random category`
+            );
           }
         }
 
@@ -75,45 +85,61 @@ class GameManager {
         // Select random words from the category
         const words = [];
         const categoryWords = WORD_LIST[selectedCategory];
-        const numWords = Math.min(lobby.selectWord || 3, 5); // Default 3, max 5 words
 
-        for (let i = 0; i < numWords; i++) {
-          const randomIndex = Math.floor(Math.random() * categoryWords.length);
-          words.push(categoryWords[randomIndex]);
+        // lobby.selectWord is the number of words to select
+        // Select the number of words specified in the lobby settings, or 1 if not specified, but never more than the total number of words available in the category.
+        const numWords = Math.min(lobby.selectWord || 1, categoryWords.length);
+        console.log(
+          `Selecting ${numWords} words from category "${selectedCategory}"`
+        );
+
+        // Choose random words from category
+        while (words.length < numWords) {
+          const word =
+            categoryWords[Math.floor(Math.random() * categoryWords.length)];
+          // Avoid duplicate words
+          if (!words.includes(word)) {
+            words.push(word);
+          }
         }
-        console.log("Selected words:", words);
-        // Update lobby state for random word/user
+
+        // If there is only one word, use it directly
+        if (words.length === 1) {
+          lobby.currentWord = words[0];
+          lobby.gameState = GAME_STATE.DRAWING;
+        }
+        // If there are multiple words, join them for display
+        else {
+          lobby.gameState = GAME_STATE.PICKING_WORD;
+          lobby.currentWord = words.join(", ");
+        }
         lobby.currentDrawer = drawer.username;
-        lobby.gameState = GAME_STATE.PICKING_WORD;
-        lobby.currentWord = words.join(", ");
-        
-
-        console.log("Updated lobby state:", lobby);
-
+        lobby.startTime = Date.now();
         await lobby.save();
-
-        // Broadcast new game state to all players in room
         io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
 
       // Chat message handling
-      socket.on(SOCKET_EVENTS.CHAT_MESSAGE, async ({ roomId, message, username }) => {
-        console.log("New chat message:", { roomId, username, message });
+      socket.on(
+        SOCKET_EVENTS.CHAT_MESSAGE,
+        async ({ roomId, message, username }) => {
+          console.log("New chat message:", { roomId, username, message });
 
-        if (!roomId || !message || !username) {
-          console.error("Invalid chat message data");
-          return;
+          if (!roomId || !message || !username) {
+            console.error("Invalid chat message data");
+            return;
+          }
+
+          const messageData = { username, message, timestamp: Date.now() };
+
+          // Store message in database and broadcast to room
+          await Lobby.findOneAndUpdate(
+            { roomId },
+            { $push: { messages: messageData } }
+          );
+          io.to(roomId).emit("chatMessage", messageData);
         }
-
-        const messageData = { username, message, timestamp: Date.now() };
-
-        // Store message in database and broadcast to room
-        await Lobby.findOneAndUpdate(
-          { roomId },
-          { $push: { messages: messageData } }
-        );
-        io.to(roomId).emit("chatMessage", messageData);
-      });
+      );
 
       // Word selection handling
       socket.on(SOCKET_EVENTS.SELECT_WORD, async ({ roomId, word }) => {
@@ -177,13 +203,13 @@ class GameManager {
 
           // Broadcast updates to all players
           io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
-          
+
           io.to(roomId).emit(SOCKET_EVENTS.CHAT_MESSAGE, {
             username: "Server",
             message: `${username} has joined the lobby`,
             timestamp: Date.now(),
           });
-          } catch (error) {
+        } catch (error) {
           console.error("Error in joinLobby:", error);
         }
       });

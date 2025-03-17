@@ -182,11 +182,12 @@ class SocketManager {
     });
   }
 
-  timeUp(roomId) {
+  endRound(roomId) {
+    console.log('Ending round for room:', roomId);
     if (!this.isConnected()) {
-      throw new Error('Cannot send time up - Socket is not connected');
+      throw new Error('Cannot end round - Socket is not connected');
     }
-    this.socket.emit('timeUp', roomId);
+    this.socket.emit(SOCKET_EVENTS.END_ROUND, roomId);
   }
 
   // Event subscription methods

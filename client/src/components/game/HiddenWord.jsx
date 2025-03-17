@@ -52,7 +52,8 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, timeLeft, rounds,
   }, [isRevealing, word, gameState, isDrawing]);
 
   useEffect(() => {
-    if (timeLeft === 0 || gameState === GAME_STATE.FINISHED) {
+    if (timeLeft === 0 || gameState !== GAME_STATE.DRAWING) {
+      // If the game is finished or time is up, show the word reveal
       setShowWordReveal(true);
       // Hide the reveal after 3 seconds if not in FINISHED state
       if (gameState !== GAME_STATE.FINISHED) {

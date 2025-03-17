@@ -70,7 +70,6 @@ export const lobbyController = {
           message: 'Lobby not found'
         });
       }
-      
       res.json({ success: true, lobby });
     } catch (error) {
       console.error('Get lobby error:', error);

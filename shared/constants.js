@@ -23,6 +23,8 @@ export const SOCKET_EVENTS = {
   CHECK_WORD_GUESS: "checkWordGuess",
   SELECT_WORD: "selectWord",
   PLAYER_UPDATE: "playerUpdate",
+  END_ROUND: "endRound",
+  END_GAME: "endGame",
 };
 
 export const WORD_LIST = {
@@ -110,22 +112,17 @@ export const WORD_LIST = {
 
 // Game Constants
 export const GAME_CONSTANTS = {
-  CANVAS: {
-    WIDTH: 800,
-    HEIGHT: 600,
-    GRID_SIZE: 20,
-  },
-  PLAYER_LIMITS: {
-    MIN: 2,
-    MAX: 16,
-  },
-};
+    CANVAS_GRID_SIZE: 20,
+    CANVAS_WIDTH: 800,
+    CANVAS_HEIGHT: 600,
+}
 
 export const GAME_STATE = {
   WAITING: 'waiting',
   STARTING: 'starting',
   PICKING_WORD: 'picking_word',
   DRAWING: 'drawing',
+  DRAW_END: 'draw_end',
   ROUND_END: 'round_end',
   GAME_END: 'game_end',
   FINISHED: 'finished'

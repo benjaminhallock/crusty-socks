@@ -2,6 +2,8 @@ import { useRef, useState, useEffect } from "react";
 
 import { socketManager } from "../../services/socket";
 
+import { GAME_CONSTANTS } from "../../../../shared/constants";
+
 /**
  * ToolButton Component
  * Reusable button component for drawing tools with active state styling
@@ -33,9 +35,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   const [redoStates, setRedoStates] = useState([]); // For redo functionality
 
   // Canvas configuration constants
-  const GRID_SIZE = 20;
-  const CANVAS_WIDTH = 700;
-  const CANVAS_HEIGHT = 500;
+  const GRID_SIZE = GAME_CONSTANTS.CANVAS_GRID_SIZE;
+  const CANVAS_HEIGHT = GAME_CONSTANTS.CANVAS_HEIGHT;
+  const CANVAS_WIDTH = GAME_CONSTANTS.CANVAS_WIDTH;
 
   /**
    * Draws a single pixel on the grid

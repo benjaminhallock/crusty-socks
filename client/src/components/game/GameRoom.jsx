@@ -7,7 +7,7 @@ import PlayerList from "./PlayerList";
 import PixelCanvas from "./PixelCanvas";
 import GameSettings from "./GameSettings";
 import { fetchLobby } from "../../services/auth";
-import { socketManager } from "../../services/socket.js" 
+import { socketManager } from "../../services/socket.js";
 import { GAME_STATE } from "../../../../shared/constants";
 
 const GameRoom = ({ user }) => {
@@ -27,7 +27,10 @@ const GameRoom = ({ user }) => {
     currentWord: "",
     currentDrawer: "",
     canvasState: null,
-    timeLeft: 60,
+    startTime: null,
+    roundTime: 60,
+    timeLeft: 0,
+    isTimerRunning: false,
   });
 
   // Flag to track if the timer has already been completed, hopefully this solves the timer ending twice
@@ -55,7 +58,6 @@ const GameRoom = ({ user }) => {
             setLobbyId(response.lobby.roomId);
             // Join the lobby via socket
             socketManager.joinLobby(response.lobby.roomId, user.username);
-
             // Immediately update game state with fetched data
             setGameData((prevData) => ({
               ...prevData,
@@ -70,7 +72,8 @@ const GameRoom = ({ user }) => {
               players: response.lobby.players,
               messages: response.lobby.messages,
               canvasState: response.lobby.canvasState,
-              timeLeft: response.lobby.timeLeft || 60,
+              startTime: response.lobby.startTime,
+              roundTime: response.lobby.roundTime,
               currentRound: response.lobby.currentRound,
             }));
 
@@ -100,32 +103,36 @@ const GameRoom = ({ user }) => {
     };
   }, [roomId, navigate, user]);
 
-  // Timer effect
   useEffect(() => {
-    let timer;
-    if (gameData.gameState === GAME_STATE.DRAWING && gameData.timeLeft > 0) {
-      isTimerCompleted.current = false; // Reset the flag when the timer starts
-      timer = setInterval(() => {
-        setGameData((prev) => {
-          const newTimeLeft = prev.timeLeft - 1;
-          if (newTimeLeft <= 0 && !isTimerCompleted.current) {
-            isTimerCompleted.current = true; // Mark the timer as completed
-            socketManager.timeUp(roomId);
-          }
-          return {
-            ...prev,
-            timeLeft: newTimeLeft,
-          };
-        });
-      }, 1000);
-    }
+    if (gameData.gameState === GAME_STATE.DRAWING) {
+      const totalTime = gameData.roundTime * 1000; // Convert to milliseconds
+      const startTime = gameData.startTime ? new Date(gameData.startTime).getTime() : Date.now();
+      const endTime = startTime + totalTime;
 
-    return () => {
-      if (timer) {
-        clearInterval(timer); // Cleanup the interval on unmount or state change
-      }
-    };
-  }, [gameData.gameState, gameData.timeLeft, roomId]);
+      const timer = setInterval(() => {
+        const now = Date.now();
+        const timeLeft = Math.max(0, endTime - now); 
+        const timeLeftInSeconds = Math.ceil(timeLeft / 1000); // Convert to seconds
+
+        console.log("Time left:", timeLeftInSeconds);
+
+        // Check if the timer has completed
+        if (timeLeft <= 0 && !isTimerCompleted.current) {
+          isTimerCompleted.current = true;
+          socketManager.endRound(lobbyId);
+          clearInterval(timer);
+        }
+
+        setGameData((prevData) => ({
+          ...prevData,
+          timeLeft: timeLeftInSeconds || 0,
+          isTimerRunning: timeLeft > 0,
+        }));
+      }, 1000); // Add interval time (1 second)
+      
+      return () => clearInterval(timer);
+    }
+  }, [gameData.gameState, gameData.startTime, gameData.roundTime, lobbyId]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16 dark:bg-gray-900 transition-colors">
@@ -148,7 +155,7 @@ const GameRoom = ({ user }) => {
               gameState={gameData.gameState}
             />
             {/* Add game settings display */}
-            <GameSettings 
+            <GameSettings
               revealCharacters={gameData.revealCharacters}
               maxRounds={gameData.maxRounds}
               selectWord={gameData.selectWord}
@@ -168,17 +175,20 @@ const GameRoom = ({ user }) => {
                   It's your turn to draw! Please pick a word.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center">
-                  {gameData.currentWord.split(",").slice(0, gameData.selectWord).map((word, index) => (
-                    <button
-                      key={index}
-                      className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
-                      onClick={() =>
-                        socketManager.selectWord(roomId, word.trim())
-                      }
-                    >
-                      {word.trim()}
-                    </button>
-                  ))}
+                  {gameData.currentWord
+                    .split(",")
+                    .slice(0, gameData.selectWord)
+                    .map((word, index) => (
+                      <button
+                        key={index}
+                        className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                        onClick={() =>
+                          socketManager.selectWord(roomId, word.trim())
+                        }
+                      >
+                        {word.trim()}
+                      </button>
+                    ))}
                 </div>
               </div>
             ) : (

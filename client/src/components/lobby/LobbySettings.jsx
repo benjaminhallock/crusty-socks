@@ -12,6 +12,7 @@ const LobbySettings = ({ user }) => {
     selectWord: 3,
     selectCategory: "random",
     playerLimit: 8,
+    roundTime: 60,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,8 @@ const LobbySettings = ({ user }) => {
     setGameState((prev) => ({ ...prev, selectCategory: value }));
   const setPlayerLimit = (value) =>
     setGameState((prev) => ({ ...prev, playerLimit: value }));
+  const setRoundTime = (value) =>
+    setGameState((prev) => ({ ...prev, roundTime: value }));
 
   useEffect(() => {
     if (!user) {
@@ -38,16 +41,16 @@ const LobbySettings = ({ user }) => {
     try {
       setLoading(true);
       setError("");
-      
+
       // Call createLobby with the gameState values
       const response = await createLobby({
         maxRounds: gameState.maxRounds,
         revealCharacters: gameState.revealCharacters,
         selectWord: gameState.selectWord,
         selectCategory: gameState.selectCategory,
-        playerLimit: gameState.playerLimit
+        playerLimit: gameState.playerLimit,
       });
-      
+
       if (response.success && response.roomId) {
         navigate(`/lobby/${response.roomId}`);
       } else {
@@ -151,13 +154,44 @@ const LobbySettings = ({ user }) => {
                   <span>?</span>
                 </button>
                 <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-lg rounded-xl p-3 mt-2 right-0 w-64 z-50">
-                  The drawer will select one word from the list of words, zero meaning 
-                  no word to draw.
+                  The drawer will select one word from the list of words, zero
+                  meaning no word to draw.
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Round Time: The amount of time the drawer has to draw the word */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between bg-orange-50/80 backdrop-blur-sm p-4 rounded-2xl">
+            <label
+              htmlFor="roundTime"
+              className="text-xl font-medium text-indigo-800 mb-2 md:mb-0"
+            >
+              Round Time:{" "}
+              <span className="text-2xl font-bold">{gameState.roundTime}s</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id="roundTime"
+                type="range"
+                min="30"
+                max="180"
+                value={gameState.roundTime}
+                onChange={(e) => setRoundTime(parseInt(e.target.value))}
+                className="w-72 h-8 accent-indigo-600"
+              />
+              <div className="relative inline-block group">
+                <button className="w-8 h-8 rounded-full bg-indigo-400 text-white text-lg flex items-center justify-center hover:bg-indigo-500">
+                  <span>?</span>
+                </button>
+                <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-lg rounded-xl p-3 mt-2 right-0 w-64 z-50">
+                  The amount of time the drawer has to draw the word
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* The category of words to draw */}
           <div className="flex flex-col md:flex-row md:items-center justify-between bg-blue-50/80 backdrop-blur-sm p-4 rounded-2xl relative">
             <label
               htmlFor="category"
@@ -167,10 +201,10 @@ const LobbySettings = ({ user }) => {
             </label>
             <div className="relative w-full md:w-auto">
               <select
-                  id="category"
-                  value={gameState.selectCategory}
-                  onChange={(e) => setSelectCategory(e.target.value)}
-                  className="appearance-none w-full md:w-80 px-5 py-4 text-xl text-indigo-800 bg-white/90 rounded-xl
+                id="category"
+                value={gameState.selectCategory}
+                onChange={(e) => setSelectCategory(e.target.value)}
+                className="appearance-none w-full md:w-80 px-5 py-4 text-xl text-indigo-800 bg-white/90 rounded-xl
                   focus:outline-none focus:ring-4 focus:ring-indigo-300 border-2 border-indigo-200 
                   cursor-pointer shadow-md transition-all hover:border-indigo-400 pl-6"
               >
@@ -183,8 +217,18 @@ const LobbySettings = ({ user }) => {
                 <option value="video games">Video Games 👾</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </div>
@@ -213,8 +257,18 @@ const LobbySettings = ({ user }) => {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-indigo-600">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </div>
@@ -231,7 +285,7 @@ const LobbySettings = ({ user }) => {
           <button
             className={`bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-2xl font-bold px-10 py-4 rounded-2xl 
               hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg
-              ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
             onClick={handleCreateLobby}
             disabled={loading}
           >

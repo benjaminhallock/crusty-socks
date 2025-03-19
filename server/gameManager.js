@@ -196,10 +196,15 @@ class GameManager {
           });
           await lobby.save();
 
-          // Set up socket room and track connection
-          socket.join(roomId);
+          // ✅ Store username in the socket
+          socket.username = username;
           socket.roomId = roomId;
+
+          // ✅ Ensure the player is properly tracked
           this.activeConnections.set(socket.id, { roomId, username });
+
+          // Join the room
+          socket.join(roomId);
 
           // Broadcast updates to all players
           io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
@@ -213,6 +218,7 @@ class GameManager {
           console.error("Error in joinLobby:", error);
         }
       });
+
 
       // Canvas update handling
       socket.on(SOCKET_EVENTS.CANVAS_UPDATE, async ({ roomId, canvasData }) => {
@@ -344,6 +350,48 @@ class GameManager {
           this.activeConnections.delete(socket.id);
         }
       });
+      // kick handling
+      socket.on("kick", async ({ roomId, username }) => {
+        console.log(`Kick request received for player: ${username} in room: ${roomId}`);
+
+        // 🔥 Debug: Log all connected players
+        console.log("Current connected players:");
+        io.sockets.sockets.forEach((s) => {
+          console.log(`Username: ${s.username}, Socket ID: ${s.id}`);
+        });
+
+        // Find the player's socket using stored usernames
+        const playerToKick = [...io.sockets.sockets.values()].find(
+            (s) => s.username === username
+        );
+
+        if (playerToKick) {
+          console.log(`Kicking player: ${username} (Socket ID: ${playerToKick.id})`);
+
+          // Notify the kicked player
+          playerToKick.emit("kicked");
+
+          // Remove player from activeConnections
+          this.activeConnections.delete(playerToKick.id);
+
+          // Remove player from the lobby
+          let lobby = await Lobby.findOne({ roomId });
+          if (lobby) {
+            lobby.players = lobby.players.filter(player => player.username !== username);
+            await lobby.save();
+
+            // Notify all players in the room about the update
+            io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
+          }
+
+          // ✅ Forcefully disconnect the socket
+          playerToKick.disconnect(true);
+        } else {
+          console.log(`Player ${username} not found`);
+        }
+      });
+
+
     });
   }
 

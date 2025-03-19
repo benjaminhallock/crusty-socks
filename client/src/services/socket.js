@@ -78,6 +78,13 @@ class SocketManager {
           );
         }
       });
+      this.socket.on("kicked", () => {
+        console.warn("You have been kicked from the game!");
+        alert("You have been kicked from the game!");
+        this.disconnect();
+        window.location.href = "/";
+      });
+
     }
 
     // Connection status handlers
@@ -240,6 +247,8 @@ class SocketManager {
     this.gameStateCallbacks.clear();
   }
 
+  // Handles kicking a player
+
   // Cleanup method
   disconnect() {
     console.log('Disconnecting socket');
@@ -248,7 +257,22 @@ class SocketManager {
       this.socket = null;
     }
   }
+
+  // Handles kicking a player
+  kickPlayer(roomId, username) {
+    console.log(`Attempting to kick player: ${username} from room: ${roomId}`);
+
+    if (!this.isConnected()) {
+      console.error("Cannot kick player - Socket is not connected");
+      return;
+    }
+
+    this.socket.emit("kick", { roomId, username });
+  }
 }
+
+
+
 
 // Export a singleton instance
 export const socketManager = new SocketManager();

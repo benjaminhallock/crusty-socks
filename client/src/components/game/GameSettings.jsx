@@ -14,18 +14,18 @@ const GameSettings = ({ revealCharacters, maxRounds, selectWord, selectCategory,
   };
 
   return (
-    <div className="mt-4 mb-2">
+    <div className="max-w-xs mx-auto mt-2 mb-1.5 sm:max-w-sm md:max-w-md lg:max-w-lg">
       <button 
         onClick={() => setExpanded(!expanded)}
-        className="w-full py-2 px-4 bg-indigo-100 dark:bg-gray-700 hover:bg-indigo-200 dark:hover:bg-gray-600 rounded-lg text-left flex justify-between items-center transition-colors"
+        className="w-full flex items-center justify-between px-2 py-1 text-left rounded-lg bg-indigo-100 dark:bg-gray-700 hover:bg-indigo-200 dark:hover:bg-gray-600"
       >
-        <span className="font-medium">Game Settings</span>
+        <span className="text-xs font-medium">Game Settings</span>
         <span className="text-xs">{expanded ? '▼' : '▶'}</span>
       </button>
       
       {expanded && (
-        <div className="mt-2 p-3 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow text-sm animate-fade-in">
-          <ul className="space-y-2">
+        <div className="p-2 mt-1 text-xs rounded-lg shadow bg-white/90 dark:bg-gray-800/90 animate-fade-in">
+          <ul className="space-y-1">
             <li className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-300">Rounds:</span>
               <span className="font-medium">{maxRounds}</span>

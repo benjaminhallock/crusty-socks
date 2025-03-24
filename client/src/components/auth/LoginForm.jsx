@@ -56,14 +56,13 @@ const LoginForm = ({ onLoginSuccess }) => {
         res = await login(formData.email, formData.password);
       }
       if (res?.user && res?.token) {
+        console.log("Login successful, passing token to onLoginSuccess:", res.token);
         onLoginSuccess({
           user: res.user,
           token: res.token,
         });
       } else {
-        const errorData = await res.json();
-        console.error("Authentication error:", errorData);
-        setError(errorData.message || "Authentication failed");
+        setError(res?.message || "Authentication failed");
       }
     } catch (error) {
       setError(error.message || "Authentication failed");

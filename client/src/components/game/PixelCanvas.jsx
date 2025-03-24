@@ -1,18 +1,20 @@
 import { useRef, useState, useEffect } from "react";
-
 import { socketManager } from "../../services/socket";
-
-import { GAME_CONSTANTS } from "../../../../shared/constants";
+import { GAME_CONSTANTS, GAME_STATE } from "../../../../shared/constants";
+import { FaPaintBrush, FaFill, FaEraser, FaUndo, FaRedo, FaDownload } from 'react-icons/fa';
 
 /**
  * ToolButton Component
  * Reusable button component for drawing tools with active state styling
  */
-const ToolButton = ({ active, onClick, children }) => (
+const ToolButton = ({ active, onClick, children, title }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-indigo-600 text-white" : "bg-white text-gray-700 border border-gray-300"
+    title={title}
+    className={`p-3 rounded-lg text-sm transition-colors ${
+      active 
+        ? "bg-indigo-600 text-white hover:bg-indigo-700" 
+        : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
     }`}
   >
     {children}
@@ -24,7 +26,7 @@ const ToolButton = ({ active, onClick, children }) => (
  * Main drawing interface for the game
  * Handles all drawing tools, canvas interactions, and state management
  */
-const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
+const PixelCanvas = ({ isDrawer, drawerUsername, canvasState, gameState, roundTime, startTime, roomId }) => {
   // console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
   // Core canvas state and refs
   const canvasRef = useRef(null);
@@ -168,7 +170,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   const handleDraw = (e) => {
-    if (!isDrawing || !isDrawer) return;
+    if (!isDrawing || !isDrawer || gameState === GAME_STATE.DRAW_END) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return; // Ensure canvas is valid
@@ -197,7 +199,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   };
 
   const handleMouseDown = (e) => {
-    if (!isDrawer) return;
+    if (!isDrawer || gameState === GAME_STATE.DRAW_END) return;
     setIsDrawing(true);
   };
 
@@ -378,6 +380,29 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     }
   }, [gridSize]);
 
+  // Add timer effect for drawing round
+  useEffect(() => {
+    let timerId;
+    if (gameState === GAME_STATE.DRAWING && startTime) {
+      const endTime = new Date(startTime).getTime() + (roundTime * 1000);
+      
+      const checkTime = () => {
+        const now = Date.now();
+        if (now >= endTime) {
+          clearInterval(timerId);
+          socketManager.emit(SOCKET_EVENTS.END_DRAWING, { roomId });
+        }
+      };
+
+      timerId = setInterval(checkTime, 1000);
+      checkTime(); // Check immediately
+    }
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [gameState, startTime, roundTime, roomId]);
+
   return (
     <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors">
       <canvas
@@ -417,24 +442,42 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
               <ToolButton
                 active={currentTool === "brush"}
                 onClick={() => setCurrentTool("brush")}
+                title="Brush Tool"
               >
-                Brush
+                <FaPaintBrush className="w-5 h-5" />
               </ToolButton>
               <ToolButton
                 active={currentTool === "fill"}
                 onClick={() => setCurrentTool("fill")}
+                title="Fill Tool"
               >
-                Fill
+                <FaFill className="w-5 h-5" />
               </ToolButton>
               <ToolButton
                 active={currentTool === "eraser"}
                 onClick={() => setCurrentTool("eraser")}
+                title="Eraser Tool"
               >
-                Eraser
+                <FaEraser className="w-5 h-5" />
               </ToolButton>
-              <ToolButton onClick={undo}>Undo</ToolButton>
-              <ToolButton onClick={redo}>Redo</ToolButton>
-              <ToolButton onClick={saveToPng}>Save</ToolButton>
+              <ToolButton
+                onClick={undo}
+                title="Undo"
+              >
+                <FaUndo className="w-5 h-5" />
+              </ToolButton>
+              <ToolButton
+                onClick={redo}
+                title="Redo"
+              >
+                <FaRedo className="w-5 h-5" />
+              </ToolButton>
+              <ToolButton
+                onClick={saveToPng}
+                title="Save as PNG"
+              >
+                <FaDownload className="w-5 h-5" />
+              </ToolButton>
             </div>
           </div>
           

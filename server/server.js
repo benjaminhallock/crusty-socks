@@ -55,7 +55,7 @@ io.engine.on('connection_error', (err) => {
 
 // Attach connection listeners
 io.on('connect', (socket) => {
-    console.log('Client connected:', socket.id);
+    // console.log('Client connected:', socket.id);
 });
 
 io.on('connect_error', (err) => {

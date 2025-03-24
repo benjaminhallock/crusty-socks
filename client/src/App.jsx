@@ -55,10 +55,18 @@ function App() {
 
     const checkUserAuth = async () => {
       try {
+        console.log("Checking user authentication...");
         const response = await checkAuth();
-        const userData = { ...response.user, id: response.user._id };
-        setUser(userData);
+        if (response?.user) {
+          const userData = { ...response.user, id: response.user._id };
+          console.log("User authenticated, saving user data:", userData);
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } else {
+          throw new Error("Invalid user data");
+        }
       } catch (error) {
+        console.error("Authentication check failed:", error);
         localStorage.clear();
       } finally {
         setIsLoading(false);
@@ -68,12 +76,14 @@ function App() {
     checkUserAuth();
   }, []);
 
-  const handleLogin = ({ user: userData, token }) => {
-    const userInfo = { ...userData, id: userData._id };
+  const handleLogin = ({ user, token }) => {
+    if (!user || !token) {
+      console.error("Invalid login data");
+      return;
+    }
+    const userInfo = { ...user, id: user._id };
     localStorage.setItem("token", token);
     setUser(userInfo);
-    
-    // Initialize socket connection after successful login
     socketManager.connect(userInfo);
   };
 

@@ -19,7 +19,7 @@ class SocketManager {
 
   connect(userData) {
     if (this.isConnected()) {
-      console.log("Socket already connected");
+      console.log("Socket already connected, skipping connection");
       return;
     }
 
@@ -27,22 +27,21 @@ class SocketManager {
       console.log("Creating new socket instance");
       this.socket = io(ENV_CONFIG.SOCKET_URL, {
         withCredentials: true,
-        transports: ["polling", "websocket"],
+        transports: ["websocket", "polling"],
         autoConnect: false,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnection: false, // Disable auto-reconnection
         timeout: 45000,
         path: "/socket.io/",
       });
 
       this._setupSocketListeners();
     }
+
     if (!this.socket.connected) {
       console.log("Connecting socket...");
       this.socket.connect();
     }
+
     if (userData) {
       this.socket.userId = userData.id;
       this.socket.user = userData;
@@ -90,7 +89,7 @@ class SocketManager {
     });
 
     this.socket.on(SOCKET_EVENTS.GAME_STATE_UPDATE, ({ lobby }) => {
-      console.log("Received game state update:", lobby);
+      console.log("Received game state update:", lobby.gameState);
       this.gameStateCallbacks.forEach((callback) => callback({ lobby }));
     });
 
@@ -120,17 +119,26 @@ class SocketManager {
 
   // Game control methods
   startGame(roomId) {
-    console.log("Initiating game start for room:", roomId);
-    if (!this.isConnected()) {
+    if (!this.isConnected())
       throw new Error("Cannot start game - Socket is not connected");
-    }
     this.socket.emit(SOCKET_EVENTS.START_GAME, roomId);
   }
 
   // Room management methods
   joinLobby(roomId, username) {
-    if (!this.isConnected())
+    if (!this.isConnected()) {
       throw new Error("Cannot join lobby - Socket is not connected");
+    }
+
+    // Prevent joining same room multiple times
+    if (
+      this.currentRoom?.roomId === roomId &&
+      this.currentRoom?.username === username
+    ) {
+      console.log("Already in this lobby, skipping join");
+      return;
+    }
+
     this.currentRoom = { roomId, username };
     this.socket.emit(SOCKET_EVENTS.JOIN_LOBBY, { roomId, username });
   }
@@ -201,8 +209,8 @@ class SocketManager {
 
   // Event subscription methods
   onMessage(callback) {
-    console.log("Adding new message callback");
-    if (!this.socket) {
+    if (!this.isConnected()) {
+      console.log("Socket not connected, connecting...");
       this.connect();
     }
     this.messageCallbacks.add(callback);
@@ -210,8 +218,8 @@ class SocketManager {
   }
 
   onPlayerUpdate(callback) {
-    console.log("Adding new player update callback");
-    if (!this.socket) {
+    if (!this.isConnected()) {
+      console.log("Socket not connected, connecting...");
       this.connect();
     }
     this.playerCallbacks.add(callback);
@@ -219,7 +227,6 @@ class SocketManager {
   }
 
   onGameStateUpdate(callback) {
-    console.log("Adding new game state callback");
     if (!this.socket) {
       this.connect();
     }
@@ -228,7 +235,6 @@ class SocketManager {
   }
 
   onCanvasUpdate(callback) {
-    console.log("Adding new canvas update callback");
     if (!this.socket) {
       this.connect();
     }
@@ -245,31 +251,41 @@ class SocketManager {
   }
 
   offGameStateUpdate() {
-    console.log("Removing game state callbacks");
     this.gameStateCallbacks.clear();
   }
 
   // Handles kicking a player
 
   // Cleanup method
-  disconnect() {
-    console.log("Disconnecting socket");
-    if (this.socket) {
+  cleanup() {
+    console.log("Cleaning up socket manager");
+    this.currentRoom = null;
+    this.gameStateCallbacks.clear();
+    this.messageCallbacks.clear();
+    this.playerCallbacks.clear();
+    this.canvasCallbacks.clear();
+
+    if (this.socket && this.socket.connected) {
       this.socket.disconnect();
-      this.socket = null;
     }
+    // Don't null out the socket, just disconnect it
   }
 
   // Handles kicking a player
   kickPlayer(roomId, username) {
     console.log(`Attempting to kick player: ${username} from room: ${roomId}`);
-
     if (!this.isConnected()) {
       console.error("Cannot kick player - Socket is not connected");
       return;
     }
+    this.socket.emit(SOCKET_EVENTS.KICK_PLAYER, { roomId, username });
+  }
 
-    this.socket.emit("kick", { roomId, username });
+  timeUp(roomId) {
+    if (!this.isConnected()) {
+      throw new Error("Cannot end drawing - Socket is not connected");
+    }
+    this.socket.emit(SOCKET_EVENTS.END_DRAWING, this.currentRoom.roomId);
   }
 }
 

@@ -24,13 +24,24 @@ const makeApiCall = async (endpoint, options = {}) => {
 export const fetchLobby = (roomId) => {
   if (!roomId) throw new Error("Room ID is required");
   return makeApiCall(API_ENDPOINTS.GET_LOBBY(roomId))
-    .then((response) => response.data)
+    .then((response) => {
+      if (!response.data.lobby) {
+        throw new Error("Lobby not found");
+      }
+      return {
+        success: true,
+        lobby: response.data.lobby
+      };
+    })
     .catch((error) => {
       console.error(
         "Failed to fetch lobby data:",
         error.response?.data || error
       );
-      throw new Error("Failed to fetch lobby data");
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || "Failed to fetch lobby data"
+      };
     });
 };
 
@@ -74,7 +85,7 @@ export const login = (email, password) => {
     body: JSON.stringify({ email, password }),
   })
     .then((response) => {
-      console.log("Login successful:", response.data);
+      console.log("Login successful, saving token:", response.data.token);
       localStorage.setItem("token", response.data.token.replace("Bearer ", ""));
       localStorage.setItem("user", JSON.stringify(response.data.user));
       return {
@@ -85,7 +96,7 @@ export const login = (email, password) => {
     .catch((error) => {
       console.error("Login failed:", error.response?.data || error);
       return {
-        success: false,
+        ok: false,
         message: error.response?.data?.message || "Login failed",
       };
     });
@@ -104,14 +115,14 @@ export const register = (email, username, password) => {
     .then((response) => {
       console.log("Registration successful");
       return {
-        success: true,
+        ok: true,
         user: response.data.user,
         token: response.data.token.replace("Bearer ", ""),
       };
     })
     .catch((error) => {
       return {
-        success: false,
+        ok: false,
         message: error.response?.data?.message || "Registration failed",
       };
     });
@@ -122,13 +133,23 @@ export const register = (email, username, password) => {
  * Cleans up invalid tokens and user data
  */
 export const checkAuth = () => {
-  console.log("Validating authentication token");
-  return makeApiCall(API_ENDPOINTS.VALIDATE).catch((error) => {
-    console.log("Auth check failed, clearing credentials");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    return { success: false, message: error.message };
-  });
+  console.log("Retrieving token from localStorage:", localStorage.getItem("token"));
+  return makeApiCall(API_ENDPOINTS.VALIDATE)
+    .then((response) => {
+      if (!response.data.user) {
+        console.log("Invalid user data, clearing credentials");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        return { ok: false };
+      }
+      return response.data;
+    })
+    .catch((error) => {
+      console.log("Auth check failed, clearing credentials");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return { ok: false, message: error.message };
+    });
 };
 
 /**

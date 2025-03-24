@@ -1,12 +1,12 @@
-import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
-import User from '../models/user.js';
+import User from "../models/user.js";
 
-dotenv.config('/config.env');
+dotenv.config("/config.env");
 
 const generateToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "24h" });
 
 const cleanUser = (user) => ({
   _id: user._id,
@@ -15,31 +15,29 @@ const cleanUser = (user) => ({
 });
 
 export const userController = {
-  deleteUser: async (req, res) => {
+  getUser: async (req, res) => {
     try {
-      await req.user.remove();
       res.status(200).json({
-        success: true,
-        message: 'User deleted',
+        message: "User deleted",
       });
     } catch (error) {
       res.status(500).json({
-        success: false,
-        message: 'Failed to delete user',
+        ok: false,
+        message: "Failed to delete user",
       });
     }
   },
+
   validateToken: async (req, res) => {
     try {
       res.status(200).json({
-        success: true,
         user: cleanUser(req.user),
         token: req.token,
       });
     } catch (error) {
       res.status(401).json({
-        success: false,
-        message: 'Invalid token',
+        ok: false,
+        message: "Invalid token",
       });
     }
   },
@@ -49,22 +47,24 @@ export const userController = {
 
     if (!username || !email || !password) {
       return res.status(400).json({
-        success: false,
-        message: 'Missing required fields',
+        ok: false,
+        message: "Missing required fields",
       });
     }
 
     if (!/^[a-zA-Z0-9]{6,}$/.test(username)) {
       return res.status(400).json({
-        success: false,
-        message: 'Username must be at least 6 characters and contain only letters and numbers',
+        ok: false,
+        message:
+          "Username must be at least 6 characters and contain only letters and numbers",
       });
     }
 
     if (!/^[a-zA-Z0-9]{6,}$/.test(password)) {
       return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters and contain only letters and numbers',
+        ok: false,
+        message:
+          "Password must be at least 6 characters and contain only letters and numbers",
       });
     }
 
@@ -75,11 +75,11 @@ export const userController = {
 
       if (existingUser) {
         return res.status(400).json({
-          success: false,
+          ok: false,
           message:
             existingUser.email === email
-              ? 'Email already exists'
-              : 'Username already exists',
+              ? "Email already exists"
+              : "Username already exists",
         });
       }
 
@@ -87,14 +87,13 @@ export const userController = {
       const token = generateToken(user._id);
 
       res.status(201).json({
-        success: true,
         user: cleanUser(user),
         token,
       });
     } catch (error) {
       res.status(400).json({
-        success: false,
-        message: 'Registration failed',
+        ok: false,
+        message: "Registration failed",
       });
     }
   },
@@ -104,8 +103,8 @@ export const userController = {
 
     if (!email || !password) {
       return res.status(400).json({
-        success: false,
-        message: 'Email and password required',
+        ok: false,
+        message: "Email and password required",
       });
     }
 
@@ -114,38 +113,34 @@ export const userController = {
 
       if (!user) {
         return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials',
+          ok: false,
+          message: "Invalid credentials",
         });
       }
 
       const token = generateToken(user._id);
 
       res.status(200).json({
-        success: true,
         user: cleanUser(user),
         token,
-        message: 'Login successful',
+        message: "Login successful",
       });
     } catch (error) {
       res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
+        ok: false,
+        message: "Invalid credentials",
       });
     }
   },
 
   getAllUsers: async (req, res) => {
     try {
-      const users = await User.find({}, '-password');
-      res.status(200).json({
-        success: true,
-        users,
-      });
+      const users = await User.find({}, "-password");
+      res.status(200).json({ users });
     } catch (error) {
       res.status(500).json({
-        success: false,
-        message: 'Failed to get users',
+        ok: false,
+        message: "Failed to get users",
       });
     }
   },

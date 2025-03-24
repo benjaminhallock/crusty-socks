@@ -12,7 +12,7 @@ router.use(isAdmin);
 router.get('/', async (req, res) => {
   try {
     const reports = await Report.find().sort({ timestamp: -1 });
-    res.json({ reports });
+    res.send({ reports });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -36,7 +36,7 @@ router.put('/:id/status', async (req, res) => {
       return res.status(404).json({ message: 'Report not found' });
     }
     
-    res.json({ report });
+    res.send({ report });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

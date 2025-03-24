@@ -62,12 +62,12 @@ const LobbySettings = ({ user }) => {
   };
 
   return (
-    <div className="flex items-center justify-center h-full p-10">
-      <div className="backdrop-blur-lg bg-white/70 rounded-3xl p-8 shadow-xl max-w-3xl w-full border-4 border-indigo-300">
-        <h3 className="text-4xl font-bold text-center mb-8 text-indigo-600 tracking-wide">
+    <div className="flex items-center justify-center p-4">
+      <div className="backdrop-blur-lg bg-white/70 rounded-3xl p-6 shadow-xl max-w-4xl w-[90%] md:w-[70%] lg:w-[60%] border-4 border-indigo-300 overflow-y-auto max-h-[80vh]">
+        <h3 className="text-3xl font-bold text-center mb-6 text-indigo-600 tracking-wide">
           Game Settings 🎮
         </h3>
-        <div className="flex flex-col space-y-7">
+        <div className="flex flex-col space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between bg-yellow-50/80 backdrop-blur-sm p-4 rounded-2xl">
             <label
               htmlFor="maxRounds"

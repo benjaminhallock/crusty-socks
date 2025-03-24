@@ -12,7 +12,7 @@
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "lint": "concurrently \"cd client && npm run lint\" \"cd server && npm run lint\"",
     "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\""
-    },
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/benjaminhallock/crusty-socks.git"
@@ -27,7 +27,8 @@
   "homepage": "https://github.com/benjaminhallock/crusty-socks#readme",
   "dependencies": {
     "concurrently": "^9.1.2",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "react-icons": "^5.5.0"
   },
   "engines": {
     "node": ">=18.0.0"

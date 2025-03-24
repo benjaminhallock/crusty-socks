@@ -1,3 +1,4 @@
+import { socketManager } from "../client/src/services/socket.js";
 import { GAME_STATE, SOCKET_EVENTS } from "../shared/constants.js";
 import { WORD_LIST } from "../shared/constants.js";
 import Lobby from "./models/lobby.js";
@@ -18,8 +19,6 @@ class GameManager {
   }
 
   setupSocketListeners(io) {
-    console.log("Setting up socket event listeners");
-
     io.on("connection", (socket) => {
       console.log("player connected to server:", socket.id);
 
@@ -32,8 +31,29 @@ class GameManager {
         socket.emit("error", "Connection error occurred");
       });
 
+      socket.on(SOCKET_EVENTS.END_DRAWING, async ({ roomId }) => {
+        console.log("Time's up! Ending drawing for room:", roomId);
+        const lobby = await Lobby.findOne({ roomId });
+        if (!lobby) {
+          console.error("Cannot end drawing - Lobby not found:", roomId);
+          return;
+        }
+
+        lobby.gameState = GAME_STATE.DRAW_END;
+        await lobby.save();
+        io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
+
+        // After 10 seconds, start next round
+        setTimeout(async () => {
+          const currentLobby = await Lobby.findOne({ roomId });
+          if (currentLobby) {
+            io.to(roomId).emit(SOCKET_EVENTS.START_GAME, roomId);
+          }
+        }, 10000);
+      });
+
       // Game initialization event
-      socket.on("startGame", async (roomId) => {
+      socket.on(SOCKET_EVENTS.START_GAME, async (roomId) => {
         const lobby = await Lobby.findOne({ roomId });
         if (!lobby) {
           console.error("Cannot start game - Lobby not found:", roomId);
@@ -44,14 +64,17 @@ class GameManager {
         const availablePlayers = lobby.players.filter(
           (player) => !player.hasDrawn
         );
-        if (availablePlayers.length === 0) {
-          // this shouldn't happen because we cleanup at the end of round.
+        if (!availablePlayers.length) {
           console.error("No available players to draw");
           return;
         }
+
         // Randomly select a drawer from available players
         const drawerIndex = Math.floor(Math.random() * availablePlayers.length);
         const drawer = availablePlayers[drawerIndex];
+
+        // Set the drawer regardless of word selection mode
+        lobby.currentDrawer = drawer.username;
 
         // Determine the category to use for word selection
         const availableCategories = Object.keys(WORD_LIST);
@@ -63,10 +86,7 @@ class GameManager {
           selectedCategory = availableCategories.find(
             (cat) => cat.toLowerCase() === lowerCaseCategory
           );
-        }
-
-        // Default to random if category wasn't found or not specified
-        if (!selectedCategory) {
+        } else if (!selectedCategory) {
           selectedCategory =
             availableCategories[
               Math.floor(Math.random() * availableCategories.length)
@@ -77,29 +97,27 @@ class GameManager {
             );
           }
         }
-
-        // Update lobby with the selected category
+        // Save the selected category to the lobby
         lobby.selectCategory = selectedCategory;
-        console.log(`Using category: ${selectedCategory}`);
 
-        // Select random words from the category
+        // Initialize array to store word choices
         const words = [];
+
+        // Get all words from the selected category
         const categoryWords = WORD_LIST[selectedCategory];
 
-        // lobby.selectWord is the number of words to select
-        // Select the number of words specified in the lobby settings, or 1 if not specified, but never more than the total number of words available in the category.
+        // Determine how many words to select (minimum of 1 or lobby.selectWord)
         const numWords = Math.min(lobby.selectWord || 1, categoryWords.length);
-        console.log(
-          `Selecting ${numWords} words from category "${selectedCategory}"`
-        );
 
-        // Choose random words from category
+        // Select random unique words from category
         while (words.length < numWords) {
-          const word =
+          // Pick a random word
+          const randomWord =
             categoryWords[Math.floor(Math.random() * categoryWords.length)];
-          // Avoid duplicate words
-          if (!words.includes(word)) {
-            words.push(word);
+
+          // Only add if it's not already selected
+          if (!words.includes(randomWord)) {
+            words.push(randomWord);
           }
         }
 
@@ -107,14 +125,62 @@ class GameManager {
         if (words.length === 1) {
           lobby.currentWord = words[0];
           lobby.gameState = GAME_STATE.DRAWING;
-        }
-        // If there are multiple words, join them for display
-        else {
+          lobby.startTime = Date.now();
+          lobby.roundTime = 60; // Set default round time
+          lobby.currentDrawer = drawer.username;
+          lobby.availableWords = words;
+
+          // Mark the drawer as having drawn
+          const playerIndex = lobby.players.findIndex(p => p.username === drawer.username);
+          if (playerIndex !== -1) {
+            lobby.players[playerIndex].hasDrawn = true;
+          }
+
+          await lobby.save();
+
+          // Start the drawing round timer
+          this.startRoundTimer(io, roomId, lobby);
+        } else {
+          // If multiple words, let player pick one
           lobby.gameState = GAME_STATE.PICKING_WORD;
           lobby.currentWord = words.join(", ");
+          lobby.startTime = Date.now();
+          lobby.availableWords = words;
+          lobby.currentDrawer = drawer.username;
+          await lobby.save();
+
+          // Start 15 second timer for word selection
+          setTimeout(async () => {
+            const currentLobby = await Lobby.findOne({ roomId });
+            if (
+              currentLobby &&
+              currentLobby.gameState === GAME_STATE.PICKING_WORD
+            ) {
+              // Get words from the current word string
+              const availableWords = currentLobby.currentWord
+                .split(",")
+                .map((w) => w.trim());
+              const randomWord =
+                availableWords[
+                  Math.floor(Math.random() * availableWords.length)
+                ];
+
+              currentLobby.currentWord = randomWord;
+              currentLobby.gameState = GAME_STATE.DRAWING;
+              currentLobby.startTime = Date.now();
+              currentLobby.roundTime = 60;
+              await currentLobby.save();
+
+              io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
+                lobby: currentLobby,
+              });
+
+              // Start the drawing round timer
+              this.startRoundTimer(io, roomId, currentLobby);
+            }
+          }, 15000);
         }
-        lobby.currentDrawer = drawer.username;
-        lobby.startTime = Date.now();
+
         await lobby.save();
         io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
@@ -151,22 +217,36 @@ class GameManager {
           return;
         }
 
-        // Update game state and broadcast
+        // Update game state and start timer
         lobby.currentWord = word;
         lobby.gameState = GAME_STATE.DRAWING;
+        lobby.startTime = Date.now();
+        lobby.roundTime = 60; // 60 seconds for round
         await lobby.save();
+
+        // Start timer for this round
+        const timer = setInterval(async () => {
+          const currentTime = Date.now();
+          const endTime = lobby.startTime + lobby.roundTime * 1000;
+
+          if (currentTime >= endTime) {
+            clearInterval(timer);
+            await this.endRound(io, roomId, lobby, false);
+          }
+        }, 1000);
 
         io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, { lobby });
       });
 
       // Lobby join handling
       socket.on(SOCKET_EVENTS.JOIN_LOBBY, async ({ roomId, username }) => {
-        console.log("Player joining lobby:", { roomId, username });
-
         if (!roomId || !username) {
           console.error("Invalid lobby join data");
           return;
         }
+        console.log("Player joining lobby:", { roomId, username });
+        socket.username = username; // Store username in socket for later use
+        socket.roomId = roomId; // Store roomId in socket for later use
 
         // Find user by username
         const user = await User.findOne({ username });
@@ -219,7 +299,6 @@ class GameManager {
         }
       });
 
-
       // Canvas update handling
       socket.on(SOCKET_EVENTS.CANVAS_UPDATE, async ({ roomId, canvasData }) => {
         if (!roomId || !canvasData) {
@@ -251,10 +330,13 @@ class GameManager {
             console.error("Lobby not found or not in drawing state");
             return;
           }
-
-          // Don't allow the drawer to guess
           if (username === lobby.currentDrawer) {
             console.error("Drawer cannot guess the word");
+            socket.emit("chatMessage", {
+              username: "Server",
+              message: "You cannot guess the word while drawing!",
+              timestamp: Date.now(),
+            });
             return;
           }
 
@@ -326,8 +408,7 @@ class GameManager {
 
       // Disconnect handling
       socket.on("disconnect", async () => {
-        console.log("Player disconnected:", socket.id);
-
+        console.log("Player disconnected:", socket.username || socket.id);
         const connection = this.activeConnections.get(socket.id);
         if (connection) {
           const { roomId, username } = connection;
@@ -351,33 +432,30 @@ class GameManager {
         }
       });
       // kick handling
-      socket.on("kick", async ({ roomId, username }) => {
-        console.log(`Kick request received for player: ${username} in room: ${roomId}`);
-
-        // 🔥 Debug: Log all connected players
-        console.log("Current connected players:");
-        io.sockets.sockets.forEach((s) => {
-          console.log(`Username: ${s.username}, Socket ID: ${s.id}`);
-        });
-
+      socket.on(SOCKET_EVENTS.KICK_PLAYER, async ({ roomId, username }) => {
+        console.log(
+          `Kick request received for player: ${username} in room: ${roomId}`
+        );
         // Find the player's socket using stored usernames
         const playerToKick = [...io.sockets.sockets.values()].find(
-            (s) => s.username === username
+          (s) => s.username === username
         );
 
         if (playerToKick) {
-          console.log(`Kicking player: ${username} (Socket ID: ${playerToKick.id})`);
-
+          console.log(
+            `Kicking player: ${username} (Socket ID: ${playerToKick.id})`
+          );
           // Notify the kicked player
           playerToKick.emit("kicked");
-
           // Remove player from activeConnections
           this.activeConnections.delete(playerToKick.id);
 
           // Remove player from the lobby
           let lobby = await Lobby.findOne({ roomId });
           if (lobby) {
-            lobby.players = lobby.players.filter(player => player.username !== username);
+            lobby.players = lobby.players.filter(
+              (player) => player.username !== username
+            );
             await lobby.save();
 
             // Notify all players in the room about the update
@@ -390,9 +468,19 @@ class GameManager {
           console.log(`Player ${username} not found`);
         }
       });
-
-
     });
+  }
+
+  startRoundTimer(io, roomId, lobby) {
+    const timer = setInterval(async () => {
+      const currentTime = Date.now();
+      const endTime = lobby.startTime + lobby.roundTime * 1000;
+
+      if (currentTime >= endTime) {
+        clearInterval(timer);
+        await this.endRound(io, roomId, lobby, false);
+      }
+    }, 1000);
   }
 
   async endRound(io, roomId, lobby, allGuessedCorrectly) {

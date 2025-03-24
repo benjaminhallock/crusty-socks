@@ -21,18 +21,13 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
   // Main useEffect for socket connection and message handling
   useEffect(() => {
     console.log('Setting up chat socket connection for room:', roomId);
-    let mounted = true;
+    let mounted = true;    
+    if (mounted) setLocalMessages(messages);
     
-    if (mounted) {
-      console.log('Initializing local messages:', messages);
-      setLocalMessages(messages);
-    }
-
     let cleanup;
     try {
       // Subscribe to new messages
       cleanup = socketManager.onMessage((message) => {
-        console.log('New message received:', message);
         setLocalMessages((prev) => [...prev, message]);
       });
 
@@ -45,7 +40,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
     // Cleanup function for socket connection
     return () => {
       console.log('Cleaning up chat socket connection');
-      cleanup && cleanup();
+      cleanup && cleanup();    
       mounted = false;
     };
   }, [roomId, user]);

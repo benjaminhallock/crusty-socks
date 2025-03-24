@@ -7,8 +7,9 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    minlength: 3,
-    maxlength: 20
+    minlength: 6,
+    maxlength: 20,
+    match: [/^[a-zA-Z0-9]+$/, 'Username can only contain letters and numbers']
   },
   email: {
     type: String,
@@ -20,7 +21,9 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    select: false
+    select: false,
+    minlength: 6,
+    match: [/^[a-zA-Z0-9]+$/, 'Password can only contain letters and numbers']
   },
   isAdmin: {
     type: Boolean,

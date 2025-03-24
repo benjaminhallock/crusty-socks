@@ -54,6 +54,20 @@ export const userController = {
       });
     }
 
+    if (!/^[a-zA-Z0-9]{6,}$/.test(username)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be at least 6 characters and contain only letters and numbers',
+      });
+    }
+
+    if (!/^[a-zA-Z0-9]{6,}$/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters and contain only letters and numbers',
+      });
+    }
+
     try {
       const existingUser = await User.findOne({
         $or: [{ email }, { username }],

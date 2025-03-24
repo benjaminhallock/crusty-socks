@@ -40,53 +40,83 @@ const GameRoom = ({ user }) => {
   // Fetch lobby data and set up socket listeners
   useEffect(() => {
     let isMounted = true;
+    
+    // Early return if no user
+    if (!user) {
+      console.log("User not found, redirecting to login");
+      navigate("/");
+      return;
+    }
 
-    // Ensure socket is connected
+    // Ensure socket is connected before proceeding
     if (!socketManager.isConnected()) {
+      console.log("Socket not connected, connecting...");
       socketManager.connect(user);
     }
+
+    // Wait for socket to be ready
+    const waitForSocket = new Promise((resolve) => {
+      if (socketManager.isConnected()) {
+        resolve();
+      } else {
+        const checkConnection = setInterval(() => {
+          if (socketManager.isConnected()) {
+            clearInterval(checkConnection);
+            resolve();
+          }
+        }, 100);
+
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          clearInterval(checkConnection);
+          resolve(); // Resolve anyway to prevent hanging
+        }, 5000);
+      }
+    });
 
     // Fetch lobby data with api call, grabs lobbyId from url
     const fetchData = async () => {
       try {
+        await waitForSocket; // Wait for socket to be ready
         const response = await fetchLobby(roomId);
-        if (isMounted) {
-          if (!response.success) {
-            navigate("/");
-          } else {
-            console.log("Fetched lobby data:", response.lobby);
-            setLobbyId(response.lobby.roomId);
-            // Join the lobby via socket
-            socketManager.joinLobby(response.lobby.roomId, user.username);
-            // Immediately update game state with fetched data
-            setGameData((prevData) => ({
-              ...prevData,
-              gameState: response.lobby.gameState,
-              currentDrawer: response.lobby.currentDrawer,
-              currentWord: response.lobby.currentWord,
-              maxRounds: response.lobby.maxRounds,
-              revealCharacters: response.lobby.revealCharacters,
-              selectWord: response.lobby.selectWord,
-              selectCategory: response.lobby.selectCategory,
-              playerLimit: response.lobby.playerLimit,
-              players: response.lobby.players,
-              messages: response.lobby.messages,
-              canvasState: response.lobby.canvasState,
-              startTime: response.lobby.startTime,
-              roundTime: response.lobby.roundTime,
-              currentRound: response.lobby.currentRound,
-            }));
+        
+        if (!isMounted) return;
 
-            // Set up socket listeners for updates
-            socketManager.onGameStateUpdate((data) => {
-              if (data.lobby) {
-                setGameData((prevData) => ({
-                  ...prevData,
-                  ...data.lobby,
-                }));
-              }
-            });
-          }
+        if (!response.success) {
+          navigate("/");
+        } else {
+          console.log("Fetched lobby data:", response.lobby);
+          setLobbyId(response.lobby.roomId);
+          // Join the lobby via socket
+          socketManager.joinLobby(response.lobby.roomId, user.username);
+          // Immediately update game state with fetched data
+          setGameData((prevData) => ({
+            ...prevData,
+            gameState: response.lobby.gameState,
+            currentDrawer: response.lobby.currentDrawer,
+            currentWord: response.lobby.currentWord,
+            maxRounds: response.lobby.maxRounds,
+            revealCharacters: response.lobby.revealCharacters,
+            selectWord: response.lobby.selectWord,
+            selectCategory: response.lobby.selectCategory,
+            playerLimit: response.lobby.playerLimit,
+            players: response.lobby.players,
+            messages: response.lobby.messages,
+            canvasState: response.lobby.canvasState,
+            startTime: response.lobby.startTime,
+            roundTime: response.lobby.roundTime,
+            currentRound: response.lobby.currentRound,
+          }));
+
+          // Set up socket listeners for updates
+          socketManager.onGameStateUpdate((data) => {
+            if (data.lobby) {
+              setGameData((prevData) => ({
+                ...prevData,
+                ...data.lobby,
+              }));
+            }
+          });
         }
       } catch (error) {
         console.error("Failed to fetch lobby data:", error);
@@ -106,15 +136,15 @@ const GameRoom = ({ user }) => {
   useEffect(() => {
     if (gameData.gameState === GAME_STATE.DRAWING) {
       const totalTime = gameData.roundTime * 1000; // Convert to milliseconds
-      const startTime = gameData.startTime ? new Date(gameData.startTime).getTime() : Date.now();
+      const startTime = gameData.startTime
+        ? new Date(gameData.startTime).getTime()
+        : Date.now();
       const endTime = startTime + totalTime;
 
       const timer = setInterval(() => {
         const now = Date.now();
-        const timeLeft = Math.max(0, endTime - now); 
+        const timeLeft = Math.max(0, endTime - now);
         const timeLeftInSeconds = Math.ceil(timeLeft / 1000); // Convert to seconds
-
-        console.log("Time left:", timeLeftInSeconds);
 
         // Check if the timer has completed
         if (timeLeft <= 0 && !isTimerCompleted.current) {
@@ -129,7 +159,7 @@ const GameRoom = ({ user }) => {
           isTimerRunning: timeLeft > 0,
         }));
       }, 1000); // Add interval time (1 second)
-      
+
       return () => clearInterval(timer);
     }
   }, [gameData.gameState, gameData.startTime, gameData.roundTime, lobbyId]);

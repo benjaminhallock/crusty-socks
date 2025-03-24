@@ -20,24 +20,26 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const httpServer = createServer(app);
 
-// Completely disable CORS for local development
+// Configure CORS for Express
 const corsOptions = {
-    origin: true, // Reflects the request origin
+    origin: process.env.NODE_ENV === 'production' 
+        ? process.env.CLIENT_URL 
+        : 'http://localhost:5174',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     credentials: true,
     maxAge: 86400,
-    preflightContinue: true,
-    optionsSuccessStatus: 200,
-    allowedHeaders: '*'
+    allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Initialize socket server with completely open CORS config
 const io = new Server(httpServer, {
     cors: {
-        origin: true,
+        origin: process.env.NODE_ENV === 'production' 
+            ? process.env.CLIENT_URL 
+            : 'http://localhost:5174',
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         credentials: true,
-        allowedHeaders: '*'
+        allowedHeaders: ['Content-Type', 'Authorization'],
     },
     allowEIO3: true,
     pingTimeout: 60000,

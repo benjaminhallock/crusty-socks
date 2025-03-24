@@ -42,17 +42,15 @@ const LobbySettings = ({ user }) => {
       setLoading(true);
       setError("");
 
-      // Call createLobby with the gameState values
-      const response = await createLobby({
+      const res = await createLobby({
         maxRounds: gameState.maxRounds,
         revealCharacters: gameState.revealCharacters,
         selectWord: gameState.selectWord,
         selectCategory: gameState.selectCategory,
         playerLimit: gameState.playerLimit,
       });
-
-      if (response.success && response.roomId) {
-        navigate(`/lobby/${response.roomId}`);
+      if (res.success && res.roomId) {
+        navigate(`/lobby/${res.roomId}`);
       } else {
         setError("Failed to create lobby. Please try again.");
       }

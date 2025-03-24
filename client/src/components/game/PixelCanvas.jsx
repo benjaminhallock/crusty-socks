@@ -33,9 +33,9 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
   const [currentTool, setCurrentTool] = useState("brush");
   const [history, setHistory] = useState([]); // For undo functionality
   const [redoStates, setRedoStates] = useState([]); // For redo functionality
+  const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE); // Add grid size state
 
   // Canvas configuration constants
-  const GRID_SIZE = GAME_CONSTANTS.CANVAS_GRID_SIZE;
   const CANVAS_HEIGHT = GAME_CONSTANTS.CANVAS_HEIGHT;
   const CANVAS_WIDTH = GAME_CONSTANTS.CANVAS_WIDTH;
 
@@ -44,13 +44,13 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
    * Handles both regular drawing and eraser functionality
    */
   const drawPixel = (ctx, x, y, color) => {
-    const gridX = Math.floor(x / GRID_SIZE);
-    const gridY = Math.floor(y / GRID_SIZE);
+    const gridX = Math.floor(x / gridSize);
+    const gridY = Math.floor(y / gridSize);
     
-    if (gridX >= 0 && gridX < CANVAS_WIDTH / GRID_SIZE && 
-        gridY >= 0 && gridY < CANVAS_HEIGHT / GRID_SIZE) {
+    if (gridX >= 0 && gridX < CANVAS_WIDTH / gridSize && 
+        gridY >= 0 && gridY < CANVAS_HEIGHT / gridSize) {
       ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
-      ctx.fillRect(gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+      ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
 
       // Send canvas update through socket
       const canvasData = canvasRef.current.toDataURL();
@@ -62,7 +62,6 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
    * Saves current canvas state for undo functionality
    */
   const saveState = () => {
-    console.log('Saving canvas state');
     const canvas = canvasRef.current;
     if (!canvas) return; // Add null check
     
@@ -114,11 +113,11 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     if (!ctx) return;
 
     // Convert to grid coordinates
-    const gridX = Math.floor(startX / GRID_SIZE);
-    const gridY = Math.floor(startY / GRID_SIZE);
+    const gridX = Math.floor(startX / gridSize);
+    const gridY = Math.floor(startY / gridSize);
     
     // Get target color at starting position
-    const targetColorData = ctx.getImageData(gridX * GRID_SIZE, gridY * GRID_SIZE, 1, 1).data;
+    const targetColorData = ctx.getImageData(gridX * gridSize, gridY * gridSize, 1, 1).data;
     const targetColor = `rgb(${targetColorData[0]}, ${targetColorData[1]}, ${targetColorData[2]})`;
     
     // Don't fill if target is the same as fill color
@@ -126,8 +125,8 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     
     // Simple stack-based flood fill
     const stack = [[gridX, gridY]];
-    const width = Math.floor(CANVAS_WIDTH / GRID_SIZE);
-    const height = Math.floor(CANVAS_HEIGHT / GRID_SIZE);
+    const width = Math.floor(CANVAS_WIDTH / gridSize);
+    const height = Math.floor(CANVAS_HEIGHT / gridSize);
     const visited = new Set();
     const pixelsToFill = [];
     
@@ -144,7 +143,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       }
       
       // Check if pixel matches target color
-      const pixelData = ctx.getImageData(x * GRID_SIZE, y * GRID_SIZE, 1, 1).data;
+      const pixelData = ctx.getImageData(x * gridSize, y * gridSize, 1, 1).data;
       const pixelColor = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
       
       if (pixelColor !== targetColor) {
@@ -162,7 +161,7 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     // Fill all the collected pixels
     ctx.fillStyle = fillColorHex;
     for (const [x, y] of pixelsToFill) {
-      ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+      ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
     }
     
     return pixelsToFill.length > 0;
@@ -353,6 +352,32 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
     }
   }, [canvasState]);
 
+  // Add effect to handle grid size changes
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    // Only redraw if there's history (canvas has content)
+    if (history.length > 0) {
+      const currentState = history[history.length - 1];
+      
+      const img = new Image();
+      img.src = currentState;
+      img.onload = () => {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(img, 0, 0);
+        
+        // Send update to other players if you're the drawer
+        if (isDrawer) {
+          socketManager.updateCanvas(canvas.toDataURL());
+        }
+      };
+    }
+  }, [gridSize]);
+
   return (
     <div id="canvas" className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors">
       <canvas
@@ -378,39 +403,58 @@ const PixelCanvas = ({ isDrawer, drawerUsername, canvasState }) => {
       />
       
       {isDrawer && (
-        <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-3 rounded-lg transition-colors">
-          <input
-            type="color"
-            value={currentColor}
-            onChange={(e) => setCurrentColor(e.target.value)}
-            className="w-10 h-10 rounded cursor-pointer"
-            title="Choose color"
-            aria-label="Choose color"
-          />
-          <div className="flex gap-2">
-            <ToolButton
-              active={currentTool === "brush"}
-              onClick={() => setCurrentTool("brush")}
-            >
-              Brush
-            </ToolButton>
-            <ToolButton
-              active={currentTool === "fill"}
-              onClick={() => setCurrentTool("fill")}
-            >
-              Fill
-            </ToolButton>
-            <ToolButton
-              active={currentTool === "eraser"}
-              onClick={() => setCurrentTool("eraser")}
-            >
-              Eraser
-            </ToolButton>
-            <ToolButton onClick={undo}>Undo</ToolButton>
-            <ToolButton onClick={redo}>Redo</ToolButton>
-            <ToolButton onClick={saveToPng}>Save</ToolButton>
+        <>
+          <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-3 rounded-lg transition-colors">
+            <input
+              type="color"
+              value={currentColor}
+              onChange={(e) => setCurrentColor(e.target.value)}
+              className="w-10 h-10 rounded cursor-pointer"
+              title="Choose color"
+              aria-label="Choose color"
+            />
+            <div className="flex flex-wrap gap-2">
+              <ToolButton
+                active={currentTool === "brush"}
+                onClick={() => setCurrentTool("brush")}
+              >
+                Brush
+              </ToolButton>
+              <ToolButton
+                active={currentTool === "fill"}
+                onClick={() => setCurrentTool("fill")}
+              >
+                Fill
+              </ToolButton>
+              <ToolButton
+                active={currentTool === "eraser"}
+                onClick={() => setCurrentTool("eraser")}
+              >
+                Eraser
+              </ToolButton>
+              <ToolButton onClick={undo}>Undo</ToolButton>
+              <ToolButton onClick={redo}>Redo</ToolButton>
+              <ToolButton onClick={saveToPng}>Save</ToolButton>
+            </div>
           </div>
-        </div>
+          
+          {/* Grid Size Slider */}
+          <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-3 rounded-lg transition-colors w-full">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Grid Size:</span>
+            <input
+              type="range"
+              min="4"
+              max="40"
+              step="4"
+              value={gridSize}
+              onChange={(e) => setGridSize(parseInt(e.target.value))}
+              className="flex-1 h-2 bg-gray-300 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              title="Adjust grid size"
+              aria-label="Adjust grid size"
+            />
+            <span className="text-sm font-mono w-10 text-center text-gray-700 dark:text-gray-300">{gridSize}px</span>
+          </div>
+        </>
       )}
     </div>
   );

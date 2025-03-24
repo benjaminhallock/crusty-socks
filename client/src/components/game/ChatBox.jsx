@@ -15,7 +15,6 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
 
   // Helper function to auto-scroll to bottom of chat
   const scrollToBottom = () => {
-    console.log('Scrolling chat to bottom');
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -53,7 +52,6 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
 
   // Auto-scroll effect when new messages arrive
   useEffect(() => {
-    console.log('Messages updated, scrolling to bottom');
     scrollToBottom();
   }, [localMessages]);
 

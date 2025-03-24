@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  
+} from "react-router-dom";
+import { useRef } from "react";
 import "./styles/main.css";
 import { checkAuth } from "./services/auth";
 import { socketManager } from "./services/socket";
@@ -13,15 +20,10 @@ import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
 import LobbySettings from "./components/lobby/LobbySettings";
 
-// Protected route component
 const ProtectedRoute = ({ user, children }) => {
   const location = useLocation();
-  
-  if (!user) {
-    // Save the attempted URL for redirection after login
+  if (!user)
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
-  }
-  
   return children;
 };
 
@@ -29,11 +31,10 @@ function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [bgLoaded, setBgLoaded] = useState(false);
-
-  // Load background image
+  const initialCheckRef = useRef(false);
   useEffect(() => {
     const bgImage = new Image();
-    bgImage.src = '/wallpaper.svg';
+    bgImage.src = "/wallpaper.svg";
     bgImage.onload = () => {
       setBgLoaded(true);
     };
@@ -45,45 +46,34 @@ function App() {
   }, []);
 
   useEffect(() => {
-    console.log("Loading user authentication..."); // Debug log
-    let mounted = true; // Track if component is mounted
+    if (!localStorage.getItem("token")) {
+      setIsLoading(false);
+      return;
+    }
+    if (initialCheckRef.current) return;
+    initialCheckRef.current = true;
 
     const checkUserAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        if (mounted) setIsLoading(false);
-        return;
-      }
-
       try {
         const response = await checkAuth();
-        if (mounted && response.success) {
-          const userData = { ...response.user, id: response.user._id };
-          setUser(userData);
-          socketManager.connect(userData);
-        }
+        const userData = { ...response.user, id: response.user._id };
+        setUser(userData);
       } catch (error) {
-        if (mounted) {
-          localStorage.clear();
-          setIsLoading(false);
-        }
+        localStorage.clear();
       } finally {
-        if (mounted) setIsLoading(false);
+        setIsLoading(false);
       }
     };
 
     checkUserAuth();
-
-    return () => {
-      mounted = false; // Cleanup to prevent setting state on unmounted component
-      console.log("Auth effect cleanup"); // Debug log
-    };
-  }, []); // Empty dependency array since this should only run once
+  }, []);
 
   const handleLogin = ({ user: userData, token }) => {
     const userInfo = { ...userData, id: userData._id };
     localStorage.setItem("token", token);
     setUser(userInfo);
+    
+    // Initialize socket connection after successful login
     socketManager.connect(userInfo);
   };
 
@@ -96,7 +86,7 @@ function App() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent" />
       </div>
     );
   }
@@ -104,15 +94,13 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen">
-        {/* Background element - always present */}
-        <div 
-          id="app-background" 
-          style={{ 
+        <div
+          id="app-background"
+          style={{
             opacity: bgLoaded ? 0.9 : 0,
-            transition: 'opacity 0.5s ease-in-out'
+            transition: "opacity 0.5s ease-in-out",
           }}
         />
-
         <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
         <main className="h-[calc(100vh-4rem)]">
           <Routes>
@@ -120,9 +108,7 @@ function App() {
               path="/"
               element={
                 user ? (
-                  <>
-                    <CreateLobby user={user} />
-                  </>
+                  <CreateLobby user={user} />
                 ) : (
                   <LoginForm onLoginSuccess={handleLogin} />
                 )
@@ -132,9 +118,7 @@ function App() {
               path="/lobby/new"
               element={
                 <ProtectedRoute user={user}>
-                  <>
-                    <LobbySettings user={user} />
-                  </>
+                  <LobbySettings user={user} />
                 </ProtectedRoute>
               }
             />
@@ -142,9 +126,7 @@ function App() {
               path="/lobby/:roomId"
               element={
                 <ProtectedRoute user={user}>
-                  <>
-                    <GameRoom user={user} />
-                  </>
+                  <GameRoom user={user} />
                 </ProtectedRoute>
               }
             />
@@ -152,9 +134,7 @@ function App() {
               path="/admin"
               element={
                 <ProtectedRoute user={user}>
-                  <>
-                    <Admin />
-                  </>
+                  <Admin />
                 </ProtectedRoute>
               }
             />

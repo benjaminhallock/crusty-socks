@@ -49,7 +49,7 @@ const LobbySettings = ({ user }) => {
         selectCategory: gameState.selectCategory,
         playerLimit: gameState.playerLimit,
       });
-      if (res.success && res.roomId) {
+      if (res.ok && res.roomId) {
         navigate(`/lobby/${res.roomId}`);
       } else {
         setError("Failed to create lobby. Please try again.");

@@ -169,3 +169,13 @@ export const getAllLobbies = () => {
   console.log("Fetching all active lobbies");
   return makeApiCall(API_ENDPOINTS.GET_ALL_LOBBIES);
 };
+
+export const getAllReports = async () => {
+  const response = await fetch('/api/reports', {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  if (!response.ok) throw new Error('Failed to fetch reports');
+  return response.json();
+};

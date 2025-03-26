@@ -287,6 +287,20 @@ class SocketManager {
     }
     this.socket.emit(SOCKET_EVENTS.END_DRAWING, this.currentRoom.roomId);
   }
+
+  reportPlayer(roomId, username) {
+    if (!this.isConnected()) {
+      throw new Error("Cannot report player - Socket is not connected");
+    }
+    this.socket.emit(SOCKET_EVENTS.REPORT_PLAYER, { roomId, username });
+  }
+  disconnect() {
+    console.log("Disconnecting socket");
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
 }
 
 // Export a singleton instance

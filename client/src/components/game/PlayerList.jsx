@@ -40,8 +40,19 @@ const PlayerList = ({ players, drawerUsername, roomId, gameState, currentUsernam
   };
 
   const handleReportPlayer = (username) => {
-    // Implement report logic here
-    console.log(`Reported player: ${username}`);
+    socketManager.reportPlayer(roomId, username);
+    setContextMenu(null);
+    // Show a toast notification
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg z-50';
+    toast.innerHTML = `
+      <span>Reported</span>
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      </svg>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
   };
 
   const getPlayerBackgroundClass = (player) => {

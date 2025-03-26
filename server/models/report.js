@@ -13,6 +13,7 @@ const reportSchema = new mongoose.Schema({
             timestamp: Date,
         },
     ],
+    drawingData: { type: String }, // Base64 encoded drawing data
     status: {
         type: String,
         enum: ["pending", "reviewed", "resolved"],

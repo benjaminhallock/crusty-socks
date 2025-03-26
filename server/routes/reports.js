@@ -12,9 +12,9 @@ router.use(isAdmin);
 router.get('/', async (req, res) => {
   try {
     const reports = await Report.find().sort({ timestamp: -1 });
-    res.send({ reports });
+    res.json({ success: true, reports }); // Match the format of other endpoints
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

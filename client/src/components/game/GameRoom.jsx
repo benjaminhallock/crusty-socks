@@ -306,7 +306,6 @@ const GameRoom = ({ user }) => {
           cooldownTime={10}
           onCooldownComplete={() => {
             setShowRoundEnd(false);
-            socketManager.emit(SOCKET_EVENTS.START_GAME, roomId);
           }}
         />
       )}

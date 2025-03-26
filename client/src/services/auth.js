@@ -156,26 +156,38 @@ export const checkAuth = () => {
  * Admin function to fetch all registered users
  * Requires admin authentication
  */
-export const getAllUsers = () => {
+export const getAllUsers = async () => {
   console.log("Fetching all users list");
-  return makeApiCall(API_ENDPOINTS.GET_ALL_USERS);
+  try {
+    const response = await makeApiCall(API_ENDPOINTS.GET_ALL_USERS);
+    return { success: true, users: response.data.users };
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+    return { success: false, users: [] };
+  }
 };
 
 /**
  * Fetches list of all active game lobbies
  * Used for the lobby browser feature
  */
-export const getAllLobbies = () => {
+export const getAllLobbies = async () => {
   console.log("Fetching all active lobbies");
-  return makeApiCall(API_ENDPOINTS.GET_ALL_LOBBIES);
+  try {
+    const response = await makeApiCall(API_ENDPOINTS.GET_ALL_LOBBIES);
+    return { success: true, lobbies: response.data.lobbies };
+  } catch (error) {
+    console.error("Failed to fetch lobbies:", error);
+    return { success: false, lobbies: [] };
+  }
 };
 
 export const getAllReports = async () => {
-  const response = await fetch('/api/reports', {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    }
-  });
-  if (!response.ok) throw new Error('Failed to fetch reports');
-  return response.json();
+  try {
+    const response = await makeApiCall('/api/reports');
+    return { success: true, reports: response.data.reports };
+  } catch (error) {
+    console.error("Failed to fetch reports:", error);
+    return { success: false, reports: [] };
+  }
 };

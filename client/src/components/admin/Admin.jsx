@@ -4,35 +4,58 @@ import { getAllUsers, getAllLobbies, getAllReports } from "../../services/auth";
 
 const Admin = () => {
   const [data, setData] = useState({ users: [], lobbies: [], reports: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        setError("");
+        
         const [usersResponse, lobbiesResponse, reportsResponse] = await Promise.all([
           getAllUsers(),
           getAllLobbies(),
           getAllReports()
         ]);
-        
-        if (!usersResponse.success || !lobbiesResponse.success || !reportsResponse.success) {
-          throw new Error('One or more requests failed');
-        }
 
         setData({
-          users: usersResponse.users || [],
-          lobbies: lobbiesResponse.lobbies || [],
-          reports: reportsResponse.reports || []
+          users: usersResponse.success ? usersResponse.users : [],
+          lobbies: lobbiesResponse.success ? lobbiesResponse.lobbies : [],
+          reports: reportsResponse.success ? reportsResponse.reports : []
         });
+
+        if (!usersResponse.success || !lobbiesResponse.success || !reportsResponse.success) {
+          setError('Some data failed to load. Please refresh to try again.');
+        }
       } catch (err) {
         console.error("Error fetching admin data:", err);
+        setError("Failed to load admin data. Please refresh to try again.");
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="p-4 text-white">
+        <h1 className="text-2xl font-bold mb-4">Admin Portal</h1>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4">
       <h1 className="text-white text-2xl font-bold mb-4">Admin Portal</h1>
+      
+      {error && (
+        <div className="bg-red-500 text-white p-3 rounded mb-4">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-6">
         <section>

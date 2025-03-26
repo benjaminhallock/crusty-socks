@@ -3,6 +3,7 @@ import { GAME_STATE, SOCKET_EVENTS } from "../shared/constants.js";
 import { WORD_LIST } from "../shared/constants.js";
 import Lobby from "./models/lobby.js";
 import User from "./models/user.js";
+import Report from "./models/report.js";
 
 /**
  * GameManager Class
@@ -45,10 +46,13 @@ class GameManager {
           return;
         }
         const report = new Report({
-          roomId,
-          username,
+          reportedUser: username,
           reportedBy: user,
-          reportedAt: Date.now(),
+          roomId,
+          reason: "Inappropriate behavior", // Default reason
+          timestamp: Date.now(),
+          chatLogs: lobby.messages || [], // Include recent chat logs
+          status: "pending"
         });
         await report.save();
         console.log(`Reported player: ${username} in room: ${roomId}`);

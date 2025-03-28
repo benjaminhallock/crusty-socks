@@ -4,18 +4,30 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
   const [timeLeft, setTimeLeft] = useState(cooldownTime);
 
   useEffect(() => {
+    console.log("[RoundEndModal] Mounted with:", {
+      word,
+      drawer,
+      players,
+      cooldownTime
+    });
+    
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 0) {
+        const newTime = prev - 1;
+        if (newTime <= 0) {
+          console.log("[RoundEndModal] Timer complete, calling onCooldownComplete");
           clearInterval(timer);
           onCooldownComplete?.();
           return 0;
         }
-        return prev - 1;
+        return newTime;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      console.log("[RoundEndModal] Unmounting and clearing timer");
+      clearInterval(timer);
+    };
   }, [cooldownTime, onCooldownComplete]);
 
   // Filter players who guessed correctly

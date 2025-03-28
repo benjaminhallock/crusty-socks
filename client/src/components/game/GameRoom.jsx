@@ -132,16 +132,31 @@ const GameRoom = ({ user }) => {
         // Clean up previous listeners before setting new ones
         socketManager.offGameStateUpdate();
         socketManager.onGameStateUpdate((data) => {
+          console.log("[GameRoom] Received game state update:", {
+            newState: data.lobby.gameState,
+            currentState: gameData.gameState,
+            word: data.lobby.currentWord,
+            drawer: data.lobby.currentDrawer
+          });
+
           if (data.lobby) {
-            setGameData((prevData) => ({
-              ...prevData,
-              ...data.lobby,
-            }));
+            setGameData((prevData) => {
+              console.log("[GameRoom] Updating game data:", {
+                prevState: prevData.gameState,
+                newState: data.lobby.gameState
+              });
+              return {
+                ...prevData,
+                ...data.lobby,
+              };
+            });
 
             // Show round end modal when drawing ends
             if (data.lobby.gameState === GAME_STATE.DRAW_END) {
+              console.log("[GameRoom] Showing round end modal");
               setShowRoundEnd(true);
             } else {
+              console.log("[GameRoom] Hiding round end modal");
               setShowRoundEnd(false);
             }
           }
@@ -191,7 +206,7 @@ const GameRoom = ({ user }) => {
           roundTime={gameData.roundTime}
           rounds={gameData.currentRound}
           maxRounds={gameData.maxRounds}
-          roomId={roomId}
+          roomId={lobbyId}
         />
         <div className="flex-1 flex flex-col lg:flex-row gap-1">
           <div className="lg:w-72 flex flex-col">

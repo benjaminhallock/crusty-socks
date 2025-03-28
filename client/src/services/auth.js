@@ -51,6 +51,7 @@ export const createLobby = ({
   selectWord,
   selectCategory,
   playerLimit,
+  roundTime,
 }) => {
   return makeApiCall(API_ENDPOINTS.CREATE_LOBBY, {
     method: "POST",
@@ -60,6 +61,7 @@ export const createLobby = ({
       selectWord,
       selectCategory,
       playerLimit,
+      roundTime,
     }),
   })
     .then((response) => {

@@ -281,13 +281,6 @@ class SocketManager {
     this.socket.emit(SOCKET_EVENTS.KICK_PLAYER, { roomId, username });
   }
 
-  timeUp(roomId) {
-    if (!this.isConnected()) {
-      throw new Error("Cannot end drawing - Socket is not connected");
-    }
-    this.socket.emit(SOCKET_EVENTS.END_DRAWING, this.currentRoom.roomId);
-  }
-
   reportPlayer(roomId, username) {
     if (!this.isConnected()) {
       throw new Error("Cannot report player - Socket is not connected");

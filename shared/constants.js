@@ -680,7 +680,7 @@ export const GAME_STATE = {
   COOLDOWN: "cooldown",
   PICKING_WORD: "picking_word",
   DRAWING: "drawing",
-  END_DRAWING: "end_drawing",
+  DRAW_END: "draw_end",  // Changed from END_DRAWING to DRAW_END
   ROUND_END: "round_end",
   GAME_END: "game_end",
   FINISHED: "finished",

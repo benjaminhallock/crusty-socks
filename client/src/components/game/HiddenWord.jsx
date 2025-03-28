@@ -19,7 +19,6 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
 
         if (remaining === 0) {
           clearInterval(intervalId);
-          socketManager.timeUp(roomId);
         }
       };
 
@@ -95,7 +94,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
     }
 
     // At the end of drawing or end states, reveal the word
-    if (gameState === GAME_STATE.END_DRAWING || 
+    if (gameState === GAME_STATE.DRAW_END || 
         gameState === GAME_STATE.ROUND_END || 
         gameState === GAME_STATE.FINISHED) {
       return word;
@@ -124,7 +123,7 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
     if (gameState === GAME_STATE.DRAWING) {
       return `Time left: ${timeLeft}s`;
     }
-    if (gameState === GAME_STATE.END_DRAWING) {
+    if (gameState === GAME_STATE.DRAW_END) {
       return `Time's up! The word was: ${word}`;
     }
     if (gameState === GAME_STATE.ROUND_END) {

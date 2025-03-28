@@ -27,6 +27,7 @@ export const lobbyController = {
         selectCategory: req.body.selectCategory || "random",
         playerLimit: req.body.playerLimit || 8,
         selectWord: req.body.selectWord || 1,
+        roundTime: req.body.roundTime || 60,
       });
       await lobby.save();
       res.status(201).json({

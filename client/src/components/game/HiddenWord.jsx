@@ -106,28 +106,36 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
       const revealIndices = getLetterRevealIndices(word, isRevealing);
 
       return letters
-        .map((char, idx) => revealIndices.has(idx) ? char : '_')
-        .join(' ');
+        .map((char, idx) => {
+          if (revealIndices.has(idx)) return char;
+          // Original character was a space, use double nbsp
+          if (char === ' ') return '\u00A0\u00A0';
+          // Regular character replaced with underscore
+          return '_';
+        })
+        .join('\u00A0\u00A0\u00A0'); // Join with 3 non-breaking spaces for wider spacing
     }
 
     return '';
   };
 
   const getStatusText = () => {
+    const roundDisplay = gameState !== GAME_STATE.WAITING ? `Round ${rounds || 1}/${maxRounds} - ` : '';
+    
     if (gameState === GAME_STATE.WAITING) {
       return 'Waiting for players...';
     }
     if (gameState === GAME_STATE.PICKING_WORD) {
-      return isDrawing ? 'Choose your word!' : 'Waiting for word selection...';
+      return `${roundDisplay}${isDrawing ? 'Choose your word!' : 'Waiting for word selection...'}`;
     }
     if (gameState === GAME_STATE.DRAWING) {
-      return `Time left: ${timeLeft}s`;
+      return `${roundDisplay}Time left: ${timeLeft}s`;
     }
     if (gameState === GAME_STATE.DRAW_END) {
-      return `Time's up! The word was: ${word}`;
+      return `${roundDisplay}Time's up! The word was: ${word}`;
     }
     if (gameState === GAME_STATE.ROUND_END) {
-      return `Round ${rounds} of ${maxRounds} complete!`;
+      return `${roundDisplay}Round complete!`;
     }
     if (gameState === GAME_STATE.FINISHED) {
       return 'Game Over!';

@@ -170,7 +170,7 @@ class SocketManager {
     if (!this.isConnected()) {
       throw new Error("Cannot select word - Socket is not connected");
     }
-    this.socket.emit("selectWord", { roomId, word });
+    this.socket.emit(SOCKET_EVENTS.SELECT_WORD, { roomId, word });
   }
 
   checkWordGuess(roomId, guess, username) {
@@ -187,13 +187,13 @@ class SocketManager {
   }
 
   updateCanvas(canvasData) {
-    // console.log('Sending canvas update');
     if (!this.isConnected() || !this.currentRoom) {
       throw new Error(
         "Cannot update canvas - Socket is not connected or no room joined"
       );
     }
-    this.socket.emit(SOCKET_EVENTS.CANVAS_UPDATE, {
+    // Emit immediately to all spectators
+    this.socket.volatile.emit(SOCKET_EVENTS.CANVAS_UPDATE, {
       roomId: this.currentRoom.roomId,
       canvasData,
     });

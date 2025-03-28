@@ -139,31 +139,33 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
   return (
     <div id="chatBox" className="flex flex-col h-full">
       {/* Chat messages container */}
-      <div className="flex-1 bg-white/95 dark:bg-gray-800/95 rounded-lg mt-2 flex flex-col transition-colors">
-        <div className="h-[78vh] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
+      <div className="flex-1 bg-white/95 dark:bg-gray-800/95 rounded-lg mt-2 flex flex-col justify-between transition-colors">
+        <div className="h-[calc(78vh-44px)] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
           {localMessages.map((msg, i) => renderMessage(msg, i))}
           <div ref={messagesEndRef} /> {/* Auto-scroll anchor */}
         </div>
 
-        {/* Message input form */}
-        <form onSubmit={handleSubmit} className="border-t dark:border-gray-700 p-2">
-          <div className="flex gap-1">
-            <input
-              type="text"
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Type your message..."
-              className="flex-1 px-2 py-1 text-xs border rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="bg-indigo-600 text-white px-2 py-1 rounded-lg disabled:opacity-50 hover:bg-indigo-700"
-            >
-              Send
-            </button>
-          </div>
-        </form>
+        {/* Message input form - now using absolute positioning */}
+        <div className="sticky bottom-0 w-full bg-white/95 dark:bg-gray-800/95 border-t dark:border-gray-700">
+          <form onSubmit={handleSubmit} className="p-2">
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Type your message..."
+                className="flex-1 px-2 py-1 text-xs border rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="bg-indigo-600 text-white px-2 py-1 rounded-lg disabled:opacity-50 hover:bg-indigo-700"
+              >
+                Send
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

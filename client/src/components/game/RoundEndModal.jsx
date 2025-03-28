@@ -4,70 +4,87 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
   const [timeLeft, setTimeLeft] = useState(cooldownTime);
 
   useEffect(() => {
-    console.log("[RoundEndModal] Mounted with:", {
-      word,
-      drawer,
-      players,
-      cooldownTime
-    });
+    setTimeLeft(cooldownTime);
     
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        const newTime = prev - 1;
-        if (newTime <= 0) {
-          console.log("[RoundEndModal] Timer complete, calling onCooldownComplete");
+      setTimeLeft(prev => {
+        if (prev <= 1) {
           clearInterval(timer);
-          onCooldownComplete?.();
           return 0;
         }
-        return newTime;
+        return prev - 1;
       });
     }, 1000);
 
-    return () => {
-      console.log("[RoundEndModal] Unmounting and clearing timer");
-      clearInterval(timer);
-    };
-  }, [cooldownTime, onCooldownComplete]);
+    return () => clearInterval(timer);
+  }, [cooldownTime, word, drawer]);
 
-  // Filter players who guessed correctly
-  const correctGuessers = players.filter(p => p.hasGuessedCorrect && p.username !== drawer);
+  useEffect(() => {
+    if (timeLeft === 0) {
+      onCooldownComplete?.();
+    }
+  }, [timeLeft, onCooldownComplete]);
+
+  // Filter and sort players who guessed correctly by their guess order
+  const correctGuessers = players
+    .filter(p => p.hasGuessedCorrect && p.username !== drawer)
+    .sort((a, b) => (a.guessTime || 0) - (b.guessTime || 0));
+
+  const drawerPlayer = players.find(p => p.username === drawer);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-          Round Complete!
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">
+          Drawing Complete!
         </h2>
         <p className="text-lg mb-4 text-gray-600 dark:text-gray-400">
           The word was: <span className="font-bold text-indigo-600 dark:text-indigo-400">{word}</span>
         </p>
         
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Correct Guesses:</h3>
+        <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-4">
+          <h3 className="font-semibold mb-2 text-indigo-800 dark:text-indigo-200">
+            {drawer}'s Drawing Results:
+          </h3>
           {correctGuessers.length > 0 ? (
-            <ul className="space-y-1">
-              {correctGuessers.map(player => (
-                <li key={player.username} className="flex justify-between">
-                  <span>{player.username}</span>
-                  <span className="text-green-600">+100 points</span>
-                </li>
+            <div className="space-y-2">
+              {correctGuessers.map((player) => (
+                <div 
+                  key={player.username}
+                  className="flex justify-between items-center bg-white/80 dark:bg-gray-700/50 p-2 rounded"
+                >
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {player.username}
+                  </span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    +{player.drawPoints || 0} pts
+                  </span>
+                </div>
               ))}
-            </ul>
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700">
+                <span className="text-gray-700 dark:text-gray-300">Drawer Points:</span>
+                <span className="font-medium text-green-600 dark:text-green-400">
+                  {drawerPlayer?.drawPoints || 0} pts
+                  {correctGuessers.length === (players.length - 1) && (
+                    <span className="ml-1 text-xs text-indigo-500">(includes 20pt bonus!)</span>
+                  )}
+                </span>
+              </div>
+            </div>
           ) : (
-            <p className="text-gray-500">No one guessed correctly!</p>
+            <p className="text-gray-500 dark:text-gray-400">No one guessed the word!</p>
           )}
         </div>
 
-        <div className="mt-4">
-          <div className="w-full h-2 bg-gray-200 rounded-full">
-            <div
-              className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
-              style={{ width: `${(timeLeft / cooldownTime) * 100}%` }}
-            />
-          </div>
-          <p className="text-center mt-2">Next round starting in {timeLeft}s</p>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-indigo-600 transition-all duration-1000"
+            style={{ width: `${(timeLeft / cooldownTime) * 100}%` }}
+          />
         </div>
+        <p className="text-center mt-2 text-gray-600 dark:text-gray-400">
+          Next drawing in {timeLeft}s
+        </p>
       </div>
     </div>
   );

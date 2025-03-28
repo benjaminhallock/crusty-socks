@@ -6,10 +6,11 @@ import HiddenWord from "./HiddenWord";
 import PlayerList from "./PlayerList";
 import PixelCanvas from "./PixelCanvas";
 import GameSettings from "./GameSettings";
+import RoundEndModal from "./RoundEndModal";
+import RoundSummaryModal from "./RoundSummaryModal";
 import { fetchLobby } from "../../services/auth";
 import { socketManager } from "../../services/socket.js";
 import { GAME_STATE } from "../../../../shared/constants";
-import RoundEndModal from './RoundEndModal';
 
 const GameRoom = ({ user }) => {
   const { roomId } = useParams();
@@ -42,6 +43,7 @@ const GameRoom = ({ user }) => {
   const hasConnectedRef = useRef(false);
   const hasJoinedRef = useRef(false);
   const [showRoundEnd, setShowRoundEnd] = useState(false);
+  const [showRoundSummary, setShowRoundSummary] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,8 +73,11 @@ const GameRoom = ({ user }) => {
         const maxWaitTime = 5000;
         const startTime = Date.now();
 
-        while (!socketManager.isConnected() && Date.now() - startTime < maxWaitTime) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        while (
+          !socketManager.isConnected() &&
+          Date.now() - startTime < maxWaitTime
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         if (!socketManager.isConnected()) {
@@ -109,7 +114,7 @@ const GameRoom = ({ user }) => {
           socketManager.joinLobby(response.lobby.roomId, user.username);
         }
 
-        setGameData(prevData => ({
+        setGameData((prevData) => ({
           ...prevData,
           gameState: response.lobby.gameState,
           currentDrawer: response.lobby.currentDrawer,
@@ -136,29 +141,36 @@ const GameRoom = ({ user }) => {
             newState: data.lobby.gameState,
             currentState: gameData.gameState,
             word: data.lobby.currentWord,
-            drawer: data.lobby.currentDrawer
+            drawer: data.lobby.currentDrawer,
           });
 
           if (data.lobby) {
             setGameData((prevData) => {
-              console.log("[GameRoom] Updating game data:", {
-                prevState: prevData.gameState,
-                newState: data.lobby.gameState
-              });
+              // Check if all players have drawn
+              const allPlayersDrawn = data.lobby.players.every(p => p.hasDrawn);
+              const isEndOfRound = allPlayersDrawn && data.lobby.gameState === GAME_STATE.DRAW_END;
+
+              // Calculate round scores if it's end of round
+              if (isEndOfRound) {
+                data.lobby.players.forEach(player => {
+                  player.roundScore = player.score - (prevData.players.find(p => p.username === player.username)?.score || 0);
+                });
+              }
+
+              // Show appropriate modal
+              if (data.lobby.gameState === GAME_STATE.DRAW_END) {
+                setShowRoundEnd(!allPlayersDrawn);
+                setShowRoundSummary(allPlayersDrawn);
+              } else {
+                setShowRoundEnd(false);
+                setShowRoundSummary(false);
+              }
+
               return {
                 ...prevData,
                 ...data.lobby,
               };
             });
-
-            // Show round end modal when drawing ends
-            if (data.lobby.gameState === GAME_STATE.DRAW_END) {
-              console.log("[GameRoom] Showing round end modal");
-              setShowRoundEnd(true);
-            } else {
-              console.log("[GameRoom] Hiding round end modal");
-              setShowRoundEnd(false);
-            }
           }
         });
       } catch (error) {
@@ -232,56 +244,52 @@ const GameRoom = ({ user }) => {
             <div className="flex-1 flex items-center justify-center dark:text-white"></div>
           )}
 
-          {gameData.gameState === GAME_STATE.PICKING_WORD && (
+          {gameData.gameState === GAME_STATE.PICKING_WORD && 
+            gameData.currentDrawer === user.username && 
+            gameData.currentWord.includes(',') && (
             <div className="flex-1 flex flex-col items-center justify-center">
-              {gameData.currentDrawer === user.username ? (
-                <>
-                  <p className="text-2xl font-bold mb-6 text-white">
-                    It's your turn to draw! Please pick a word.
-                  </p>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    {gameData.currentWord
-                      .split(",")
-                      .slice(0, gameData.selectWord)
-                      .map((word, index) => (
-                        <button
-                          key={index}
-                          className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
-                          onClick={() =>
-                            socketManager.selectWord(roomId, word.trim())
-                          }
-                        >
-                          {word.trim()}
-                        </button>
-                      ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold mb-6">
-                    Waiting for the drawer to pick a word...
-                  </p>
-                  <div className="flex gap-4">
-                    {[...Array(3)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="w-32 h-16 bg-blue-500 rounded-xl animate-pulse"
-                      ></div>
-                    ))}
-                  </div>
-                  <p className="mt-4 text-xl text-gray-500">
-                    {Math.max(
-                      0,
-                      15 - Math.floor((Date.now() - gameData.startTime) / 1000)
-                    )}
-                    s until random word...
-                  </p>
-                </>
-              )}
+              <p className="text-2xl font-bold mb-6 text-white">
+                It's your turn to draw! Please pick a word.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {gameData.currentWord
+                  .split(",")
+                  .map((word, index) => (
+                    <button
+                      key={index}
+                      className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                      onClick={() =>
+                        socketManager.selectWord(roomId, word.trim())
+                      }
+                    >
+                      {word.trim()}
+                    </button>
+                  ))}
+              </div>
             </div>
           )}
 
-          {gameData.gameState === GAME_STATE.DRAWING && (
+          {gameData.gameState === GAME_STATE.PICKING_WORD && 
+           gameData.currentDrawer === user.username && 
+           !gameData.currentWord.includes(',') && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-2xl font-bold text-white">
+                Starting your turn...
+              </p>
+            </div>
+          )}
+
+          {gameData.gameState === GAME_STATE.PICKING_WORD && 
+           gameData.currentDrawer !== user.username && (
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <p className="text-2xl font-bold mb-6">
+                Waiting for {gameData.currentDrawer} to start drawing...
+              </p>
+            </div>
+          )}
+
+          {(gameData.gameState === GAME_STATE.DRAWING ||
+            gameData.gameState === GAME_STATE.DRAW_END) && (
             <div className="flex-1 backdrop-blur-sm rounded-lg shadow flex items-center justify-center">
               <PixelCanvas
                 drawerUsername={gameData.currentDrawer}
@@ -319,9 +327,17 @@ const GameRoom = ({ user }) => {
           drawer={gameData.currentDrawer}
           players={gameData.players}
           cooldownTime={10}
-          onCooldownComplete={() => {
-            setShowRoundEnd(false);
-          }}
+          onCooldownComplete={() => setShowRoundEnd(false)}
+        />
+      )}
+
+      {showRoundSummary && gameData.players.every(p => p.hasDrawn) && (
+        <RoundSummaryModal
+          isOpen={true}
+          players={gameData.players}
+          onClose={() => setShowRoundSummary(false)}
+          roundNumber={gameData.currentRound}
+          maxRounds={gameData.maxRounds}
         />
       )}
     </div>

@@ -37,7 +37,7 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
   };
 
   return (
-    <nav className="bg-white/30 backdrop-blur-md dark:bg-black/30 h-12 transition-colors">
+    <nav className="bg-white/30 backdrop-blur-md dark:bg-black/30 h-12 transition-colors border-b border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
         
         <button onClick={() => navigate("/")} variant="dark" className="h-8">

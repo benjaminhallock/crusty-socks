@@ -204,8 +204,7 @@ const PixelCanvas = ({
   };
 
   const handleDraw = (e) => {
-    if (!isDrawing || !isDrawer || gameState === GAME_STATE.DRAW_END) return;
-
+    if (!isDrawing || !isDrawer) return;
     const canvas = canvasRef.current;
     if (!canvas) return; // Ensure canvas is valid
 
@@ -233,7 +232,7 @@ const PixelCanvas = ({
   };
 
   const handleMouseDown = (e) => {
-    if (!isDrawer || gameState === GAME_STATE.DRAW_END) return;
+    if (!isDrawer) return;
     setIsDrawing(true);
   };
 

@@ -45,6 +45,14 @@ const lobbySchema = new mongoose.Schema(
           type: Boolean,
           default: false,
         },
+        guessTime: {
+          type: Number,
+          default: null,
+        },
+        roundScore: {
+          type: Number,
+          default: 0,
+        },
       },
     ],
 
@@ -76,8 +84,8 @@ const lobbySchema = new mongoose.Schema(
     revealCharacters: {
       type: Number,
       min: 0,
-      max: 100,
-      default: 0, // Percentage of characters to reveal (0-100)
+      max: 75,
+      default: 35, // Percentage of characters to reveal (0-75)
     },
     selectWord: {
       type: Number,

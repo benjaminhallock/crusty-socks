@@ -27,7 +27,7 @@ const corsOptions = {
         : 'http://localhost:5174',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     credentials: true,
-    maxAge: 86400,
+    maxAge: 86400, 
     allowedHeaders: ['Content-Type', 'Authorization']
 };
 

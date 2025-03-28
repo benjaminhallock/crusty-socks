@@ -113,7 +113,7 @@ const LobbySettings = ({ user }) => {
                 id="revealCharacters"
                 type="range"
                 min="0"
-                max="100"
+                max="75"
                 value={gameState.revealCharacters}
                 onChange={(e) => setRevealCharacters(parseInt(e.target.value))}
                 className="w-full sm:w-36 md:w-48 h-5 accent-indigo-600"

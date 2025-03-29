@@ -47,7 +47,7 @@ const lobbySchema = new mongoose.Schema(
         },
         guessTime: {
           type: Number,
-          default: null,
+          default: 0,
         },
         roundScore: {
           type: Number,

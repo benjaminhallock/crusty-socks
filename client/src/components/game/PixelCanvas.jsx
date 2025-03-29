@@ -438,11 +438,40 @@ const PixelCanvas = ({
     };
   }, [gameState, startTime, roundTime, roomId]);
 
+  // Update the gameState and currentDrawer dependencies to reset canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Clear canvas when:
+    // 1. A new drawer is selected
+    // 2. Game transitions to PICKING_WORD state (new round/turn)
+    if (gameState === GAME_STATE.PICKING_WORD) {
+      console.log("Clearing canvas for new drawing round");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      
+      // Reset history for undo/redo
+      setHistory([canvas.toDataURL()]);
+      setRedoStates([]);
+    }
+  }, [gameState, drawerUsername]);
+
   return (
     <div
       id="canvas"
       className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors"
     >
+      {!isDrawer && (
+        <div className="bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-lg shadow-sm mb-2">
+          <p className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+            {drawerUsername} is drawing...
+          </p>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}

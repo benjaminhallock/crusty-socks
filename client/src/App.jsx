@@ -5,7 +5,6 @@ import {
   Route,
   Navigate,
   useLocation,
-  
 } from "react-router-dom";
 import { useRef } from "react";
 import "./styles/main.css";
@@ -19,6 +18,7 @@ import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
 import LobbySettings from "./components/lobby/LobbySettings";
+import AccountSettings from "./components/auth/AccountSettings";
 
 const ProtectedRoute = ({ user, children }) => {
   const location = useLocation();
@@ -111,7 +111,7 @@ function App() {
             transition: "opacity 0.5s ease-in-out",
           }}
         />
-        <Navbar isLoggedIn={!!user} onLogout={handleLogout} />
+        <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
         <main className="h-[calc(100vh-4rem)]">
           <Routes>
             <Route
@@ -122,6 +122,14 @@ function App() {
                 ) : (
                   <LoginForm onLoginSuccess={handleLogin} />
                 )
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute user={user}>
+                  <AccountSettings user={user} />
+                </ProtectedRoute>
               }
             />
             <Route

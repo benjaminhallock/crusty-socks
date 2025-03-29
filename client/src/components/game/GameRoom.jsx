@@ -159,8 +159,11 @@ const GameRoom = ({ user }) => {
 
               // Show appropriate modal
               if (data.lobby.gameState === GAME_STATE.DRAW_END) {
+                const allPlayersDrawn = data.lobby.players.every(p => p.hasDrawn);
+                // Only show round summary when all players have drawn AND it's the end of the current round
+                setShowRoundSummary(allPlayersDrawn && data.lobby.currentRound > 0);
+                // Show round end modal when not all players have drawn yet
                 setShowRoundEnd(!allPlayersDrawn);
-                setShowRoundSummary(allPlayersDrawn);
               } else {
                 setShowRoundEnd(false);
                 setShowRoundSummary(false);
@@ -248,8 +251,8 @@ const GameRoom = ({ user }) => {
             gameData.currentDrawer === user.username && 
             gameData.currentWord.includes(',') && (
             <div className="flex-1 flex flex-col items-center justify-center">
-              <p className="text-2xl font-bold mb-6 text-white">
-                It's your turn to draw! Please pick a word.
+              <p className="text-2xl font-bold mb-6 bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-lg shadow-sm">
+                Select a word:
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 {gameData.currentWord
@@ -257,7 +260,7 @@ const GameRoom = ({ user }) => {
                   .map((word, index) => (
                     <button
                       key={index}
-                      className="px-8 py-4 bg-blue-500 text-white text-xl rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                      className="px-10 py-6 bg-blue-500 text-white text-2xl font-bold rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                       onClick={() =>
                         socketManager.selectWord(roomId, word.trim())
                       }
@@ -273,7 +276,7 @@ const GameRoom = ({ user }) => {
            gameData.currentDrawer === user.username && 
            !gameData.currentWord.includes(',') && (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-lg shadow-sm">
                 Starting your turn...
               </p>
             </div>
@@ -282,7 +285,7 @@ const GameRoom = ({ user }) => {
           {gameData.gameState === GAME_STATE.PICKING_WORD && 
            gameData.currentDrawer !== user.username && (
             <div className="flex-1 flex flex-col items-center justify-center">
-              <p className="text-2xl font-bold mb-6">
+              <p className="text-2xl font-bold mb-6 bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-lg shadow-sm">
                 Waiting for {gameData.currentDrawer} to start drawing...
               </p>
             </div>

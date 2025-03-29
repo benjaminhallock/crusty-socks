@@ -54,6 +54,17 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
     return 100;
   };
 
+  // Calculate the current reveal percentage based on time elapsed
+  const getCurrentRevealPercentage = () => {
+    if (!isRevealing || gameState !== GAME_STATE.DRAWING) return 0;
+    
+    // Calculate time elapsed as a percentage of total round time
+    const timeElapsedPercent = ((roundTime - timeLeft) / roundTime) * 100;
+    
+    // Scale the reveal percentage based on time elapsed and max reveal rate
+    return Math.min(timeElapsedPercent * (isRevealing / 100), isRevealing);
+  };
+
   // Helper function for deterministic letter reveals
   const getLetterRevealIndices = (word, revealPercentage) => {
     if (!word) return new Set();
@@ -100,10 +111,12 @@ const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundT
       return word;
     }
 
-    // During drawing, show masked word with deterministic reveals
+    // During drawing, show masked word with gradual reveals
     if (gameState === GAME_STATE.DRAWING) {
       const letters = word.split('');
-      const revealIndices = getLetterRevealIndices(word, isRevealing);
+      // Get current reveal percentage based on elapsed time
+      const currentRevealPercentage = getCurrentRevealPercentage();
+      const revealIndices = getLetterRevealIndices(word, currentRevealPercentage);
 
       return letters
         .map((char, idx) => {

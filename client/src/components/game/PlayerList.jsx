@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { socketManager } from "../../services/socket";
 import { GAME_STATE } from "../../../../shared/constants";
 import ContextMenu from "./ContextMenu";
+import { createReport } from "../../services/reports";
 
 const PlayerList = ({
   players,
@@ -10,6 +11,7 @@ const PlayerList = ({
   gameState,
   currentUsername,
   isAdmin,
+  chatLogs = [], // Add this prop
 }) => {
   const [showPopup, setShowPopup] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
@@ -65,21 +67,32 @@ const PlayerList = ({
     });
   };
 
-  const handleReportPlayer = (username) => {
-    socketManager.reportPlayer(roomId, username);
-    setContextMenu(null);
-    // Show a toast notification
+  const handleReportPlayer = async (username) => {
+    const reportData = {
+      reportedUser: username,
+      reportedBy: currentUsername,
+      roomId: roomId,
+      reason: "Inappropriate behavior",
+      chatLogs: chatLogs.slice(-10),
+    };
+
+    const result = await createReport(reportData);
+
+    // Show toast notification
     const toast = document.createElement("div");
     toast.className =
-      "fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg z-50";
+      `fixed bottom-4 right-4 ${result.success ? 'bg-green-500' : 'bg-red-500'} 
+       text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg z-50`;
     toast.innerHTML = `
-      <span>Reported</span>
+      <span>${result.success ? 'Report submitted' : 'Failed to submit report'}</span>
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
       </svg>
     `;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
+
+    setContextMenu(null);
   };
 
   const getPlayerBackgroundClass = (player) => {

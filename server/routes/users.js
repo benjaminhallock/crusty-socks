@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { userController } from '../controllers/userController.js';
-import { auth, authAdmin } from '../middleware/auth.js';
+import { auth, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -13,6 +13,6 @@ router.post('/login', userController.login);        // Login to account
 router.get('/validate', auth, userController.validateToken);  // Check if token is valid
 
 // Admin routes
-router.get('/all', auth, authAdmin, userController.getAllUsers);  // Get list of all users (admin only)
+router.get('/all', auth, isAdmin, userController.getAllUsers);  // Get list of all users (admin only)
 
 export default router;

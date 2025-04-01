@@ -91,30 +91,55 @@ class GameManager {
         socket.emit("error", "Connection error occurred");
       });
 
-      socket.on(SOCKET_EVENTS.REPORT_PLAYER, async ({ roomId, username }) => {
-        console.log("Report player request:", { roomId, username });
+      socket.on(SOCKET_EVENTS.REPORT_PLAYER, async ({ roomId, username, reason }) => {
+        console.log("Report player request:", { roomId, username, reason });
         const lobby = await Lobby.findOne({ roomId });
-        const reportedUser = await User.findOne({ username });
-        if (!lobby || !reportedUser) {
+        
+        if (!lobby) {
           console.error("Cannot report player - Lobby not found:", roomId);
           return;
         }
-        const user = socket.username;
-        if (!user) {
-          console.error("Cannot report player - User not found:", user);
+        
+        if (!username) {
+          console.error("Cannot report player - No username provided");
           return;
         }
-        const report = new Report({
-          reportedUser: username,
-          reportedBy: user,
-          roomId,
-          reason: "Inappropriate behavior", // Default reason
-          timestamp: Date.now(),
-          chatLogs: lobby.messages || [], // Include recent chat logs
-          status: "pending",
-        });
-        await report.save();
-        console.log(`Reported player: ${username} in room: ${roomId}`);
+        
+        const reportingUser = socket.username;
+        if (!reportingUser) {
+          console.error("Cannot report player - Reporting user not found");
+          return;
+        }
+        
+        try {
+          // Create a report directly here
+          const report = new Report({
+            reportedUser: username,
+            reportedBy: reportingUser,
+            roomId,
+            reason: reason || "Inappropriate behavior", // Default reason
+            timestamp: Date.now(),
+            chatLogs: lobby.messages?.slice(-20) || [], // Include last 20 chat logs
+            status: "pending",
+          });
+          
+          await report.save();
+          console.log(`Reported player: ${username} in room: ${roomId}`);
+          
+          // Notify the reporting user of successful report
+          socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, {
+            username: "Server",
+            message: `You have reported ${username}. Moderators will review this report.`,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error("Error creating report:", error);
+          socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, {
+            username: "Server",
+            message: "Failed to submit report. Please try again.",
+            timestamp: Date.now(),
+          });
+        }
       });
 
       // Game initialization event
@@ -417,7 +442,8 @@ class GameManager {
                   setTimeout(async () => {
                     const currentLobby = await Lobby.findOne({ roomId });
                     if (currentLobby?.gameState === GAME_STATE.DRAWING) {
-                      currentLobby.currentRound = (currentLobby.currentRound || 0) + 1;
+                      currentLobby.currentRound =
+                        (currentLobby.currentRound || 0) + 1;
                       await currentLobby.save();
                       await this.endRound(io, roomId, currentLobby, true);
                     }
@@ -451,7 +477,7 @@ class GameManager {
       );
 
       // Disconnect handling
-      socket.on("disconnect", async () => {
+      socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
         console.log("Player disconnected:", socket.username || socket.id);
         const connection = this.activeConnections.get(socket.id);
         if (connection) {
@@ -522,7 +548,6 @@ class GameManager {
       startTime: new Date(lobby.startTime).toISOString(),
     });
 
-    // Ensure startTime is freshly set (not relying on passed lobby object which might be stale)
     const startTime = Date.now();
     lobby.startTime = startTime;
     await lobby.save();
@@ -534,13 +559,7 @@ class GameManager {
         (startTime + lobby.roundTime * 1000 - currentTime) / 1000
       );
 
-      // Add periodic debug logging (every 10 seconds)
-      if (Math.floor(timeLeft) % 10 === 0 && Math.floor(timeLeft) > 0) {
-        console.log(
-          `[Timer] Room ${roomId}: ${Math.floor(timeLeft)}s remaining`
-        );
-      }
-
+      //
       if (timeLeft <= 0) {
         console.log("[Timer] Round time expired, clearing timer", {
           roomId,

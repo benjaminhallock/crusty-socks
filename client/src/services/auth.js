@@ -1,25 +1,5 @@
 import { API_ENDPOINTS, ENV_CONFIG } from "../../../shared/constants.js";
-import axios from "axios";
-
-const makeApiCall = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("token");
-  try {
-    const response = await axios({
-      url: `${ENV_CONFIG.API_URL}${endpoint}`,
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      data: options.body ? JSON.parse(options.body) : undefined,
-    });
-    return response;
-  } catch (error) {
-    console.error("API call failed:", error.response?.data || error.message);
-    throw error;
-  }
-};
+import { makeApiCall } from "./reports.js";
 
 export const fetchLobby = (roomId) => {
   if (!roomId) throw new Error("Room ID is required");
@@ -181,15 +161,5 @@ export const getAllLobbies = async () => {
   } catch (error) {
     console.error("Failed to fetch lobbies:", error);
     return { success: false, lobbies: [] };
-  }
-};
-
-export const getAllReports = async () => {
-  try {
-    const response = await makeApiCall('/api/reports');
-    return { success: true, reports: response.data.reports };
-  } catch (error) {
-    console.error("Failed to fetch reports:", error);
-    return { success: false, reports: [] };
   }
 };

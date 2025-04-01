@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const RoundSummaryModal = ({ isOpen, onClose, players, round, maxRounds }) => {
+const RoundSummaryModal = ({ isOpen, onClose, players, roundNumber, maxRounds }) => {
   // Change the initial time to 10 seconds for consistency
   const [timeLeft, setTimeLeft] = useState(10);
   const SUMMARY_DURATION = 10; // 10 seconds
@@ -42,7 +42,7 @@ const RoundSummaryModal = ({ isOpen, onClose, players, round, maxRounds }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
         <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">
-          {round === maxRounds ? 'Game Over!' : `Round Complete!`}
+          {roundNumber === maxRounds ? 'Game Over!' : `Round ${roundNumber} Complete!`}
         </h2>
         
         <div className="mb-6">
@@ -73,7 +73,7 @@ const RoundSummaryModal = ({ isOpen, onClose, players, round, maxRounds }) => {
           </div>
         </div>
         
-        {round < maxRounds ? (
+        {roundNumber < maxRounds ? (
           <div className="text-center">
             {/* Timer bar */}
             <div className="mb-4">
@@ -95,7 +95,7 @@ const RoundSummaryModal = ({ isOpen, onClose, players, round, maxRounds }) => {
               Next Round
             </button>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Round {round + 1} of {maxRounds} starting soon...
+              Round {roundNumber + 1} of {maxRounds} starting soon...
             </p>
           </div>
         ) : (

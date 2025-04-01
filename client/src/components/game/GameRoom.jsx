@@ -44,6 +44,7 @@ const GameRoom = ({ user }) => {
   const hasJoinedRef = useRef(false);
   const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [showRoundSummary, setShowRoundSummary] = useState(false);
+  const allPlayersDrawnRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -160,10 +161,13 @@ const GameRoom = ({ user }) => {
               // Show appropriate modal
               if (data.lobby.gameState === GAME_STATE.DRAW_END) {
                 const allPlayersDrawn = data.lobby.players.every(p => p.hasDrawn);
-                // Only show round summary when all players have drawn AND it's the end of the current round
-                setShowRoundSummary(allPlayersDrawn && data.lobby.currentRound > 0);
-                // Show round end modal when not all players have drawn yet
-                setShowRoundEnd(!allPlayersDrawn);
+                
+                // Store the all players drawn state in the ref
+                allPlayersDrawnRef.current = allPlayersDrawn;
+                
+                // Only show round end modal first, RoundSummaryModal will show after it closes
+                setShowRoundEnd(true);
+                setShowRoundSummary(false);
               } else {
                 setShowRoundEnd(false);
                 setShowRoundSummary(false);
@@ -202,6 +206,19 @@ const GameRoom = ({ user }) => {
       hasJoinedRef.current = false;
     };
   }, [roomId, navigate, user]);
+
+  // Handler for when the RoundEndModal completes
+  const handleRoundEndComplete = () => {
+    setShowRoundEnd(false);
+    
+    // Check if all players have drawn and we should show the round summary
+    if (allPlayersDrawnRef.current && gameData.currentRound > 0) {
+      // Slight delay to ensure modals don't overlap visually
+      setTimeout(() => {
+        setShowRoundSummary(true);
+      }, 300); 
+    }
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] mx-4 md:mx-8 lg:mx-16 dark:bg-gray-900 transition-colors">
@@ -330,7 +347,7 @@ const GameRoom = ({ user }) => {
           drawer={gameData.currentDrawer}
           players={gameData.players}
           cooldownTime={10}
-          onCooldownComplete={() => setShowRoundEnd(false)}
+          onCooldownComplete={handleRoundEndComplete}
         />
       )}
 

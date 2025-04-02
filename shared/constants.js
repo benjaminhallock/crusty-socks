@@ -18,6 +18,7 @@ export const SOCKET_EVENTS = {
   REPORT_PLAYER: "reportPlayer",
   JOIN_LOBBY: "joinLobby",
   LEAVE_LOBBY: "leaveLobby",
+  LEAVE_ROOM: "leaveRoom",
   START_GAME: "startGame",
   GAME_STATE_UPDATE: "gameStateUpdate",
   CANVAS_UPDATE: "canvasUpdate",

@@ -1,5 +1,5 @@
-import { API_ENDPOINTS, ENV_CONFIG } from "../../../shared/constants.js";
 import { makeApiCall } from "./reports.js";
+import { API_ENDPOINTS, ENV_CONFIG } from "../../../shared/constants.js";
 
 export const fetchLobby = (roomId) => {
   if (!roomId) throw new Error("Room ID is required");
@@ -150,16 +150,16 @@ export const getAllUsers = async () => {
 };
 
 /**
- * Fetches list of all active game lobbies
- * Used for the lobby browser feature
+ * Admin function to fetch all lobbies
+ * Requires admin authentication
  */
 export const getAllLobbies = async () => {
-  console.log("Fetching all active lobbies");
+  console.log("Fetching all lobbies");
   try {
     const response = await makeApiCall(API_ENDPOINTS.GET_ALL_LOBBIES);
-    return { success: true, lobbies: response.data.lobbies };
+    return { success: true, lobbies: response.data.lobbies || [] };
   } catch (error) {
     console.error("Failed to fetch lobbies:", error);
-    return { success: false, lobbies: [] };
+    return { success: false, message: error.message };
   }
 };

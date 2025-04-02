@@ -1,4 +1,5 @@
 import axios from "axios";
+
 import { ENV_CONFIG } from "../../../shared/constants.js";
 
 // Export makeApiCall so it can be used by other services
@@ -76,6 +77,65 @@ export const getAllReports = async () => {
   } catch (error) {
     console.error("Failed to fetch reports:", error);
     return { success: false, reports: [] };
+  }
+};
+
+// Add functions to update users and lobbies
+
+/**
+ * Updates a user's information
+ * @param {string} userId - The ID of the user to update
+ * @param {Object} userData - The updated user data
+ * @returns {Promise<Object>} - Success status and updated user data
+ */
+export const updateUser = async (userId, userData) => {
+  try {
+    const response = await makeApiCall(`/api/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+    return { success: true, user: response.data.user };
+  } catch (error) {
+    console.error("Failed to update user:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Updates a lobby's information
+ * @param {string} lobbyId - The ID of the lobby to update
+ * @param {Object} lobbyData - The updated lobby data
+ * @returns {Promise<Object>} - Success status and updated lobby data
+ */
+export const updateLobby = async (lobbyId, lobbyData) => {
+  try {
+    const response = await makeApiCall(`/api/lobbys/${lobbyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(lobbyData)
+    });
+    return { success: true, lobby: response.data.lobby };
+  } catch (error) {
+    console.error("Failed to update lobby:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Updates an entire report's information
+ * @param {string} reportId - The ID of the report to update
+ * @param {Object} reportData - The updated report data
+ * @returns {Promise<Object>} - Success status and updated report data
+ */
+export const updateReport = async (reportId, reportData) => {
+  try {
+    const response = await makeApiCall(`/api/reports/${reportId}`, {
+      method: 'PUT',
+      body: JSON.stringify(reportData)
+    });
+    return { success: true, report: response.data.report };
+  } catch (error) {
+    console.error("Failed to update report:", error);
+    return { success: false, error: error.message };
   }
 };
 

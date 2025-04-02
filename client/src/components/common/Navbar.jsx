@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaUser, FaSignOutAlt, FaSignInAlt, FaMusic, FaVolumeMute, FaVolumeUp, FaUserShield, FaSun, FaMoon } from "react-icons/fa";
 
 import Button from "./ui/Button";
 import MusicPlayer from "./MusicPlayer";
@@ -52,65 +53,69 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                 variant="light"
                 className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
-                {user?.username}
+                <FaUser className="h-4 w-4" />
+                <span className="hidden sm:inline">{user?.username}</span>
               </Button>
-              <Button
-                onClick={() => navigate("/admin")}
-                variant="light"
-                className="text-sm bg-white/80 dark:bg-gray-800/50"
-              >
-                Admin
-              </Button>
+              {user?.isAdmin && (
+                <Button
+                  onClick={() => navigate("/admin")}
+                  variant="light"
+                  className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
+                >
+                  <FaUserShield className="h-4 w-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              )}
               <Button
                 onClick={onLogout}
                 variant="light"
-                className="text-sm bg-white/80 dark:bg-gray-800/50"
+                className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
               >
-                Logout
+                <FaSignOutAlt className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
               </Button>
             </>
           ) : (
             <Button
               onClick={() => navigate("/")}
               variant="light"
-              className="text-sm bg-white/80 dark:bg-gray-800/50"
+              className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
             >
-              Login
+              <FaSignInAlt className="h-4 w-4" />
+              <span className="hidden sm:inline">Login</span>
             </Button>
           )}
           <Button
             onClick={toggleTheme}
             variant="light"
             aria-label="Toggle theme"
-            className="text-sm bg-white/80 dark:bg-gray-800/50"
+            className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
           >
-            {isDark ? "Light Mode" : "Dark Mode"}
+            {isDark ? <FaSun className="h-4 w-4" /> : <FaMoon className="h-4 w-4" />}
+            <span className="hidden sm:inline">{isDark ? "Light Mode" : "Dark Mode"}</span>
           </Button>
           {showPlayButton ? (
             <Button
               onClick={handlePlayMusic}
               variant="light"
-              className={`text-sm play-music-button bg-white/80 dark:bg-gray-800/50 ${
+              className={`text-sm flex items-center gap-2 play-music-button bg-white/80 dark:bg-gray-800/50 ${
                 animatePlayButton ? "shoot-off-screen" : ""
               }`}
             >
-              Play Music
+              <FaMusic className="h-4 w-4" />
+              <span className="hidden sm:inline">Play Music</span>
             </Button>
           ) : (
             <Button
               onClick={handleMuteUnmute}
               variant="light"
-              className="text-sm bg-white/80 dark:bg-gray-800/50"
+              className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
             >
-              <img 
-                src={isMuted ? "/soundOff.png" : "/soundOn.png"} 
-                alt={isMuted ? "Muted" : "Unmuted"}
-                className="h-6 w-6 mr-1 inline"
-              />
-              {isMuted ? "Unmute" : "Mute"}
+              {isMuted ? 
+                <FaVolumeMute className="h-4 w-4" /> : 
+                <FaVolumeUp className="h-4 w-4" />
+              }
+              <span className="hidden sm:inline">{isMuted ? "Unmute" : "Mute"}</span>
             </Button>
           )}
         </div>

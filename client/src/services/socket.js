@@ -1,4 +1,5 @@
 import { io } from "socket.io-client";
+
 import { ENV_CONFIG } from "../../../shared/constants.js";
 import { SOCKET_EVENTS } from "../../../shared/constants.js";
 
@@ -255,6 +256,30 @@ class SocketManager {
   }
 
   // Handles kicking a player
+  kickPlayer(roomId, username) {
+    console.log(`Attempting to kick player: ${username} from room: ${roomId}`);
+    if (!this.isConnected()) {
+      console.error("Cannot kick player - Socket is not connected");
+      return;
+    }
+    this.socket.emit(SOCKET_EVENTS.KICK_PLAYER, { roomId, username });
+  }
+
+  // Handles user leaving a room voluntarily
+  leaveRoom(roomId) {
+    console.log(`Leaving room: ${roomId}`);
+    if (!this.isConnected() || !this.currentRoom) {
+      console.error("Cannot leave room - Socket is not connected or no room joined");
+      return;
+    }
+    
+    const username = this.currentRoom.username;
+    this.socket.emit(SOCKET_EVENTS.LEAVE_ROOM, { roomId, username });
+    this.currentRoom = null;
+    
+    // Redirect to homepage
+    window.location.href = "/";
+  }
 
   // Cleanup method
   cleanup() {
@@ -271,22 +296,13 @@ class SocketManager {
     // Don't null out the socket, just disconnect it
   }
 
-  // Handles kicking a player
-  kickPlayer(roomId, username) {
-    console.log(`Attempting to kick player: ${username} from room: ${roomId}`);
-    if (!this.isConnected()) {
-      console.error("Cannot kick player - Socket is not connected");
-      return;
-    }
-    this.socket.emit(SOCKET_EVENTS.KICK_PLAYER, { roomId, username });
-  }
-
   reportPlayer(roomId, username) {
     if (!this.isConnected()) {
       throw new Error("Cannot report player - Socket is not connected");
     }
     this.socket.emit(SOCKET_EVENTS.REPORT_PLAYER, { roomId, username });
   }
+  
   disconnect() {
     console.log("Disconnecting socket");
     if (this.socket) {

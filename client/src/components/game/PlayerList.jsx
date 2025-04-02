@@ -1,8 +1,26 @@
-import React, { useState } from "react";
-import { socketManager } from "../../services/socket";
-import { GAME_STATE } from "../../../../shared/constants";
+import React, { useState, useEffect, useRef } from "react";
+
 import ContextMenu from "./ContextMenu";
+import { socketManager } from "../../services/socket";
 import { createReport } from "../../services/reports";
+import { GAME_STATE } from "../../../../shared/constants";
+
+// Component for animating point changes
+const PointChangeAnimation = ({ points }) => {
+  if (points <= 0) return null;
+
+  return (
+    <span
+      className="absolute right-2 text-green-500 font-bold text-sm animate-point-float"
+      style={{
+        animation: "float-up 1.5s ease-out forwards",
+        opacity: 0,
+      }}
+    >
+      +{points}
+    </span>
+  );
+};
 
 const PlayerList = ({
   players,
@@ -11,10 +29,48 @@ const PlayerList = ({
   gameState,
   currentUsername,
   isAdmin,
-  chatLogs = [], // Add this prop
+  chatLogs = [],
 }) => {
   const [showPopup, setShowPopup] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
+  // Track previous scores to detect changes
+  const prevScoresRef = useRef({});
+  // Store point animations
+  const [pointAnimations, setPointAnimations] = useState({});
+
+  // Effect to detect score changes and trigger animations
+  useEffect(() => {
+    const newAnimations = {};
+    let hasChanges = false;
+
+    players.forEach((player) => {
+      const prevScore = prevScoresRef.current[player.username] || 0;
+      const currentScore = player.score || 0;
+      const pointDiff = currentScore - prevScore;
+
+      // Only animate positive point changes
+      if (pointDiff > 0) {
+        newAnimations[player.username] = pointDiff;
+        hasChanges = true;
+
+        // Auto-remove animation after 1.5s
+        setTimeout(() => {
+          setPointAnimations((current) => {
+            const updated = { ...current };
+            delete updated[player.username];
+            return updated;
+          });
+        }, 1500);
+      }
+
+      // Update reference for next comparison
+      prevScoresRef.current[player.username] = currentScore;
+    });
+
+    if (hasChanges) {
+      setPointAnimations((prev) => ({ ...prev, ...newAnimations }));
+    }
+  }, [players]);
 
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -34,18 +90,10 @@ const PlayerList = ({
         y: e.pageY,
         options: [
           {
-            label: "View Profile",
-            onClick: () => window.open(`/profile/${currentUsername}`, '_blank'),
-          },
-          {
-            label: "Edit Name",
-            onClick: () => socketManager.updateUsername(roomId),
-          },
-          {
             label: "Leave Game",
             onClick: () => socketManager.leaveRoom(roomId),
             isDestructive: true,
-          }
+          },
         ],
       });
     }
@@ -80,11 +128,14 @@ const PlayerList = ({
 
     // Show toast notification
     const toast = document.createElement("div");
-    toast.className =
-      `fixed bottom-4 right-4 ${result.success ? 'bg-green-500' : 'bg-red-500'} 
+    toast.className = `fixed bottom-4 right-4 ${
+      result.success ? "bg-green-500" : "bg-red-500"
+    } 
        text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg z-50`;
     toast.innerHTML = `
-      <span>${result.success ? 'Report submitted' : 'Failed to submit report'}</span>
+      <span>${
+        result.success ? "Report submitted" : "Failed to submit report"
+      }</span>
       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
       </svg>
@@ -113,23 +164,36 @@ const PlayerList = ({
       id="playerList"
       className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 shadow-lg relative flex-1 flex flex-col transition-colors"
     >
+      {/* Add keyframe animation to global styles */}
+      <style jsx global>{`
+        @keyframes float-up {
+          0% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-20px);
+            opacity: 0;
+          }
+        }
+      `}</style>
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
           Players
         </h3>
         <div className="relative">
           <button
-            onClick={handleInviteLink}
             className="bg-indigo-600 text-white px-2 py-1 rounded-md mr-2 hover:bg-indigo-700"
+            onClick={handleInviteLink}
           >
             Invite
           </button>
           <button
             className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => socketManager.startGame(roomId)}
-            disabled={gameState !== GAME_STATE.WAITING}
+            disabled={gameState !== GAME_STATE.WAITING && gameState !== GAME_STATE.FINISHED}
           >
-            Start Game
+            {gameState === GAME_STATE.FINISHED ? "Play Again" : "Start Game"}
           </button>
           {showPopup && (
             <div className="absolute top-0 left-full ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
@@ -143,8 +207,11 @@ const PlayerList = ({
           <li
             key={`player-${player.username}-${index}`}
             onClick={(e) => handlePlayerClick(e, player)}
-            onContextMenu={(e) => handlePlayerContext(e, player)}
-            className={`flex items-center gap-2 p-2 rounded-md transition-colors duration-200 cursor-pointer
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handlePlayerClick(e, player);
+            }}
+            className={`flex items-center gap-2 p-2 rounded-md transition-colors duration-200 cursor-pointer relative
               ${getPlayerBackgroundClass(player)}
               ${player.hasDrawn ? "opacity-75" : "hover:opacity-90"}`}
           >
@@ -197,7 +264,15 @@ const PlayerList = ({
                   </span>
                 )}
               </span>
-              <span className="score">{player.score}</span>
+              <span className="score relative">
+                {player.score}
+                {/* Point change animation */}
+                {pointAnimations[player.username] && (
+                  <PointChangeAnimation
+                    points={pointAnimations[player.username]}
+                  />
+                )}
+              </span>
             </span>
           </li>
         ))}

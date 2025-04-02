@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useState, useEffect } from "react";
 import {
   BrowserRouter,
@@ -6,7 +7,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { useRef } from "react";
+
 import "./styles/main.css";
 import { checkAuth } from "./services/auth";
 import { socketManager } from "./services/socket";
@@ -23,6 +24,15 @@ import AccountSettings from "./components/auth/AccountSettings";
 const ProtectedRoute = ({ user, children }) => {
   const location = useLocation();
   if (!user)
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  return children;
+};
+
+const AdminRoute = ({ user, children }) => {
+  const location = useLocation();
+  if (!user)
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  if (!user.isAdmin)
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   return children;
 };
@@ -151,9 +161,9 @@ function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoute user={user}>
-                  <Admin />
-                </ProtectedRoute>
+                <AdminRoute user={user}>
+                  <Admin user={user} />
+                </AdminRoute>
               }
             />
             <Route path="*" element={<Navigate to="/" />} />

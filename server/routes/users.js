@@ -14,5 +14,6 @@ router.get('/validate', auth, userController.validateToken);  // Check if token 
 
 // Admin routes
 router.get('/all', auth, isAdmin, userController.getAllUsers);  // Get list of all users (admin only)
+router.put('/:userId', auth, isAdmin, userController.updateUser); // Update a user (admin only)
 
 export default router;

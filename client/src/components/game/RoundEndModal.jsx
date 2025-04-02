@@ -31,6 +31,11 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
     .sort((a, b) => (a.guessTime || 0) - (b.guessTime || 0));
 
   const drawerPlayer = players.find(p => p.username === drawer);
+  
+  // Calculate total points for this turn
+  const totalDrawerPoints = drawerPlayer?.drawPoints || 0;
+  const totalGuesserPoints = correctGuessers.reduce((sum, player) => sum + (player.drawPoints || 0), 0);
+  const totalRoundPoints = totalDrawerPoints + totalGuesserPoints;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -64,10 +69,17 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
               <div className="flex justify-between items-center mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700">
                 <span className="text-gray-700 dark:text-gray-300">Drawer Points:</span>
                 <span className="font-medium text-green-600 dark:text-green-400">
-                  {drawerPlayer?.drawPoints || 0} pts
+                  +{totalDrawerPoints} pts
                   {correctGuessers.length === (players.length - 1) && (
                     <span className="ml-1 text-xs text-indigo-500">(includes 20pt bonus!)</span>
                   )}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700 font-bold">
+                <span className="text-gray-800 dark:text-gray-200">Total Round Points:</span>
+                <span className="text-green-600 dark:text-green-400">
+                  +{totalRoundPoints} pts
                 </span>
               </div>
             </div>

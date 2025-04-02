@@ -12,18 +12,27 @@ const cleanUser = (user) => ({
   _id: user._id,
   email: user.email,
   username: user.username,
+  isAdmin: user.isAdmin,
+  createdAt: user.createdAt,
 });
 
 export const userController = {
   getUser: async (req, res) => {
     try {
+      const user = await User.findById(req.params.userId).select("-password");
+      if (!user) {
+        return res.status(404).json({
+          ok: false,
+          message: "User not found",
+        });
+      }
       res.status(200).json({
-        message: "User deleted",
+        user: cleanUser(user),
       });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: "Failed to delete user",
+        message: "Failed to fetch user",
       });
     }
   },
@@ -141,6 +150,41 @@ export const userController = {
       res.status(500).json({
         ok: false,
         message: "Failed to get users",
+      });
+    }
+  },
+
+  updateUser: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const updateData = req.body;
+      
+      // Remove sensitive fields that shouldn't be updated directly
+      delete updateData.password;
+      
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).select("-password");
+      
+      if (!updatedUser) {
+        return res.status(404).json({
+          ok: false,
+          message: "User not found"
+        });
+      }
+      
+      res.status(200).json({
+        ok: true,
+        message: "User updated successfully",
+        user: cleanUser(updatedUser)
+      });
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        message: "Failed to update user",
+        error: error.message
       });
     }
   },

@@ -1,8 +1,36 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 
 import { createLobby } from "../../services/auth";
+
+const InfoTooltip = ({ text, buttonRef }) => {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 5,
+        left: rect.left,
+      });
+    }
+  }, [buttonRef]);
+
+  return createPortal(
+    <div 
+      className="bg-indigo-700/90 backdrop-blur-md text-white text-xs sm:text-sm rounded-lg p-1.5 sm:p-2 shadow-lg w-40 sm:w-48 z-[9999]" 
+      style={{
+        position: 'fixed',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+      }}
+    >
+      {text}
+    </div>,
+    document.body
+  );
+};
 
 const LobbySettings = ({ user }) => {
   const navigate = useNavigate();
@@ -62,6 +90,19 @@ const LobbySettings = ({ user }) => {
     }
   };
 
+  // Refs for tooltip buttons
+  const [tooltipStates, setTooltipStates] = useState({
+    rounds: false,
+    letters: false, 
+    words: false,
+    time: false
+  });
+  
+  const roundsButtonRef = useRef(null);
+  const lettersButtonRef = useRef(null);
+  const wordsButtonRef = useRef(null);
+  const timeButtonRef = useRef(null);
+
   return (
     <div className="flex items-center justify-center p-1 sm:p-2 min-h-screen">
       <div className="backdrop-blur-lg bg-white/70 rounded-lg sm:rounded-xl p-2 sm:p-3 shadow-lg w-full max-w-2xl sm:w-[90%] md:w-[80%] lg:w-[70%] border border-indigo-300 overflow-y-auto max-h-[85vh] sm:max-h-[80vh]">
@@ -77,7 +118,7 @@ const LobbySettings = ({ user }) => {
               Number of Rounds:{" "}
               <span className="text-lg sm:text-xl font-bold">{gameState.maxRounds}</span>
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full md:w-auto">
               <input
                 id="maxRounds"
                 type="range"
@@ -85,15 +126,18 @@ const LobbySettings = ({ user }) => {
                 max="10"
                 value={gameState.maxRounds}
                 onChange={(e) => setMaxRounds(parseInt(e.target.value))}
-                className="w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
+                className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
               />
-              <div className="relative inline-block group">
-                <button className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500">
+              <div className="relative inline-block">
+                <button 
+                  ref={roundsButtonRef} 
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
+                  onMouseEnter={() => setTooltipStates(prev => ({...prev, rounds: true}))}
+                  onMouseLeave={() => setTooltipStates(prev => ({...prev, rounds: false}))}
+                >
                   <span>?</span>
                 </button>
-                <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-xs sm:text-sm rounded-lg p-1.5 sm:p-2 mt-1 right-0 w-40 sm:w-48 z-50">
-                  A round is everyone drawing one word from your selected category!
-                </div>
+                {tooltipStates.rounds && <InfoTooltip text="A round is everyone drawing one word from your selected category!" buttonRef={roundsButtonRef} />}
               </div>
             </div>
           </div>
@@ -116,15 +160,18 @@ const LobbySettings = ({ user }) => {
                 max="75"
                 value={gameState.revealCharacters}
                 onChange={(e) => setRevealCharacters(parseInt(e.target.value))}
-                className="w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
+                className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
               />
-              <div className="relative inline-block group">
-                <button className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500">
+              <div className="relative inline-block">
+                <button 
+                  ref={lettersButtonRef} 
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
+                  onMouseEnter={() => setTooltipStates(prev => ({...prev, letters: true}))}
+                  onMouseLeave={() => setTooltipStates(prev => ({...prev, letters: false}))}
+                >
                   <span>?</span>
                 </button>
-                <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-xs sm:text-sm rounded-lg p-1.5 sm:p-2 mt-1 right-0 w-40 sm:w-48 z-50">
-                  How many letters will be shown as hints during the game
-                </div>
+                {tooltipStates.letters && <InfoTooltip text="How many letters will be shown as hints during the game" buttonRef={lettersButtonRef} />}
               </div>
             </div>
           </div>
@@ -145,15 +192,18 @@ const LobbySettings = ({ user }) => {
                 max="5"
                 value={gameState.selectWord}
                 onChange={(e) => setSelectWord(parseInt(e.target.value))}
-                className="w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
+                className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
               />
-              <div className="relative inline-block group">
-                <button className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500">
+              <div className="relative inline-block">
+                <button 
+                  ref={wordsButtonRef} 
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
+                  onMouseEnter={() => setTooltipStates(prev => ({...prev, words: true}))}
+                  onMouseLeave={() => setTooltipStates(prev => ({...prev, words: false}))}
+                >
                   <span>?</span>
                 </button>
-                <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-xs sm:text-sm rounded-lg p-1.5 sm:p-2 mt-1 right-0 w-40 sm:w-48 z-50">
-                  The drawer will select one word from the list
-                </div>
+                {tooltipStates.words && <InfoTooltip text="The drawer will select one word from the list" buttonRef={wordsButtonRef} />}
               </div>
             </div>
           </div>
@@ -174,15 +224,18 @@ const LobbySettings = ({ user }) => {
                 max="180"
                 value={gameState.roundTime}
                 onChange={(e) => setRoundTime(parseInt(e.target.value))}
-                className="w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
+                className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
               />
-              <div className="relative inline-block group">
-                <button className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500">
+              <div className="relative inline-block">
+                <button 
+                  ref={timeButtonRef} 
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
+                  onMouseEnter={() => setTooltipStates(prev => ({...prev, time: true}))}
+                  onMouseLeave={() => setTooltipStates(prev => ({...prev, time: false}))}
+                >
                   <span>?</span>
                 </button>
-                <div className="absolute hidden group-hover:block bg-indigo-700/90 backdrop-blur-md text-white text-xs sm:text-sm rounded-lg p-1.5 sm:p-2 mt-1 right-0 w-40 sm:w-48 z-50">
-                  Time limit for drawing each word
-                </div>
+                {tooltipStates.time && <InfoTooltip text="Time limit for drawing each word" buttonRef={timeButtonRef} />}
               </div>
             </div>
           </div>

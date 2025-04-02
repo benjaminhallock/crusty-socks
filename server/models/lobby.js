@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-import { GAME_STATE } from "../../shared/constants.js";
+import { GAME_STATE } from '../../shared/constants.js';
 
 /**
  * Lobby Schema
@@ -24,13 +24,12 @@ const lobbySchema = new mongoose.Schema(
       min: 2,
       required: true,
     },
-
     // Player roster with scoring
     players: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "User", // Reference to User model
+          ref: 'User', // Reference to User model
         },
         username: String,
         score: {
@@ -95,17 +94,17 @@ const lobbySchema = new mongoose.Schema(
     },
     selectCategory: {
       type: String,
-      default: "random", // Default category
+      default: 'random', // Default category
     },
     // Active game state
     currentWord: {
       type: String,
-      default: "",
+      default: '',
     },
     currentDrawer: {
       type: String,
-      ref: "User",
-      default: "",
+      ref: 'User',
+      default: '',
     },
     gameState: {
       type: String,
@@ -130,6 +129,17 @@ const lobbySchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // List of kicked users who cannot rejoin this lobby
+    kickedUsers: [{
+      username: {
+        type: String,
+        required: true
+      },
+      kickedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     },
     {
     timestamps: true, // Adds createdAt and updatedAt
@@ -148,14 +158,14 @@ lobbySchema.methods.findPlayerByUsername = function (username) {
 
 // Updates game state with validation
 lobbySchema.methods.setGameState = function (state) {
-  console.log("Updating game state:", { roomId: this.roomId, newState: state });
+  console.log('Updating game state:', { roomId: this.roomId, newState: state });
   this.gameState = state;
   return this.save();
 };
 
 // Adds new player if not already in lobby
 lobbySchema.methods.addPlayer = function (username) {
-  console.log("Adding player to lobby:", { roomId: this.roomId, username });
+  console.log('Adding player to lobby:', { roomId: this.roomId, username });
   if (!this.players.find((p) => p.username === username)) {
     this.players.push({ username });
     return this.save();
@@ -164,14 +174,14 @@ lobbySchema.methods.addPlayer = function (username) {
 
 // Removes player from lobby
 lobbySchema.methods.removePlayerByUsername = function (username) {
-  console.log("Removing player from lobby:", { roomId: this.roomId, username });
+  console.log('Removing player from lobby:', { roomId: this.roomId, username });
   this.players = this.players.filter((p) => p.username !== username);
   return this.save();
 };
 
 // Adds chat message to history
 lobbySchema.methods.addMessage = function (messageData) {
-  console.log("Adding message to lobby:", {
+  console.log('Adding message to lobby:', {
     roomId: this.roomId,
     username: messageData.username,
   });
@@ -183,6 +193,21 @@ lobbySchema.methods.addMessage = function (messageData) {
   return this.save();
 };
 
+// Adds a user to the kicked list
+lobbySchema.methods.addKickedUser = function (username) {
+  console.log('Adding user to kicked list:', { roomId: this.roomId, username });
+  if (!this.isUserKicked(username)) {
+    this.kickedUsers.push({ username });
+    return this.save();
+  }
+  return this;
+};
+
+// Checks if a user has been kicked
+lobbySchema.methods.isUserKicked = function (username) {
+  return this.kickedUsers.some(kicked => kicked.username === username);
+};
+
 /**
  * Static Methods
  * Utility functions for lobby management
@@ -190,7 +215,7 @@ lobbySchema.methods.addMessage = function (messageData) {
 
 // Creates or retrieves existing lobby
 lobbySchema.statics.findOrCreate = async function (roomId) {
-  console.log("Finding or creating lobby:", roomId);
+  console.log('Finding or creating lobby:', roomId);
   let lobby = await this.findOne({ roomId });
   if (!lobby) {
     lobby = new this({
@@ -205,7 +230,7 @@ lobbySchema.statics.findOrCreate = async function (roomId) {
 
 // Performance optimizations
 lobbySchema.index({ createdAt: -1 });
-lobbySchema.index({ "players.userId": 1, roomId: 1 }, { unique: true });
+lobbySchema.index({ 'players.userId': 1, roomId: 1 }, { unique: true });
 
-const Lobby = mongoose.model("Lobby", lobbySchema);
+const Lobby = mongoose.model('Lobby', lobbySchema);
 export default Lobby;

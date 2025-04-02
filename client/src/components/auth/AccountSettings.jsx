@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import Button from '../common/ui/Button';
 
 const AccountSettings = ({ user }) => {
@@ -56,7 +57,13 @@ const AccountSettings = ({ user }) => {
               Member Since
             </label>
             <p className="mt-1 text-lg text-gray-900 dark:text-white">
-              {new Date(user?.createdAt).toLocaleDateString()}
+              {user?.createdAt ? new Date(user.createdAt).toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : 'N/A'}
             </p>
           </div>
 

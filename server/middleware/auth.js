@@ -62,6 +62,8 @@ export const isAdmin = async (req, res, next) => {
     req.user = user;
     req.token = `Bearer ${token}`;
     req._id = user._id;
+
+    next();
   } catch (err) {
     res.status(401).json({
       success: false,

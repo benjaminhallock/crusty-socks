@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { GAME_STATE } from '../../../../shared/constants';
+
 import { socketManager } from '../../services/socket';
+import { GAME_STATE } from '../../../../shared/constants';
 
 const HiddenWord = ({ word, isDrawing, isRevealing, gameState, startTime, roundTime, rounds, maxRounds, roomId }) => {
   const [timeLeft, setTimeLeft] = useState(roundTime);
+  const [currentRound, setCurrentRound] = useState(rounds || 1);
   const WORD_SELECTION_TIME = 15; // 15 seconds to pick a word
+
+  // Update local round state when prop changes
+  useEffect(() => {
+    if (rounds !== undefined) {
+      setCurrentRound(rounds || 1);
+    }
+  }, [rounds]);
 
   useEffect(() => {
     let intervalId;

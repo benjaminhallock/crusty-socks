@@ -12,10 +12,14 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
   const [localMessages, setLocalMessages] = useState(messages); // Local copy of messages
   const [error, setError] = useState(null); // Error handling state
   const messagesEndRef = useRef(null); // Reference for auto-scrolling
+  const chatContainerRef = useRef(null); // Reference for the chat container
 
   // Helper function to auto-scroll to bottom of chat
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      const { scrollHeight, clientHeight } = chatContainerRef.current;
+      chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
+    }
   };
 
   // Main useEffect for socket connection and message handling
@@ -140,12 +144,15 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
     <div id="chatBox" className="flex flex-col h-full">
       {/* Chat messages container */}
       <div className="flex-1 bg-white/95 dark:bg-gray-800/95 rounded-lg mt-2 flex flex-col justify-between transition-colors">
-        <div className="h-[calc(78vh-44px)] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
+        <div 
+          ref={chatContainerRef} 
+          className="h-[calc(78vh-44px)] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800"
+        >
           {localMessages.map((msg, i) => renderMessage(msg, i))}
-          <div ref={messagesEndRef} /> {/* Auto-scroll anchor */}
+          <div ref={messagesEndRef} className="h-0" /> {/* Invisible marker for scroll position */}
         </div>
 
-        {/* Message input form - now using absolute positioning */}
+        {/* Message input form */}
         <div className="sticky bottom-0 w-full bg-white/95 dark:bg-gray-800/95 border-t dark:border-gray-700">
           <form onSubmit={handleSubmit} className="p-2">
             <div className="flex gap-1">

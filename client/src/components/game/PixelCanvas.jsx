@@ -1,10 +1,4 @@
 import { useRef, useState, useEffect } from "react";
-import { socketManager } from "../../services/socket";
-import {
-  GAME_CONSTANTS,
-  SOCKET_EVENTS,
-  GAME_STATE,
-} from "../../../../shared/constants";
 import {
   FaPaintBrush,
   FaFill,
@@ -14,6 +8,13 @@ import {
   FaDownload,
 } from "react-icons/fa";
 
+import { socketManager } from "../../services/socket";
+import {
+  GAME_CONSTANTS,
+  SOCKET_EVENTS,
+  GAME_STATE,
+} from "../../../../shared/constants";
+
 /**
  * ToolButton Component
  * Reusable button component for drawing tools with active state styling
@@ -22,7 +23,7 @@ const ToolButton = ({ active, onClick, children, title }) => (
   <button
     onClick={onClick}
     title={title}
-    className={`p-3 rounded-lg text-sm transition-colors ${
+    className={`p-2 rounded-md text-sm transition-colors ${
       active
         ? "bg-indigo-600 text-white hover:bg-indigo-700"
         : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
@@ -234,14 +235,48 @@ const PixelCanvas = ({
   const handleMouseDown = (e) => {
     if (!isDrawer) return;
     setIsDrawing(true);
+    
+    // Add drawing on click without requiring drag
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    
+    // For fill tool, handle it directly here
+    if (currentTool === "fill") {
+      saveState();
+      const filled = floodFill(ctx, x, y, currentColor);
+      if (filled) {
+        socketManager.updateCanvas(canvas.toDataURL());
+      }
+    } else {
+      // For brush/eraser, draw a single pixel
+      drawPixel(ctx, x, y, currentColor);
+    }
   };
 
   const handleMouseUp = () => {
     if (!isDrawer) return;
     setIsDrawing(false);
-    saveState();
-    const canvasData = canvasRef.current.toDataURL();
-    socketManager.updateCanvas(canvasData);
+    
+    // Save the current state for undo history
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const currentState = canvas.toDataURL();
+      setHistory(prevHistory => [...prevHistory, currentState]);
+      setRedoStates([]); // Clear redo stack on new action
+      
+      // Send canvas update
+      socketManager.updateCanvas(currentState);
+    }
   };
 
   const handleTouchStart = (e) => {
@@ -279,6 +314,11 @@ const PixelCanvas = ({
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
+        
+        // Send the updated canvas to other players
+        if (isDrawer) {
+          socketManager.updateCanvas(canvas.toDataURL());
+        }
       };
     }
   };
@@ -438,7 +478,7 @@ const PixelCanvas = ({
     };
   }, [gameState, startTime, roundTime, roomId]);
 
-  // Update the gameState and currentDrawer dependencies to reset canvas
+  // Update when drawer changes or game state changes to clear canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -447,27 +487,33 @@ const PixelCanvas = ({
     if (!ctx) return;
 
     // Clear canvas when:
-    // 1. A new drawer is selected
-    // 2. Game transitions to PICKING_WORD state (new round/turn)
-    if (gameState === GAME_STATE.PICKING_WORD) {
-      console.log("Clearing canvas for new drawing round");
+    // 1. Game transitions to PICKING_WORD state (new round/turn)
+    // 2. Game transitions to DRAWING state with a new drawer
+    // 3. Whenever drawer username changes
+    if (gameState === GAME_STATE.PICKING_WORD || gameState === GAME_STATE.DRAWING) {
+      console.log(`Clearing canvas for new drawing round (state: ${gameState}, drawer: ${drawerUsername})`);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       
       // Reset history for undo/redo
       setHistory([canvas.toDataURL()]);
       setRedoStates([]);
+      
+      // If we're in DRAWING state, send the cleared canvas to all players
+      if (gameState === GAME_STATE.DRAWING && isDrawer) {
+        socketManager.updateCanvas(canvas.toDataURL());
+      }
     }
   }, [gameState, drawerUsername]);
 
   return (
     <div
       id="canvas"
-      className="flex flex-col items-center gap-4 w-full h-full p-4 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors"
+      className="flex flex-col items-center w-full h-full p-2 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors"
     >
       {!isDrawer && (
-        <div className="bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-lg shadow-sm mb-2">
-          <p className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+        <div className="bg-white/95 dark:bg-gray-800/95 px-3 py-1 rounded-lg shadow-sm mb-1 text-center">
+          <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             {drawerUsername} is drawing...
           </p>
         </div>
@@ -497,78 +543,65 @@ const PixelCanvas = ({
       />
 
       {isDrawer && (
-        <>
-          <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-3 rounded-lg transition-colors">
-            <input
-              type="color"
-              value={currentColor}
-              onChange={(e) => setCurrentColor(e.target.value)}
-              className="w-10 h-10 rounded cursor-pointer"
-              title="Choose color"
-              aria-label="Choose color"
-            />
-            <div className="flex flex-wrap gap-2">
-              <ToolButton
-                active={currentTool === "brush"}
-                onClick={() => setCurrentTool("brush")}
-                title="Brush Tool"
-              >
-                <FaPaintBrush className="w-5 h-5" />
-              </ToolButton>
-              <ToolButton
-                active={currentTool === "fill"}
-                onClick={() => setCurrentTool("fill")}
-                title="Fill Tool"
-              >
-                <FaFill className="w-5 h-5" />
-              </ToolButton>
-              <ToolButton
-                active={currentTool === "eraser"}
-                onClick={() => setCurrentTool("eraser")}
-                title="Eraser Tool"
-              >
-                <FaEraser className="w-5 h-5" />
-              </ToolButton>
-              <ToolButton onClick={undo} title="Undo">
-                <FaUndo className="w-5 h-5" />
-              </ToolButton>
-              <ToolButton onClick={redo} title="Redo">
-                <FaRedo className="w-5 h-5" />
-              </ToolButton>
-              <ToolButton onClick={saveToPng} title="Save as PNG">
-                <FaDownload className="w-5 h-5" />
-              </ToolButton>
-            </div>
+        <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-700/50 p-1.5 rounded-lg transition-colors mt-1 w-full">
+          <input
+            type="color"
+            value={currentColor}
+            onChange={(e) => setCurrentColor(e.target.value)}
+            className="w-8 h-8 rounded cursor-pointer"
+            title="Choose color"
+            aria-label="Choose color"
+          />
+          
+          <div className="flex flex-wrap gap-1">
+            <ToolButton
+              active={currentTool === "brush"}
+              onClick={() => setCurrentTool("brush")}
+              title="Brush Tool"
+            >
+              <FaPaintBrush className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton
+              active={currentTool === "fill"}
+              onClick={() => setCurrentTool("fill")}
+              title="Fill Tool"
+            >
+              <FaFill className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton
+              active={currentTool === "eraser"}
+              onClick={() => setCurrentTool("eraser")}
+              title="Eraser Tool"
+            >
+              <FaEraser className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton onClick={undo} title="Undo">
+              <FaUndo className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton onClick={redo} title="Redo">
+              <FaRedo className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton onClick={saveToPng} title="Save as PNG">
+              <FaDownload className="w-4 h-4" />
+            </ToolButton>
           </div>
-
-          {/* Compact Grid Size Slider */}
-          <div className="flex items-center gap-4 bg-white/50 dark:bg-gray-700/50 p-4 rounded-lg transition-colors w-full">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">
-              Brush Size:
+          
+          <div className="flex items-center ml-auto">
+            <span className="text-xs text-gray-700 dark:text-gray-300 mr-1 whitespace-nowrap">
+              Size: {gridSize}px
             </span>
-            <div className="relative flex-1 group">
-              <input
-                type="range"
-                min="8"
-                max="40"
-                step="4"
-                value={gridSize}
-                onChange={(e) => setGridSize(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
-                dark:bg-gray-600 
-                focus:outline-none focus:ring-2 focus:ring-indigo-500
-                before:content-[''] before:absolute before:top-0 before:left-0 before:h-2 
-                before:rounded-l-lg before:bg-indigo-500 before:transition-all
-                after:content-[''] after:absolute after:top-0 after:left-0 after:h-2
-                after:rounded-l-lg after:bg-indigo-500 after:transition-all
-                group-focus:before:w-full group-focus:after:w-full"
-              />
-              <span className="text-sm font-mono w-10 text-center text-gray-700 dark:text-gray-300">
-                {gridSize}px
-              </span>
-            </div>
+            <input
+              type="range"
+              min="8"
+              max="40"
+              step="4"
+              value={gridSize}
+              onChange={(e) => setGridSize(parseInt(e.target.value))}
+              className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
+              dark:bg-gray-600 accent-indigo-600"
+            />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

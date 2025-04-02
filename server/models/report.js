@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const reportSchema = new mongoose.Schema({
     reportedUser: { type: String, required: true }, // Changed from ObjectId to String
@@ -16,9 +16,9 @@ const reportSchema = new mongoose.Schema({
     drawingData: { type: String }, // Base64 encoded drawing data
     status: {
         type: String,
-        enum: ["pending", "reviewed", "resolved"],
-        default: "pending",
+        enum: ['pending', 'reviewed', 'resolved'],
+        default: 'pending',
     },
 });
 
-export default mongoose.model("Report", reportSchema);
+export default mongoose.model('Report', reportSchema);

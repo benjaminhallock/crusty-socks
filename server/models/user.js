@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
     minlength: 6,
     maxlength: 20,
+    lowercase: true,
     match: [/^[a-zA-Z0-9]+$/, 'Username can only contain letters and numbers']
   },
   email: {
@@ -28,6 +29,24 @@ const userSchema = new mongoose.Schema({
   isAdmin: {
     type: Boolean,
     default: false
+  },
+  gameStats: {
+    totalScore: {
+      type: Number,
+      default: 0
+    },
+    currentRoundPoints: {
+      type: Number,
+      default: 0
+    },
+    gamesPlayed: {
+      type: Number,
+      default: 0
+    },
+    gamesWon: {
+      type: Number,
+      default: 0
+    }
   }
 }, {
   timestamps: true,

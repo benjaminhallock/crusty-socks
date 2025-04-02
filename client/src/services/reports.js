@@ -34,8 +34,21 @@ export const createReport = async (reportData) => {
       };
     }
     
+    // Prepare the data to send to the server
+    const dataToSend = {
+      reportedUser: reportData.reportedUser,
+      reason: reportData.reason || 'Inappropriate behavior',
+      roomId: reportData.roomId,
+      chatLogs: reportData.chatLogs || []
+    };
+    
+    // Include additional comments if provided
+    if (reportData.additionalComments) {
+      dataToSend.additionalComments = reportData.additionalComments;
+    }
+    
     // Log what we're sending to help debug
-    console.log("Sending report data:", reportData);
+    console.log("Sending report data:", dataToSend);
     
     const response = await axios({
       url: `${ENV_CONFIG.API_URL}/api/reports`,
@@ -44,7 +57,7 @@ export const createReport = async (reportData) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      data: reportData
+      data: dataToSend
     });
     
     return { success: true, report: response.data.report };

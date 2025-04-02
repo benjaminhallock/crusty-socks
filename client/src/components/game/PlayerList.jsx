@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 
 import ContextMenu from "./ContextMenu";
+import ReportModal from "./ReportModal";
 import { socketManager } from "../../services/socket";
 import { createReport } from "../../services/reports";
 import { GAME_STATE } from "../../../../shared/constants";
@@ -33,6 +34,7 @@ const PlayerList = ({
 }) => {
   const [showPopup, setShowPopup] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
+  const [reportModal, setReportModal] = useState(null);
   // Track previous scores to detect changes
   const prevScoresRef = useRef({});
   // Store point animations
@@ -103,7 +105,7 @@ const PlayerList = ({
       options: [
         {
           label: "Report Player",
-          onClick: () => handleReportPlayer(player.username),
+          onClick: () => setReportModal(player.username),
         },
         {
           label: "Kick Player",
@@ -113,37 +115,6 @@ const PlayerList = ({
         },
       ],
     });
-  };
-
-  const handleReportPlayer = async (username) => {
-    const reportData = {
-      reportedUser: username,
-      reportedBy: currentUsername,
-      roomId: roomId,
-      reason: "Inappropriate behavior",
-      chatLogs: chatLogs.slice(-10),
-    };
-
-    const result = await createReport(reportData);
-
-    // Show toast notification
-    const toast = document.createElement("div");
-    toast.className = `fixed bottom-4 right-4 ${
-      result.success ? "bg-green-500" : "bg-red-500"
-    } 
-       text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg z-50`;
-    toast.innerHTML = `
-      <span>${
-        result.success ? "Report submitted" : "Failed to submit report"
-      }</span>
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-
-    setContextMenu(null);
   };
 
   const getPlayerBackgroundClass = (player) => {
@@ -279,6 +250,15 @@ const PlayerList = ({
       </ul>
       {contextMenu && (
         <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />
+      )}
+      {reportModal && (
+        <ReportModal
+          reportedUser={reportModal}
+          onClose={() => setReportModal(null)}
+          chatLogs={chatLogs}
+          currentUsername={currentUsername}
+          roomId={roomId}
+        />
       )}
     </div>
   );

@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
 
 const reportSchema = new mongoose.Schema({
-    reportedUser: { type: String, required: true }, // Changed from ObjectId to String
-    reportedBy: { type: String, required: true },   // Changed from ObjectId to String
-    roomId: { type: String, required: true },       // Changed from ObjectId to String
+    reportedUser: { type: String, required: true }, 
+    reportedBy: { type: String, required: true },
+    roomId: { type: String, required: true },
     reason: { type: String, required: true },
+    additionalComments: { type: String },
     timestamp: { type: Date, default: Date.now },
     chatLogs: [
         {

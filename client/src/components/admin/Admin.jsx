@@ -510,6 +510,17 @@ const Admin = ({ user }) => {
                   value={editFormData.reason || ''}
                   onChange={handleInputChange}
                   className="w-full p-2 bg-gray-700 text-white rounded"
+                  rows="2"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-300 mb-2">Additional Comments</label>
+                <textarea
+                  name="additionalComments"
+                  value={editFormData.additionalComments || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-2 bg-gray-700 text-white rounded"
                   rows="3"
                 />
               </div>
@@ -581,7 +592,7 @@ const Admin = ({ user }) => {
           onClick={toggleSidebar}
           className="text-white p-2 rounded hover:bg-gray-700 focus:outline-none"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/200/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
@@ -667,7 +678,18 @@ const Admin = ({ user }) => {
                   <tr key={report._id} className="hover:bg-gray-700">
                     <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300 whitespace-nowrap">{report.reportedUser}</td>
                     <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300 whitespace-nowrap">{report.reportedBy}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">{report.reason}</td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">
+                      <div>
+                        <span className="font-medium">{report.reason}</span>
+                        {report.additionalComments && (
+                          <p className="text-gray-400 text-xs mt-1 max-w-xs overflow-hidden text-ellipsis">
+                            {report.additionalComments.length > 50 
+                              ? `${report.additionalComments.substring(0, 50)}...` 
+                              : report.additionalComments}
+                          </p>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         report.status === 'pending' ? 'bg-yellow-500 text-yellow-900' :

@@ -6,6 +6,20 @@ import { socketManager } from "../../services/socket";
 import { createReport } from "../../services/reports";
 import { GAME_STATE } from "../../../../shared/constants";
 
+// CSS for point animation - moved to the top
+const floatUpAnimation = `
+  @keyframes float-up {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+  }
+`;
+
 // Component for animating point changes
 const PointChangeAnimation = ({ points }) => {
   if (points <= 0) return null;
@@ -130,24 +144,19 @@ const PlayerList = ({
     return "bg-gray-200 dark:bg-gray-700";
   };
 
+  // Fix the undefined lobby reference
+  const isCurrentDrawer = (player) => {
+    return player.username === drawerUsername;
+  };
+
   return (
     <div
       id="playerList"
       className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 shadow-lg relative flex-1 flex flex-col transition-colors"
     >
-      {/* Add keyframe animation to global styles */}
-      <style jsx global>{`
-        @keyframes float-up {
-          0% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-20px);
-            opacity: 0;
-          }
-        }
-      `}</style>
+      {/* Fix the invalid jsx/global attributes by using standard style tag */}
+      <style dangerouslySetInnerHTML={{ __html: floatUpAnimation }} />
+      
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
           Players
@@ -229,9 +238,9 @@ const PlayerList = ({
             <span className="flex justify-between w-full text-gray-800 dark:text-gray-200 font-medium text-sm">
               <span className="flex items-center gap-2">
                 {player.username}
-                {player.hasGuessedCorrect && (
+                {player.hasGuessedCorrect && !isCurrentDrawer(player) && (
                   <span className="text-xs text-green-600 dark:text-green-400">
-                    Finished!
+                    Guessed!
                   </span>
                 )}
               </span>

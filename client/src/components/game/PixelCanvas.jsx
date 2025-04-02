@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   FaPaintBrush,
   FaFill,
@@ -47,6 +47,7 @@ const PixelCanvas = ({
   startTime,
   roomId,
 }) => {
+  // console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
   // Core canvas state and refs
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -56,54 +57,15 @@ const PixelCanvas = ({
   const [redoStates, setRedoStates] = useState([]); // For redo functionality
   const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE); // Add grid size state
   
-  // Refs for update optimization
-  const updateTimeoutRef = useRef(null);
-  const lastUpdateTimeRef = useRef(0);
-  const pixelUpdateCountRef = useRef(0);
-  const lastPositionRef = useRef(null);
-
   // Canvas configuration constants
   const CANVAS_HEIGHT = GAME_CONSTANTS.CANVAS_HEIGHT;
   const CANVAS_WIDTH = GAME_CONSTANTS.CANVAS_WIDTH;
-  const UPDATE_THROTTLE_MS = 50; // Only send updates every 50ms max
-  const MIN_PIXELS_FOR_UPDATE = 3; // Batch at least 3 pixels before sending update
-
-  /**
-   * Debounced canvas update function to reduce network traffic
-   * Only sends updates after drawing activity has paused or enough pixels changed
-   */
-  const debouncedCanvasUpdate = useCallback(() => {
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!canvas || !isDrawer) return;
-    
-    // Clear any pending timeout
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
-      updateTimeoutRef.current = null;
-    }
-    
-    // Send update if enough time has passed or enough pixels have changed
-    if (timeSinceLastUpdate > UPDATE_THROTTLE_MS || pixelUpdateCountRef.current >= MIN_PIXELS_FOR_UPDATE) {
-      lastUpdateTimeRef.current = now;
-      pixelUpdateCountRef.current = 0;
-      
-      // Use a lower quality setting for faster transfers
-      const canvasData = canvas.toDataURL('image/jpeg', 0.8);
-      socketManager.updateCanvas(canvasData);
-    } else {
-      // Schedule update for later
-      updateTimeoutRef.current = setTimeout(() => {
-        lastUpdateTimeRef.current = Date.now();
-        pixelUpdateCountRef.current = 0;
-        const canvasData = canvas.toDataURL('image/jpeg', 0.8);
-        socketManager.updateCanvas(canvasData);
-        updateTimeoutRef.current = null;
-      }, UPDATE_THROTTLE_MS);
-    }
-  }, [isDrawer]);
+  
+  // Add throttling references for optimizing canvas updates
+  const lastUpdateTimeRef = useRef(0);
+  const pendingPixelsRef = useRef([]);
+  const UPDATE_INTERVAL = 100; // milliseconds between updates
+  const batchTimeoutRef = useRef(null);
 
   /**
    * Draws a single pixel on the grid
@@ -122,37 +84,25 @@ const PixelCanvas = ({
       ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
       ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
       
-      // Increment the pixel update counter
-      pixelUpdateCountRef.current++;
-      
-      // Batch updates instead of sending each pixel
-      debouncedCanvasUpdate();
-    }
-  };
-
-  /**
-   * Draw a line between two points using Bresenham's algorithm
-   * This helps create smooth lines even when moving the mouse quickly
-   */
-  const drawLine = (ctx, x0, y0, x1, y1, color) => {
-    const dx = Math.abs(x1 - x0);
-    const dy = Math.abs(y1 - y0);
-    const sx = (x0 < x1) ? 1 : -1;
-    const sy = (y0 < y1) ? 1 : -1;
-    let err = dx - dy;
-    
-    while (true) {
-      drawPixel(ctx, x0, y0, color);
-      
-      if (x0 === x1 && y0 === y1) break;
-      const e2 = 2 * err;
-      if (e2 > -dy) {
-        err -= dy;
-        x0 += sx;
-      }
-      if (e2 < dx) {
-        err += dx;
-        y0 += sy;
+      // Throttle canvas updates
+      const now = Date.now();
+      if (now - lastUpdateTimeRef.current > UPDATE_INTERVAL) {
+        // If enough time has passed, send update immediately
+        lastUpdateTimeRef.current = now;
+        const canvasData = canvasRef.current.toDataURL();
+        socketManager.updateCanvas(canvasData);
+      } else {
+        // Otherwise, schedule a batch update
+        if (batchTimeoutRef.current === null) {
+          batchTimeoutRef.current = setTimeout(() => {
+            if (canvasRef.current) {
+              lastUpdateTimeRef.current = Date.now();
+              const canvasData = canvasRef.current.toDataURL();
+              socketManager.updateCanvas(canvasData);
+            }
+            batchTimeoutRef.current = null;
+          }, UPDATE_INTERVAL);
+        }
       }
     }
   };
@@ -274,17 +224,10 @@ const PixelCanvas = ({
       ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
     }
 
-    // Only send update once after all pixels are filled
-    if (pixelsToFill.length > 0) {
-      pixelUpdateCountRef.current = MIN_PIXELS_FOR_UPDATE;
-      debouncedCanvasUpdate();
-    }
-
     return pixelsToFill.length > 0;
   };
 
-  // Throttled mouse move handler to improve performance
-  const handleDraw = useCallback((e) => {
+  const handleDraw = (e) => {
     if (!isDrawing || !isDrawer) return;
     const canvas = canvasRef.current;
     if (!canvas) return; // Ensure canvas is valid
@@ -301,25 +244,20 @@ const PixelCanvas = ({
 
     if (currentTool === "fill") {
       saveState();
-      floodFill(ctx, x, y, currentColor);
+      const filled = floodFill(ctx, x, y, currentColor);
+      if (filled) {
+        // Only send update if something was filled
+        socketManager.updateCanvas(canvas.toDataURL());
+      }
       setIsDrawing(false);
     } else {
-      // For brush/eraser, draw lines between points for smoother drawing
-      // This prevents gaps when moving the mouse quickly
-      if (lastPositionRef.current) {
-        const [lastX, lastY] = lastPositionRef.current;
-        drawLine(ctx, lastX, lastY, x, y, currentColor);
-      } else {
-        drawPixel(ctx, x, y, currentColor);
-      }
-      lastPositionRef.current = [x, y];
+      drawPixel(ctx, x, y, currentColor);
     }
-  }, [isDrawing, isDrawer, currentTool, currentColor, gridSize, debouncedCanvasUpdate]);
+  };
 
-  const handleMouseDown = useCallback((e) => {
+  const handleMouseDown = (e) => {
     if (!isDrawer) return;
     setIsDrawing(true);
-    lastPositionRef.current = null; // Reset last position for a new stroke
     
     // Add drawing on click without requiring drag
     const canvas = canvasRef.current;
@@ -338,47 +276,46 @@ const PixelCanvas = ({
     // For fill tool, handle it directly here
     if (currentTool === "fill") {
       saveState();
-      floodFill(ctx, x, y, currentColor);
+      const filled = floodFill(ctx, x, y, currentColor);
+      if (filled) {
+        socketManager.updateCanvas(canvas.toDataURL());
+      }
     } else {
       // For brush/eraser, draw a single pixel
       drawPixel(ctx, x, y, currentColor);
-      lastPositionRef.current = [x, y];
     }
-  }, [isDrawer, currentTool, currentColor, gridSize, debouncedCanvasUpdate]);
+  };
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = () => {
     if (!isDrawer) return;
     setIsDrawing(false);
-    lastPositionRef.current = null; // Reset last position
     
-    // Force an update when mouse is released to ensure latest state is sent
+    // Save the current state for undo history
     const canvas = canvasRef.current;
     if (canvas) {
       const currentState = canvas.toDataURL();
       setHistory(prevHistory => [...prevHistory, currentState]);
       setRedoStates([]); // Clear redo stack on new action
       
-      // Force immediate update
-      lastUpdateTimeRef.current = Date.now();
-      pixelUpdateCountRef.current = 0;
+      // Send canvas update
       socketManager.updateCanvas(currentState);
     }
-  }, [isDrawer]);
+  };
 
-  const handleTouchStart = useCallback((e) => {
+  const handleTouchStart = (e) => {
     e.preventDefault();
     handleMouseDown(e.touches[0]);
-  }, [handleMouseDown]);
+  };
 
-  const handleTouchMove = useCallback((e) => {
+  const handleTouchMove = (e) => {
     e.preventDefault();
     handleDraw(e.touches[0]);
-  }, [handleDraw]);
+  };
 
-  const handleTouchEnd = useCallback((e) => {
+  const handleTouchEnd = (e) => {
     e.preventDefault();
     handleMouseUp();
-  }, [handleMouseUp]);
+  };
 
   const undo = () => {
     if (history.length > 1) {
@@ -428,7 +365,6 @@ const PixelCanvas = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
         
-        // Send the updated canvas to other players
         if (isDrawer) {
           socketManager.updateCanvas(nextState);
         }
@@ -446,11 +382,11 @@ const PixelCanvas = ({
     link.click();
   };
 
-  // Cleanup function to cancel any pending updates when component unmounts
+  // Clean up batch timeout on unmount
   useEffect(() => {
     return () => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
       }
     };
   }, []);
@@ -480,11 +416,10 @@ const PixelCanvas = ({
         saveState();
       }
     }, 0);
-  }, []);
+  }, [canvasRef.current]);
 
   // Add useEffect to listen for canvas updates from other players
   useEffect(() => {
-    // Only non-drawers should listen for updates
     if (!isDrawer) {
       const unsubscribe = socketManager.onCanvasUpdate((canvasData) => {
         const canvas = canvasRef.current;
@@ -501,7 +436,7 @@ const PixelCanvas = ({
         };
       });
       
-      return unsubscribe; // Cleanup subscription when component unmounts or dependency changes
+      return unsubscribe; // Clean up subscription when component unmounts
     }
   }, [isDrawer]);
 
@@ -568,6 +503,7 @@ const PixelCanvas = ({
         if (now >= endTime) {
           clearInterval(timerId);
           console.log("Time's up!");
+          // socketManager.emit(SOCKET_EVENTS.END_DRAWING, { roomId });
         }
       };
 
@@ -600,10 +536,6 @@ const PixelCanvas = ({
       // Reset history for undo/redo
       setHistory([canvas.toDataURL()]);
       setRedoStates([]);
-      
-      // Reset update counters and last position
-      pixelUpdateCountRef.current = 0;
-      lastPositionRef.current = null;
       
       // If we're in DRAWING state, send the cleared canvas to all players
       if (gameState === GAME_STATE.DRAWING && isDrawer) {

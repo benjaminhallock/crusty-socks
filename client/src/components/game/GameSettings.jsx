@@ -11,6 +11,7 @@ const GameSettings = ({ revealCharacters, maxRounds, selectWord, selectCategory,
     objects: "Objects 📱",
     vehicles: "Vehicles 🚗",
     sports: "Sports ⚽",
+    'video games': "Video Games 🎮",
   };
 
   return (

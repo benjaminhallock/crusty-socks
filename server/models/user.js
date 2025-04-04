@@ -47,6 +47,23 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 0
     }
+  },
+  chatHistory: [{
+    message: String,
+    roomId: String,
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  profile: {
+    displayName: String,
+    bio: String,
+    avatarUrl: String,
+    lastActive: {
+      type: Date,
+      default: Date.now
+    }
   }
 }, {
   timestamps: true,

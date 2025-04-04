@@ -56,15 +56,6 @@ io.engine.on('connection_error', (err) => {
   console.error('Socket.io engine connection error:', err);
 });
 
-// Attach connection listeners
-io.on('connect', (socket) => {
-  // console.log('Client connected:', socket.id);
-});
-
-io.on('connect_error', (err) => {
-  console.error('Socket.io connection error:', err);
-});
-
 // Middleware
 app.use(cors(corsOptions));
 

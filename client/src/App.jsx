@@ -20,6 +20,8 @@ import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
 import LobbySettings from "./components/lobby/LobbySettings";
 import AccountSettings from "./components/auth/AccountSettings";
+import Leaderboard from "./components/leaderboard/Leaderboard";
+import UserProfile from "./components/users/UserProfile";
 
 const ProtectedRoute = ({ user, children }) => {
   const location = useLocation();
@@ -165,6 +167,11 @@ function App() {
                   <Admin user={user} />
                 </AdminRoute>
               }
+            />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route 
+              path="/users/profile/:username" 
+              element={<UserProfile currentUser={user} />} 
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

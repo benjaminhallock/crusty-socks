@@ -112,14 +112,34 @@ class GameManager {
         }
         
         try {
-          // Create a report directly here
+          // Get the reported user's chat history for this room
+          const reportedUser = await User.findOne({ username });
+          
+          // Get relevant chat logs - combine room messages with user's chat history
+          const roomChatLogs = lobby.messages?.slice(-20) || [];
+          const userChatLogs = reportedUser?.chatHistory
+            ?.filter(chat => chat.roomId === roomId)
+            ?.slice(-50) || [];
+          
+          // Create a report with more comprehensive chat logs
           const report = new Report({
             reportedUser: username,
             reportedBy: reportingUser,
             roomId,
-            reason: reason || 'Inappropriate behavior', // Default reason
+            reason: reason || 'Inappropriate behavior',
             timestamp: Date.now(),
-            chatLogs: lobby.messages?.slice(-20) || [], // Include last 20 chat logs
+            chatLogs: [
+              ...roomChatLogs.map(log => ({
+                username: log.user,
+                message: log.message,
+                timestamp: log.timestamp
+              })),
+              ...userChatLogs.map(log => ({
+                username,
+                message: log.message,
+                timestamp: log.timestamp
+              }))
+            ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
             status: 'pending',
           });
           
@@ -240,12 +260,33 @@ class GameManager {
 
           const messageData = { username, message, timestamp: Date.now() };
 
-          // Store message in database and broadcast to room
-          await Lobby.findOneAndUpdate(
-            { roomId },
-            { $push: { messages: messageData } }
-          );
-          io.to(roomId).emit('chatMessage', messageData);
+          try {
+            // Store message in lobby history
+            await Lobby.findOneAndUpdate(
+              { roomId },
+              { $push: { messages: { user: username, message, timestamp: new Date() } } }
+            );
+            
+            // Also store in user's chat history for reporting purposes
+            await User.findOneAndUpdate(
+              { username },
+              { 
+                $push: { 
+                  chatHistory: { 
+                    message, 
+                    roomId,
+                    timestamp: new Date() 
+                  } 
+                },
+                'profile.lastActive': new Date()
+              }
+            );
+            
+            // Broadcast to room
+            io.to(roomId).emit('chatMessage', messageData);
+          } catch (error) {
+            console.error('Error saving chat message:', error);
+          }
         }
       );
 
@@ -964,6 +1005,34 @@ class GameManager {
         if (updatedLobby.currentRound > updatedLobby.maxRounds) {
           updatedLobby.gameState = GAME_STATE.FINISHED;
           updatedLobby.players.sort((a, b) => b.score - a.score);
+          
+          // Update player stats when the game is finished
+          const updatePromises = updatedLobby.players.map(async (player) => {
+            try {
+              // Find the player in the database
+              const user = await User.findOne({ username: player.username });
+              if (user) {
+                // Update game stats
+                user.gameStats.totalScore += player.score;
+                user.gameStats.gamesPlayed += 1;
+                
+                // Give a win to the player with the highest score
+                if (player === updatedLobby.players[0]) {
+                  user.gameStats.gamesWon += 1;
+                }
+                
+                // Save the updated user
+                await user.save();
+                console.log(`Updated stats for user ${player.username}: Score: ${player.score}, Total: ${user.gameStats.totalScore}`);
+              }
+            } catch (error) {
+              console.error(`Error updating stats for ${player.username}:`, error);
+            }
+          });
+          
+          // Wait for all updates to complete
+          await Promise.all(updatePromises);
+          
           await updatedLobby.save();
           io.to(roomId).emit(SOCKET_EVENTS.GAME_STATE_UPDATE, {
             lobby: updatedLobby,

@@ -22,7 +22,7 @@ const UserProfile = ({ currentUser }) => {
       try {
         setIsLoading(true);
         
-        // Fix: Use the full API URL with proper error handling
+        // The backend route is /api/users/profile/:username, so use that
         const apiUrl = import.meta.env.VITE_API_URL 
           ? `${import.meta.env.VITE_API_URL}/api/users/profile/${username}` 
           : `/api/users/profile/${username}`;

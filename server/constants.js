@@ -82,7 +82,7 @@ export const GAME_STATE = {
   COOLDOWN: "cooldown",
   PICKING_WORD: "picking_word",
   DRAWING: "drawing",
-  DRAW_END: "draw_end",  // Changed from END_DRAWING to DRAW_END
+  DRAW_END: "draw_end",
   ROUND_END: "round_end",
   GAME_END: "game_end",
   FINISHED: "finished",
@@ -91,32 +91,12 @@ export const GAME_STATE = {
 // Environment-specific settings
 export const ENV_CONFIG = {
   // For server-side usage
-  SOCKET_URL: process.env.SOCKET_URL || process.env.VITE_SOCKET_URL || "http://localhost:3001",
-  API_URL: process.env.API_URL || process.env.VITE_API_URL || "http://localhost:3001",
+  SOCKET_URL: process.env.SOCKET_URL || "http://localhost:3001",
+  API_URL: process.env.API_URL || "http://localhost:3001",
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5174",
   PORT: process.env.PORT || 3001,
   
-  // For client-side usage (with import.meta.env for Vite)
-  getClientApiUrl: () => {
-    if (typeof window !== 'undefined' && window.location) {
-      return import.meta?.env?.VITE_API_URL || process.env.VITE_API_URL || "http://localhost:3001";
-    }
-    return "http://localhost:3001";
-  },
-  
-  getClientSocketUrl: () => {
-    if (typeof window !== 'undefined' && window.location) {
-      return import.meta?.env?.VITE_SOCKET_URL || process.env.VITE_SOCKET_URL || "http://localhost:3001";
-    }
-    return "http://localhost:3001";
-  },
-  
   // Environment detection
-  isProduction: () => {
-    return process.env.NODE_ENV === 'production' || import.meta?.env?.PROD === true;
-  },
-  
-  isDevelopment: () => {
-    return process.env.NODE_ENV === 'development' || import.meta?.env?.DEV === true;
-  }
+  isProduction: () => process.env.NODE_ENV === 'production',
+  isDevelopment: () => process.env.NODE_ENV === 'development'
 };

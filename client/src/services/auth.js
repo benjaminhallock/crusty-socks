@@ -1,5 +1,5 @@
 import { makeApiCall } from "./reports.js";
-import { API_ENDPOINTS, ENV_CONFIG } from "../../../shared/constants.js";
+import { API_ENDPOINTS } from "../constants.js";
 
 export const fetchLobby = (roomId) => {
   if (!roomId) throw new Error("Room ID is required");

@@ -1,13 +1,16 @@
 import axios from "axios";
 
-import { ENV_CONFIG } from "../../../shared/constants.js";
+import { API_ENDPOINTS, ENV_CONFIG } from "../constants.js";
 
 // Export makeApiCall so it can be used by other services
 export const makeApiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
   try {
+    const apiUrl = ENV_CONFIG.getClientApiUrl();
+    console.log(`Making API call to: ${apiUrl}${endpoint}`);
+    
     const response = await axios({
-      url: `${ENV_CONFIG.API_URL}${endpoint}`,
+      url: `${apiUrl}${endpoint}`,
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -50,14 +53,9 @@ export const createReport = async (reportData) => {
     // Log what we're sending to help debug
     console.log("Sending report data:", dataToSend);
     
-    const response = await axios({
-      url: `${ENV_CONFIG.API_URL}/api/reports`,
+    const response = await makeApiCall(API_ENDPOINTS.CREATE_REPORT, {
       method: 'POST',
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      data: dataToSend
+      body: dataToSend
     });
     
     return { success: true, report: response.data.report };
@@ -85,8 +83,10 @@ export const updateReportStatus = async (reportId, status) => {
 
 export const getAllReports = async () => {
   try {
-    const response = await makeApiCall('/api/reports');
-    return { success: true, reports: response.data.reports };
+    // Change from API_ENDPOINTS.GET_ALL_REPORTS to "/api/reports" for direct path
+    const response = await makeApiCall("/api/reports");
+    console.log("Reports API response:", response.data);
+    return { success: true, reports: response.data.reports || [] };
   } catch (error) {
     console.error("Failed to fetch reports:", error);
     return { success: false, reports: [] };

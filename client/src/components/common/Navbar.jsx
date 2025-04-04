@@ -76,6 +76,15 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
         <div className="flex gap-2 items-center ml-auto">
           {isLoggedIn ? (
             <>
+              {/* Leaderboard button - Keep outside dropdown */}
+              <Button
+                onClick={() => navigate("/leaderboard")}
+                variant="light"
+                className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
+              >
+                <FaTrophy className="h-4 w-4" />
+                <span className="hidden sm:inline">Leaderboard</span>
+              </Button>
               {/* User Profile Link */}
               <Button
                 onClick={() => navigate(`/users/profile/${user?.username}`)}
@@ -163,44 +172,23 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           )}
 
           {/* Music Controls - Keep outside dropdown */}
-          {showPlayButton ? (
-            <Button
-              onClick={handlePlayMusic}
-              variant="light"
-              className={`text-sm flex items-center gap-2 play-music-button bg-white/80 dark:bg-gray-800/50 ${
-                animatePlayButton ? "shoot-off-screen" : ""
-              }`}
-            >
-              <FaMusic className="h-4 w-4" />
-              <span className="hidden sm:inline">Play Music</span>
-            </Button>
-          ) : (
-            <Button
-              onClick={handleMuteUnmute}
-              variant="light"
-              className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
-            >
-              {isMuted ? (
-                <FaVolumeMute className="h-4 w-4" />
-              ) : (
-                <FaVolumeUp className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">
-                {isMuted ? "Unmute" : "Mute"}
-              </span>
-            </Button>
-          )}
-
-          {/* Leaderboard button - Keep outside dropdown */}
           <Button
-            onClick={() => navigate("/leaderboard")}
+            onClick={() => {
+              setIsPlaying(!isPlaying);
+              if (!isPlaying && showPlayButton) {
+                setShowPlayButton(false);
+              }
+            }}
             variant="light"
             className="text-sm flex items-center gap-2 bg-white/80 dark:bg-gray-800/50"
           >
-            <FaTrophy className="h-4 w-4" />
-            <span className="hidden sm:inline">Leaderboard</span>
+            {isPlaying ? (
+              <FaVolumeMute className="h-4 w-4" />
+            ) : (
+              <FaMusic className="h-4 w-4" />
+            )}
           </Button>
-
+          
           {/* Dark mode toggle for non-logged in users */}
           {!isLoggedIn && (
             <Button

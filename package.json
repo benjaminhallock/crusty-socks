@@ -1,42 +1,42 @@
 {
   "name": "crustysocks",
   "version": "1.0.0",
-  "description": "A simple pixel art pictionary game",
-  "main": "server.js",
+  "description": "PixelParty drawing game",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm start",
-    "client": "cd client && npm run dev",
-    "install": "concurrently \"cd server && npm install\" \"cd client && npm install\"",
-    "client install": "cd client && npm install",
-    "server install": "cd server && npm install",
-    "test": "concurrently \"cd server && npm test\" \"cd client && npm test\"",
-    "build": "cd client && npm run build",
-    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "build": "npm run build:client",
+    "start:client": "cd client && npm run start",
+    "start:server": "cd server && npm run start",
+    "start": "cd server && npm run start",
     "lint": "concurrently \"cd client && npm run lint\" \"cd server && npm run lint\"",
-    "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\""
+    "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\"",
+    "sync-constants": "node sync-constants.js",
+    "predev": "npm run sync-constants",
+    "prebuild": "npm run sync-constants"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/benjaminhallock/crusty-socks.git"
-  },
-  "keywords": [],
+  "keywords": [
+    "drawing",
+    "game",
+    "socket.io",
+    "react",
+    "vite",
+    "express"
+  ],
   "author": "",
-  "license": "MIT",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/benjaminhallock/crusty-socks/issues"
-  },
-  "homepage": "https://github.com/benjaminhallock/crusty-socks#readme",
-  "dependencies": {
-    "concurrently": "^9.1.2",
-    "dotenv": "^16.4.7",
-    "react-icons": "^5.5.0"
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "devDependencies": {
-    "eslint": "^9.23.0"
   }
 }

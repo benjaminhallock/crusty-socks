@@ -1,47 +1,98 @@
-# Crusty Socks
+# CrustySocks (PixelParty)
 
-## Current Version: 1.1 Alpha 2/7/2025
+A multiplayer drawing and guessing game inspired by Pictionary, built with React, Socket.io, and Express.js.
 
-## Description
+## Project Structure
 
-A pixel art based spinoff of the popular game "Pictionary".
+This project consists of two main parts:
 
-## Installation
+- **Client**: React application built with Vite
+- **Server**: Express.js backend with Socket.io for real-time communication
+
+## Development
+
+### Prerequisites
+
+- Node.js >= 18
+- npm or yarn
+
+### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/benjaminhallock/crustysocks.git
-   cd crustysocks
-   ```
-2. Install the dependencies:
-   ```bash
-    npm install (will run npm install in both the client and server directories)
-   ```
-3. Start the development servers from root directory:
-   ```bash
-    npm run dev (will run npm start in both the client and server directories)
-   ```
+```bash
+git clone https://github.com/yourusername/crustysocks.git
+cd crustysocks
+```
 
-## Contributing
+2. Install dependencies for both client and server:
+```bash
+npm install
+```
 
-1. Create a branch for your feature:
-   ```bash
-    git checkout -b feature/your-feature-name
-   ```
-2. Commit your changes:
-   ```bash
-    git commit -m "Your commit message"
-   ```
-3. Push your changes:
-   ```bash
-    git push origin feature/your-feature-name
-   ```
-4. Create a pull request to the main branch.
+3. Set up environment variables:
+   - Copy `server/config.env.example` to `server/config.env` and update values
+   - Copy `client/.env.local.example` to `client/.env.local` and update values
 
-## License
+### Running in Development Mode
 
-MIT License. See LICENSE file for details.
+Start both the client and server concurrently:
+```bash
+npm run dev
+```
 
-## Contact
+Or run them separately:
+```bash
+npm run dev:client
+npm run dev:server
+```
 
-For questions or feedback, please open an issue in the repository.
+- Client will run on: http://localhost:5174
+- Server will run on: http://localhost:3001
+
+## Deployment
+
+### Deploying to Vercel
+
+This project is configured for seamless deployment to Vercel.
+
+1. Create a new project on Vercel and link your GitHub repository
+2. Vercel will automatically detect the configuration from `vercel.json`
+3. Add the following environment variables in Vercel:
+   - `ATLAS_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: A secure string for JWT token signing
+   - `NODE_ENV`: Set to `production`
+   - `CLIENT_URL`: URL of your deployed client
+
+### Manual Deployment
+
+To build the application for production:
+
+```bash
+npm run build
+```
+
+This will build the client application, ready to be served by the server.
+
+## Environment Variables
+
+### Server
+
+- `ATLAS_URI`: MongoDB connection string
+- `JWT_SECRET`: Secret for JWT token signing
+- `PORT`: Server port (default: 3001)
+- `NODE_ENV`: Environment mode (development/production)
+- `CLIENT_URL`: URL of the client application
+
+### Client
+
+- `VITE_API_URL`: URL of the backend API
+- `VITE_SOCKET_URL`: URL for Socket.io connection
+
+## Features
+
+- Real-time multiplayer drawing and guessing gameplay
+- User authentication and profiles
+- Leaderboard for competitive rankings
+- Player chat system
+- Admin controls for moderation
+- Responsive design for desktop and mobile

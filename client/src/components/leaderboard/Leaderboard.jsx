@@ -13,8 +13,8 @@ const Leaderboard = () => {
         
         // Fix: Use the correct API endpoint path
         const apiUrl = import.meta.env.VITE_API_URL 
-          ? `${import.meta.env.VITE_API_URL}/api/leaderboard` 
-          : '/api/leaderboard';
+          ? `${import.meta.env.VITE_API_URL}/api/users/leaderboard` 
+          : '/api/users/leaderboard';
           
         console.log('Fetching leaderboard from:', apiUrl);
         

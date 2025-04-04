@@ -1,7 +1,6 @@
 import { io } from "socket.io-client";
 
-import { ENV_CONFIG } from "../../../shared/constants.js";
-import { SOCKET_EVENTS } from "../../../shared/constants.js";
+import { ENV_CONFIG, SOCKET_EVENTS } from "../constants.js";
 
 class SocketManager {
   constructor() {
@@ -25,8 +24,10 @@ class SocketManager {
     }
 
     if (!this.socket) {
-      console.log("Creating new socket instance");
-      this.socket = io(ENV_CONFIG.SOCKET_URL, {
+      const socketUrl = ENV_CONFIG.getClientSocketUrl();
+      console.log("Creating new socket instance connecting to:", socketUrl);
+      
+      this.socket = io(socketUrl, {
         withCredentials: true,
         transports: ["websocket", "polling"],
         autoConnect: false,

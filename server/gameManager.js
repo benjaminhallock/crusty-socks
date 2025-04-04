@@ -1,6 +1,4 @@
-import { socketManager } from '../client/src/services/socket.js';
-import { GAME_STATE, SOCKET_EVENTS } from '../shared/constants.js';
-import { WORD_LIST } from '../shared/constants.js';
+import { GAME_STATE, SOCKET_EVENTS, WORD_LIST } from './constants.js';
 import Lobby from './models/lobby.js';
 import Report from './models/report.js';
 import User from './models/user.js';

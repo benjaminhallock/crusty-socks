@@ -4,7 +4,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
-import { ENV_CONFIG } from '../shared/constants.js';
+import { ENV_CONFIG } from './constants.js';
 import connectDB from './db/connection.js';
 import { initializeSocketEvents } from './gameManager.js';
 import lobbyRoutes from './routes/lobbys.js';
@@ -23,10 +23,9 @@ const httpServer = createServer(app);
 
 // Configure CORS for Express
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === 'production'
-      ? process.env.CLIENT_URL
-      : 'http://localhost:5174',
+  origin: ENV_CONFIG.isDevelopment() 
+    ? 'http://localhost:5174'
+    : ENV_CONFIG.CLIENT_URL,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
   credentials: true,
   maxAge: 86400,
@@ -36,10 +35,9 @@ const corsOptions = {
 // Initialize socket server with completely open CORS config
 const io = new Server(httpServer, {
   cors: {
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? process.env.CLIENT_URL
-        : 'http://localhost:5174',
+    origin: ENV_CONFIG.isDevelopment()
+      ? 'http://localhost:5174'
+      : ENV_CONFIG.CLIENT_URL,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -68,7 +66,7 @@ app.use('/api/reports', reportRoutes);
 // Socket.io setup
 initializeSocketEvents(io);
 
-const PORT = process.env.PORT || 3001;
+const PORT = ENV_CONFIG.PORT;
 
 // Start server
 const startServer = async () => {

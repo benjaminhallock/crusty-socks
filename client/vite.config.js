@@ -1,19 +1,25 @@
-import path from 'path'
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import path from "path";
+import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv } from "vite";
 
-// https://vitejs.dev/config/
+// Added definitions for 'process' and '__dirname' to resolve undefined variable errors
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+// Added 'process' definition to resolve undefined variable error
+const process = {
+  cwd: () => path.resolve(__dirname),
+};
+
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  const env = loadEnv(mode, process.cwd(), '')
-  
+  const env = loadEnv(mode, process.cwd(), "");
+
   return {
     plugins: [react()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@shared': path.resolve(__dirname, '../shared'),
+        "@": path.resolve(__dirname, "./src"),
+        "@shared": path.resolve(__dirname, "../shared"),
       },
     },
     server: {
@@ -22,13 +28,13 @@ export default defineConfig(({ mode }) => {
       open: true,
       host: false,
       proxy: {
-        '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
+        "/api": {
+          target: env.VITE_API_URL || "http://localhost:3001",
           changeOrigin: true,
           secure: false,
         },
-        '/socket.io': {
-          target: env.VITE_SOCKET_URL || 'http://localhost:3001',
+        "/socket.io": {
+          target: env.VITE_SOCKET_URL || "http://localhost:3001",
           changeOrigin: true,
           secure: false,
           ws: true,
@@ -36,28 +42,28 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      target: 'esnext',
-      minify: 'esbuild',
+      target: "esnext",
+      minify: "esbuild",
       sourcemap: true,
-      outDir: 'dist',
+      outDir: "dist",
       emptyOutDir: true,
-      assetsDir: 'assets',
+      assetsDir: "assets",
       assetsInlineLimit: 0,
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('.svg')) {
-              return 'svg';
+            if (id.includes(".svg")) {
+              return "svg";
             }
-          }
-        }
-      }
+          },
+        },
+      },
     },
-    publicDir: 'public',
-    assetsInclude: ['**/*.svg', '**/*.woff'],
+    publicDir: "public",
+    assetsInclude: ["**/*.svg", "**/*.woff"],
     define: {
-      'process.env': {}
+      "process.env": {},
     },
-    base: mode === 'production' ? '/crustysocks/' : '/', // Add this for GitHub Pages
-  }
+    base: mode === "production" ? "/" : "/", // Add this for GitHub Pages
+  };
 });

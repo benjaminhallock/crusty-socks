@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
+// RoundEndModal component displays the results of a drawing round
+// Includes the word, points earned by players, and a countdown to the next round
 const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete }) => {
-  const [timeLeft, setTimeLeft] = useState(cooldownTime);
+  const [timeLeft, setTimeLeft] = useState(cooldownTime); // State to track the remaining cooldown time
 
+  // Effect to manage the countdown timer
   useEffect(() => {
     setTimeLeft(cooldownTime);
     
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
+      setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
           return 0;
@@ -19,6 +22,7 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
     return () => clearInterval(timer);
   }, [cooldownTime, word, drawer]);
 
+  // Effect to trigger the callback when the cooldown ends
   useEffect(() => {
     if (timeLeft === 0) {
       onCooldownComplete?.();
@@ -27,11 +31,11 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
 
   // Filter and sort players who guessed correctly by their guess order
   const correctGuessers = players
-    .filter(p => p.hasGuessedCorrect && p.username !== drawer)
+    .filter((p) => p.hasGuessedCorrect && p.username !== drawer)
     .sort((a, b) => (a.guessTime || 0) - (b.guessTime || 0));
 
-  const drawerPlayer = players.find(p => p.username === drawer);
-  
+  const drawerPlayer = players.find((p) => p.username === drawer);
+
   // Calculate total points for this turn
   const totalDrawerPoints = drawerPlayer?.drawPoints || 0;
   const totalGuesserPoints = correctGuessers.reduce((sum, player) => sum + (player.drawPoints || 0), 0);
@@ -49,7 +53,7 @@ const RoundEndModal = ({ word, drawer, players, cooldownTime, onCooldownComplete
         
         <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-4">
           <h3 className="font-semibold mb-2 text-indigo-800 dark:text-indigo-200">
-            {drawer}'s Drawing Results:
+            {drawer}&apos;s Drawing Results:
           </h3>
           {correctGuessers.length > 0 ? (
             <div className="space-y-2">

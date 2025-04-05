@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 import ContextMenu from "./ContextMenu";
 import ReportModal from "./ReportModal";
+import { GAME_STATE } from "../../constants";
 import { socketManager } from "../../services/socket";
-import { createReport } from "../../services/reports";
-import { GAME_STATE } from "../../../../shared/constants";
 
 // CSS for point animation - moved to the top
 const floatUpAnimation = `
@@ -37,22 +37,23 @@ const PointChangeAnimation = ({ points }) => {
   );
 };
 
+// PlayerList component displays the list of players in the game
+// Includes features like context menus, report modals, and point change animations
 const PlayerList = ({
-  players,
-  drawerUsername,
-  roomId,
-  gameState,
-  currentUsername,
-  isAdmin,
-  chatLogs = [],
+  players, // List of players in the game
+  drawerUsername, // Username of the current drawer
+  roomId, // ID of the game room
+  gameState, // Current game state (e.g., DRAWING, WAITING)
+  currentUsername, // Username of the current user
+  isAdmin, // Whether the current user is an admin
+  chatLogs = [], // Chat logs for reporting purposes
 }) => {
-  const [showPopup, setShowPopup] = useState(false);
-  const [contextMenu, setContextMenu] = useState(null);
-  const [reportModal, setReportModal] = useState(null);
-  // Track previous scores to detect changes
-  const prevScoresRef = useRef({});
-  // Store point animations
-  const [pointAnimations, setPointAnimations] = useState({});
+  const navigate = useNavigate(); // Hook for navigation
+  const [showPopup, setShowPopup] = useState(false); // State to manage invite link popup
+  const [contextMenu, setContextMenu] = useState(null); // State to manage context menu
+  const [reportModal, setReportModal] = useState(null); // State to manage report modal
+  const prevScoresRef = useRef({}); // Ref to track previous scores for animations
+  const [pointAnimations, setPointAnimations] = useState({}); // State to manage point change animations
 
   // Effect to detect score changes and trigger animations
   useEffect(() => {
@@ -88,16 +89,19 @@ const PlayerList = ({
     }
   }, [players]);
 
+  // Handle copying the invite link to the clipboard
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setShowPopup(true);
     setTimeout(() => setShowPopup(false), 2000); // Hide popup after 2 seconds
   };
 
+  // Handle kicking a player from the game
   const handleKickPlayer = (username) => {
     socketManager.kickPlayer(roomId, username);
   };
 
+  // Handle player click to show context menu
   const handlePlayerClick = (e, player) => {
     e.preventDefault();
     if (player.username === currentUsername) {
@@ -117,6 +121,10 @@ const PlayerList = ({
       x: e.pageX,
       y: e.pageY,
       options: [
+        {
+          label: "View Profile",
+          onClick: () => navigate(`/user/${player.username}`),
+        },
         {
           label: "Report Player",
           onClick: () => setReportModal(player.username),
@@ -140,8 +148,8 @@ const PlayerList = ({
       return "bg-emerald-200 dark:bg-emerald-800";
     }
     if (player.username === currentUsername)
-      return "bg-white-100 dark:bg-grey-900";
-    return "bg-gray-200 dark:bg-gray-700";
+      return "bg-white-100 dark:bg-grey-100";
+    return "bg-gray-200 dark:bg-gray-600";
   };
 
   // Fix the undefined lobby reference
@@ -152,11 +160,11 @@ const PlayerList = ({
   return (
     <div
       id="playerList"
-      className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 shadow-lg relative flex-1 flex flex-col transition-colors"
+      className="bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors"
     >
       {/* Fix the invalid jsx/global attributes by using standard style tag */}
       <style dangerouslySetInnerHTML={{ __html: floatUpAnimation }} />
-      
+
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
           Players
@@ -171,7 +179,10 @@ const PlayerList = ({
           <button
             className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => socketManager.startGame(roomId)}
-            disabled={gameState !== GAME_STATE.WAITING && gameState !== GAME_STATE.FINISHED}
+            disabled={
+              gameState !== GAME_STATE.WAITING &&
+              gameState !== GAME_STATE.FINISHED
+            }
           >
             {gameState === GAME_STATE.FINISHED ? "Play Again" : "Start Game"}
           </button>

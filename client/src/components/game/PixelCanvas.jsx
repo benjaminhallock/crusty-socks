@@ -11,9 +11,8 @@ import {
 import { socketManager } from "../../services/socket";
 import {
   GAME_CONSTANTS,
-  SOCKET_EVENTS,
   GAME_STATE,
-} from "../../../../shared/constants";
+} from "../../constants";
 
 /**
  * ToolButton Component
@@ -38,32 +37,33 @@ const ToolButton = ({ active, onClick, children, title }) => (
  * Main drawing interface for the game
  * Handles all drawing tools, canvas interactions, and state management
  */
+// PixelCanvas component provides the main drawing interface for the game
+// It includes tools for drawing, erasing, filling, undo/redo, and saving the canvas
 const PixelCanvas = ({
-  isDrawer,
-  drawerUsername,
-  canvasState,
-  gameState,
-  roundTime,
-  startTime,
-  roomId,
+  isDrawer, // Whether the current user is the drawer
+  drawerUsername, // Username of the current drawer
+  canvasState, // Initial state of the canvas
+  gameState, // Current game state (e.g., DRAWING, PICKING_WORD)
+  roundTime, // Time allocated for the current round
+  startTime, // Start time of the current round
+  roomId, // ID of the game room
 }) => {
   // console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
   // Core canvas state and refs
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentColor, setCurrentColor] = useState("#000000");
-  const [currentTool, setCurrentTool] = useState("brush");
-  const [history, setHistory] = useState([]); // For undo functionality
-  const [redoStates, setRedoStates] = useState([]); // For redo functionality
-  const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE); // Add grid size state
-  
+  const canvasRef = useRef(null); // Reference to the canvas element
+  const [isDrawing, setIsDrawing] = useState(false); // Whether the user is currently drawing
+  const [currentColor, setCurrentColor] = useState("#000000"); // Current drawing color
+  const [currentTool, setCurrentTool] = useState("brush"); // Current drawing tool (e.g., brush, eraser)
+  const [history, setHistory] = useState([]); // History of canvas states for undo functionality
+  const [redoStates, setRedoStates] = useState([]); // Stack of redo states
+  const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE); // Grid size for the canvas
+
   // Canvas configuration constants
   const CANVAS_HEIGHT = GAME_CONSTANTS.CANVAS_HEIGHT;
   const CANVAS_WIDTH = GAME_CONSTANTS.CANVAS_WIDTH;
-  
+
   // Add throttling references for optimizing canvas updates
-  const lastUpdateTimeRef = useRef(0);
-  const pendingPixelsRef = useRef([]);
+  const lastUpdateTimeRef = useRef(0); // Timestamp of the last canvas update
   const UPDATE_INTERVAL = 100; // milliseconds between updates
   const batchTimeoutRef = useRef(null);
 
@@ -83,7 +83,7 @@ const PixelCanvas = ({
     ) {
       ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
       ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
-      
+
       // Throttle canvas updates
       const now = Date.now();
       if (now - lastUpdateTimeRef.current > UPDATE_INTERVAL) {
@@ -116,48 +116,6 @@ const PixelCanvas = ({
 
     setHistory([...history, canvas.toDataURL()]);
     setRedoStates([]); // Clear redo stack on new action
-  };
-
-  /**
-   * Gets color of pixel at specific coordinates
-   * Optimized for performance by directly accessing pixel data
-   */
-  const getPixelColor = (ctx, x, y) => {
-    const pixel = ctx.getImageData(x, y, 1, 1).data;
-    // Compare by individual components rather than creating string for better performance
-    return [pixel[0], pixel[1], pixel[2]];
-  };
-
-  /**
-   * Converts RGB array to hex color string
-   */
-  const rgbToHex = (r, g, b) => {
-    return `#${r.toString(16).padStart(2, "0")}${g
-      .toString(16)
-      .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-  };
-
-  /**
-   * Converts hex color string to RGB array
-   */
-  const hexToRgb = (hex) => {
-    hex = hex.replace("#", "");
-    return [
-      parseInt(hex.substring(0, 2), 16),
-      parseInt(hex.substring(2, 4), 16),
-      parseInt(hex.substring(4, 6), 16),
-    ];
-  };
-
-  /**
-   * Compare if two colors are the same (within tolerance)
-   */
-  const colorsEqual = (color1, color2) => {
-    return (
-      color1[0] === color2[0] &&
-      color1[1] === color2[1] &&
-      color1[2] === color2[2]
-    );
   };
 
   /**
@@ -258,21 +216,21 @@ const PixelCanvas = ({
   const handleMouseDown = (e) => {
     if (!isDrawer) return;
     setIsDrawing(true);
-    
+
     // Add drawing on click without requiring drag
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
+
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
+
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
-    
+
     // For fill tool, handle it directly here
     if (currentTool === "fill") {
       saveState();
@@ -289,14 +247,14 @@ const PixelCanvas = ({
   const handleMouseUp = () => {
     if (!isDrawer) return;
     setIsDrawing(false);
-    
+
     // Save the current state for undo history
     const canvas = canvasRef.current;
     if (canvas) {
       const currentState = canvas.toDataURL();
-      setHistory(prevHistory => [...prevHistory, currentState]);
+      setHistory((prevHistory) => [...prevHistory, currentState]);
       setRedoStates([]); // Clear redo stack on new action
-      
+
       // Send canvas update
       socketManager.updateCanvas(currentState);
     }
@@ -337,7 +295,7 @@ const PixelCanvas = ({
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        
+
         // Send the updated canvas to other players
         if (isDrawer) {
           socketManager.updateCanvas(canvas.toDataURL());
@@ -364,7 +322,7 @@ const PixelCanvas = ({
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        
+
         if (isDrawer) {
           socketManager.updateCanvas(nextState);
         }
@@ -416,7 +374,7 @@ const PixelCanvas = ({
         saveState();
       }
     }, 0);
-  }, [canvasRef.current]);
+  }, [canvasState?.data, canvasRef]);
 
   // Add useEffect to listen for canvas updates from other players
   useEffect(() => {
@@ -435,10 +393,10 @@ const PixelCanvas = ({
           ctx.drawImage(img, 0, 0);
         };
       });
-      
+
       return unsubscribe; // Clean up subscription when component unmounts
     }
-  }, [isDrawer]);
+  }, [isDrawer, canvasRef]);
 
   // Add effect to load initial canvas state
   useEffect(() => {
@@ -464,7 +422,7 @@ const PixelCanvas = ({
         };
       }, 50);
     }
-  }, [canvasState]);
+  }, [canvasState?.data, canvasRef]);
 
   // Add effect to handle grid size changes
   useEffect(() => {
@@ -490,7 +448,7 @@ const PixelCanvas = ({
         }
       };
     }
-  }, [gridSize]);
+  }, [gridSize, history, isDrawer, canvasRef]);
 
   // Add timer effect for drawing round
   useEffect(() => {
@@ -520,7 +478,7 @@ const PixelCanvas = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -528,26 +486,31 @@ const PixelCanvas = ({
     // 1. Game transitions to PICKING_WORD state (new round/turn)
     // 2. Game transitions to DRAWING state with a new drawer
     // 3. Whenever drawer username changes
-    if (gameState === GAME_STATE.PICKING_WORD || gameState === GAME_STATE.DRAWING) {
-      console.log(`Clearing canvas for new drawing round (state: ${gameState}, drawer: ${drawerUsername})`);
+    if (
+      gameState === GAME_STATE.PICKING_WORD ||
+      gameState === GAME_STATE.DRAWING
+    ) {
+      console.log(
+        `Clearing canvas for new drawing round (state: ${gameState}, drawer: ${drawerUsername})`
+      );
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      
+
       // Reset history for undo/redo
       setHistory([canvas.toDataURL()]);
       setRedoStates([]);
-      
+
       // If we're in DRAWING state, send the cleared canvas to all players
       if (gameState === GAME_STATE.DRAWING && isDrawer) {
         socketManager.updateCanvas(canvas.toDataURL());
       }
     }
-  }, [gameState, drawerUsername]);
+  }, [gameState, drawerUsername, CANVAS_WIDTH, CANVAS_HEIGHT, isDrawer]);
 
   return (
     <div
       id="canvas"
-      className="flex flex-col items-center w-full h-full p-2 bg-white/90 dark:bg-gray-800/90 rounded-lg transition-colors"
+      className="flex flex-col items-center w-full h-full bg-white/90 dark:bg-gray-800/90 rounded-none transition-colors"
     >
       {!isDrawer && (
         <div className="bg-white/95 dark:bg-gray-800/95 px-3 py-1 rounded-lg shadow-sm mb-1 text-center">
@@ -590,7 +553,7 @@ const PixelCanvas = ({
             title="Choose color"
             aria-label="Choose color"
           />
-          
+
           <div className="flex flex-wrap gap-1">
             <ToolButton
               active={currentTool === "brush"}
@@ -623,7 +586,7 @@ const PixelCanvas = ({
               <FaDownload className="w-4 h-4" />
             </ToolButton>
           </div>
-          
+
           <div className="flex items-center ml-auto">
             <span className="text-xs text-gray-700 dark:text-gray-300 mr-1 whitespace-nowrap">
               Size: {gridSize}px

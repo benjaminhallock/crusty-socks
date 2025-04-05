@@ -1,14 +1,14 @@
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
-import User from "../models/user.js";
+import User from '../models/user.js';
 
 export const auth = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
+    const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token?.trim()) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
@@ -18,7 +18,7 @@ export const auth = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
 
@@ -29,18 +29,18 @@ export const auth = async (req, res, next) => {
   } catch (err) {
     res.status(401).json({
       success: false,
-      message: "Authentication failed",
+      message: 'Authentication failed',
     });
   }
 };
 
 export const isAdmin = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
+    const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token?.trim()) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
@@ -50,13 +50,13 @@ export const isAdmin = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
     if (!user.isAdmin) {
       return res.status(403).json({
         success: false,
-        message: "Access denied",
+        message: 'Access denied',
       });
     }
     req.user = user;
@@ -67,7 +67,7 @@ export const isAdmin = async (req, res, next) => {
   } catch (err) {
     res.status(401).json({
       success: false,
-      message: "Token is not valid",
+      message: 'Token is not valid',
     });
   }
 };

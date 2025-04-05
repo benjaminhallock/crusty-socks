@@ -68,9 +68,10 @@ export const createReport = async (reportData) => {
   }
 };
 
+// Replace hardcoded URLs with constants from API_ENDPOINTS
 export const updateReportStatus = async (reportId, status) => {
   try {
-    const response = await makeApiCall(`/api/reports/${reportId}/status`, {
+    const response = await makeApiCall(API_ENDPOINTS.UPDATE_REPORT_STATUS(reportId), {
       method: 'PUT',
       body: JSON.stringify({ status })
     });
@@ -83,8 +84,8 @@ export const updateReportStatus = async (reportId, status) => {
 
 export const getAllReports = async () => {
   try {
-    // Change from API_ENDPOINTS.GET_ALL_REPORTS to "/api/reports" for direct path
-    const response = await makeApiCall("/api/reports");
+    // Use the API_ENDPOINTS constant for consistent endpoint usage
+    const response = await makeApiCall(API_ENDPOINTS.GET_ALL_REPORTS);
     console.log("Reports API response:", response.data);
     return { success: true, reports: response.data.reports || [] };
   } catch (error) {
@@ -141,7 +142,7 @@ export const updateLobby = async (lobbyId, lobbyData) => {
  */
 export const updateReport = async (reportId, reportData) => {
   try {
-    const response = await makeApiCall(`/api/reports/${reportId}`, {
+    const response = await makeApiCall(API_ENDPOINTS.UPDATE_REPORT(reportId), {
       method: 'PUT',
       body: JSON.stringify(reportData)
     });

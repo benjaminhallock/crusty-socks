@@ -1,12 +1,12 @@
-import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
-import User from "../models/user.js";
+import User from '../models/user.js';
 
-dotenv.config("/config.env");
+dotenv.config('/config.env');
 
 const generateToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "24h" });
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
 const cleanUser = (user) => ({
   _id: user._id,
@@ -19,11 +19,11 @@ const cleanUser = (user) => ({
 export const userController = {
   getUser: async (req, res) => {
     try {
-      const user = await User.findById(req.params.userId).select("-password");
+      const user = await User.findById(req.params.userId).select('-password');
       if (!user) {
         return res.status(404).json({
           ok: false,
-          message: "User not found",
+          message: 'User not found',
         });
       }
       res.status(200).json({
@@ -32,7 +32,7 @@ export const userController = {
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: "Failed to fetch user",
+        message: 'Failed to fetch user',
       });
     }
   },
@@ -46,7 +46,7 @@ export const userController = {
     } catch (error) {
       res.status(401).json({
         ok: false,
-        message: "Invalid token",
+        message: 'Invalid token',
       });
     }
   },
@@ -57,7 +57,7 @@ export const userController = {
     if (!username || !email || !password) {
       return res.status(400).json({
         ok: false,
-        message: "Missing required fields",
+        message: 'Missing required fields',
       });
     }
 
@@ -65,7 +65,7 @@ export const userController = {
       return res.status(400).json({
         ok: false,
         message:
-          "Username must be at least 6 characters and contain only letters and numbers",
+          'Username must be at least 6 characters and contain only letters and numbers',
       });
     }
 
@@ -73,7 +73,7 @@ export const userController = {
       return res.status(400).json({
         ok: false,
         message:
-          "Password must be at least 6 characters and contain only letters and numbers",
+          'Password must be at least 6 characters and contain only letters and numbers',
       });
     }
 
@@ -87,8 +87,8 @@ export const userController = {
           ok: false,
           message:
             existingUser.email === email
-              ? "Email already exists"
-              : "Username already exists",
+              ? 'Email already exists'
+              : 'Username already exists',
         });
       }
 
@@ -102,7 +102,7 @@ export const userController = {
     } catch (error) {
       res.status(400).json({
         ok: false,
-        message: "Registration failed",
+        message: 'Registration failed',
       });
     }
   },
@@ -113,7 +113,7 @@ export const userController = {
     if (!email || !password) {
       return res.status(400).json({
         ok: false,
-        message: "Email and password required",
+        message: 'Email and password required',
       });
     }
 
@@ -123,7 +123,7 @@ export const userController = {
       if (!user) {
         return res.status(401).json({
           ok: false,
-          message: "Invalid credentials",
+          message: 'Invalid credentials',
         });
       }
 
@@ -132,24 +132,24 @@ export const userController = {
       res.status(200).json({
         user: cleanUser(user),
         token,
-        message: "Login successful",
+        message: 'Login successful',
       });
     } catch (error) {
       res.status(401).json({
         ok: false,
-        message: "Invalid credentials",
+        message: 'Invalid credentials',
       });
     }
   },
 
   getAllUsers: async (req, res) => {
     try {
-      const users = await User.find({}, "-password");
+      const users = await User.find({}, '-password');
       res.status(200).json({ users });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: "Failed to get users",
+        message: 'Failed to get users',
       });
     }
   },
@@ -193,7 +193,6 @@ export const userController = {
         profile: profileData
       });
     } catch (error) {
-      console.error('Error fetching user profile:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to fetch user profile',
@@ -250,7 +249,6 @@ export const userController = {
         }
       });
     } catch (error) {
-      console.error('Error updating user profile:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to update profile',
@@ -271,24 +269,24 @@ export const userController = {
         userId,
         { $set: updateData },
         { new: true, runValidators: true }
-      ).select("-password");
+      ).select('-password');
       
       if (!updatedUser) {
         return res.status(404).json({
           ok: false,
-          message: "User not found"
+          message: 'User not found'
         });
       }
       
       res.status(200).json({
         ok: true,
-        message: "User updated successfully",
+        message: 'User updated successfully',
         user: cleanUser(updatedUser)
       });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: "Failed to update user",
+        message: 'Failed to update user',
         error: error.message
       });
     }
@@ -302,26 +300,25 @@ export const userController = {
         .select('username profile gameStats -_id')
         .sort({ 'gameStats.totalScore': -1 })
         .limit(50); // Get top 50 users
-      
-      // Format the response
+
+      // Ensure all required fields are present and handle missing data gracefully
       const formattedLeaderboard = leaderboard.map(user => ({
-        username: user.username,
-        displayName: user.profile?.displayName || user.username,
+        username: user.username || 'Unknown',
+        displayName: user.profile?.displayName || user.username || 'Unknown',
         avatarUrl: user.profile?.avatarUrl || '',
-        totalScore: user.gameStats.totalScore,
-        gamesPlayed: user.gameStats.gamesPlayed,
-        gamesWon: user.gameStats.gamesWon,
-        winRate: user.gameStats.gamesPlayed > 0 
+        totalScore: user.gameStats?.totalScore || 0,
+        gamesPlayed: user.gameStats?.gamesPlayed || 0,
+        gamesWon: user.gameStats?.gamesWon || 0,
+        winRate: user.gameStats?.gamesPlayed > 0 
           ? Math.round((user.gameStats.gamesWon / user.gameStats.gamesPlayed) * 100) 
           : 0
       }));
-      
+
       res.status(200).json({
         success: true,
         leaderboard: formattedLeaderboard
       });
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to fetch leaderboard data',

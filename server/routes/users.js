@@ -8,12 +8,12 @@ const router = express.Router();
 // Public routes (no auth needed)
 router.post('/register', userController.register);  // Create new account
 router.post('/login', userController.login);        // Login to account
-router.get('/profile/:username', userController.getUserProfile); // Get user profile by username
 router.get('/leaderboard', userController.getLeaderboard); // Get top players leaderboard
+router.get('/:username', userController.getUserProfile); // Get user profile by username
 
 // Protected routes (need to be logged in)
 router.get('/validate', auth, userController.validateToken);  // Check if token is valid
-router.put('/profile/:username', auth, userController.updateUserProfile); // Update user profile
+router.put('/:username', auth, userController.updateUserProfile); // Update user profile
 
 // Admin routes
 router.get('/all', auth, isAdmin, userController.getAllUsers);  // Get list of all users (admin only)

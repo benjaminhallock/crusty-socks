@@ -1,0 +1,14 @@
+# Specify the Node.js version
+engines:
+  node: ">=18.0.0"
+
+# Build configuration for Render.com
+build:
+  engine: node
+  command: npm install
+
+# Start command
+start:
+  command: node server.js
+  production_environment:
+    NODE_ENV: production

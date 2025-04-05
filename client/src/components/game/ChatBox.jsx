@@ -1,9 +1,7 @@
-import React from "react";
 import { useState, useEffect, useRef } from "react";
 
-import LobbySettings from "../lobby/LobbySettings";
+import { GAME_STATE } from "../../constants";
 import { socketManager } from "../../services/socket";
-import { GAME_STATE } from "../../../../shared/constants";
 
 // ChatBox component handles real-time messaging in game rooms
 const ChatBox = ({ user, roomId, messages, gameState }) => {  
@@ -47,7 +45,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
       cleanup && cleanup();    
       mounted = false;
     };
-  }, [roomId, user]);
+  }, [roomId, user, messages]);
 
   // Auto-scroll effect when new messages arrive
   useEffect(() => {
@@ -63,7 +61,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
       // Send the guess to check first
       if (gameState === GAME_STATE.DRAWING) {
         console.log('Checking word guess:', trimmedInput);
-      socketManager.checkWordGuess(roomId, trimmedInput, user.username);
+        socketManager.checkWordGuess(roomId, trimmedInput, user.username);
       }
       else 
       // Only send as chat message if it's not the correct word
@@ -95,6 +93,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
     return <div className="text-red-500 p-4">{error}</div>;
   }
 
+  // Render individual chat messages
   const renderMessage = (msg, index) => {
     if (msg.username === "Server") {
       // Handle success message for correct guess
@@ -143,7 +142,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
   return (
     <div id="chatBox" className="flex flex-col h-full">
       {/* Chat messages container */}
-      <div className="flex-1 bg-white/95 dark:bg-gray-800/95 rounded-lg mt-2 flex flex-col justify-between transition-colors">
+      <div className="flex-1 bg-white/95 mt-2 dark:bg-gray-700/85 flex flex-col justify-between transition-colors">
         <div 
           ref={chatContainerRef} 
           className="h-[calc(78vh-44px)] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800"
@@ -153,7 +152,7 @@ const ChatBox = ({ user, roomId, messages, gameState }) => {
         </div>
 
         {/* Message input form */}
-        <div className="sticky bottom-0 w-full bg-white/95 dark:bg-gray-800/95 border-t dark:border-gray-700">
+        <div className="sticky bottom-0 w-full bg-white/95 dark:bg-gray-700/95 border-t dark:border-gray-700">
           <form onSubmit={handleSubmit} className="p-2">
             <div className="flex gap-1">
               <input

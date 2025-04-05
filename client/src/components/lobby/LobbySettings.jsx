@@ -32,19 +32,29 @@ const InfoTooltip = ({ text, buttonRef }) => {
   );
 };
 
+// LobbySettings component allows users to configure game settings before creating a lobby
 const LobbySettings = ({ user }) => {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Hook for navigation
   const [gameState, setGameState] = useState({
-    maxRounds: 3,
-    revealCharacters: 35,
-    selectWord: 3,
-    selectCategory: "random",
-    playerLimit: 8,
-    roundTime: 60,
+    maxRounds: 3, // Number of rounds in the game
+    revealCharacters: 35, // Percentage of letters revealed as hints
+    selectWord: 3, // Number of words to choose from
+    selectCategory: "random", // Word category
+    playerLimit: 8, // Maximum number of players
+    roundTime: 60, // Time limit for each round in seconds
   });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(""); // State to store error messages
+  const [loading, setLoading] = useState(false); // State to track loading status
 
+  // Redirect to home page if user is not logged in
+  useEffect(() => {
+    if (!user) {
+      navigate("/");
+      return;
+    }
+  }, [navigate, user]);
+
+  // Update game settings state
   const setMaxRounds = (value) =>
     setGameState((prev) => ({ ...prev, maxRounds: value }));
   const setRevealCharacters = (value) =>
@@ -58,13 +68,7 @@ const LobbySettings = ({ user }) => {
   const setRoundTime = (value) =>
     setGameState((prev) => ({ ...prev, roundTime: value }));
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/");
-      return;
-    }
-  }, [navigate, user]);
-
+  // Handle creating a new lobby with the configured settings
   const handleCreateLobby = async () => {
     try {
       setLoading(true);
@@ -90,14 +94,13 @@ const LobbySettings = ({ user }) => {
     }
   };
 
-  // Refs for tooltip buttons
+  // Refs and state for tooltips
   const [tooltipStates, setTooltipStates] = useState({
     rounds: false,
     letters: false, 
     words: false,
     time: false
   });
-  
   const roundsButtonRef = useRef(null);
   const lettersButtonRef = useRef(null);
   const wordsButtonRef = useRef(null);
@@ -107,47 +110,49 @@ const LobbySettings = ({ user }) => {
     <div className="flex items-center justify-center p-1 sm:p-2 min-h-screen">
       <div className="backdrop-blur-lg bg-white/70 rounded-lg sm:rounded-xl p-2 sm:p-3 shadow-lg w-full max-w-2xl sm:w-[90%] md:w-[80%] lg:w-[70%] border border-indigo-300 overflow-y-auto max-h-[85vh] sm:max-h-[80vh]">
         <h3 className="text-xl sm:text-2xl font-bold text-center mb-2 sm:mb-4 text-indigo-600 tracking-wide">
-          Game Settings 🎮
+          Game Settings
         </h3>
         <div className="flex flex-col space-y-2">
-          <div className="flex flex-col md:flex-row md:items-center justify-between bg-yellow-50/80 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg">
-            <label
-              htmlFor="maxRounds"
-              className="text-base sm:text-lg font-medium text-indigo-800 mb-1 md:mb-0"
-            >
-              Number of Rounds:{" "}
-              <span className="text-lg sm:text-xl font-bold">{gameState.maxRounds}</span>
-            </label>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <input
-                id="maxRounds"
-                type="range"
-                min="1"
-                max="10"
-                value={gameState.maxRounds}
-                onChange={(e) => setMaxRounds(parseInt(e.target.value))}
-                className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
-              />
-              <div className="relative inline-block">
-                <button 
-                  ref={roundsButtonRef} 
-                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
-                  onMouseEnter={() => setTooltipStates(prev => ({...prev, rounds: true}))}
-                  onMouseLeave={() => setTooltipStates(prev => ({...prev, rounds: false}))}
+          {/* Number of Rounds Setting */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between bg-purple-60 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg">
+                <label
+                  htmlFor="maxRounds"
+                  className="text-base sm:text-lg font-medium text-indigo-800 mb-1 md:mb-0"
                 >
-                  <span>?</span>
-                </button>
-                {tooltipStates.rounds && <InfoTooltip text="A round is everyone drawing one word from your selected category!" buttonRef={roundsButtonRef} />}
-              </div>
-            </div>
-          </div>
+                  Number of Rounds: 
+                  <span className="text-lg sm:text-xl font-bold">{gameState.maxRounds}</span>
+                </label>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                  id="maxRounds"
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={gameState.maxRounds}
+                  onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                  className="flex-1 w-full max-w-full sm:w-36 md:w-48 h-5 accent-indigo-600"
+                  />
+                  <div className="relative inline-block">
+                  <button 
+                    ref={roundsButtonRef} 
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-400 text-white text-xs sm:text-sm flex items-center justify-center hover:bg-indigo-500"
+                    onMouseEnter={() => setTooltipStates(prev => ({...prev, rounds: true}))}
+                    onMouseLeave={() => setTooltipStates(prev => ({...prev, rounds: false}))}
+                  >
+                    <span>?</span>
+                  </button>
+                  {tooltipStates.rounds && <InfoTooltip text="A round is everyone drawing one word from your selected category!" buttonRef={roundsButtonRef} />}
+                  </div>
+                </div>
+                </div>
 
+                {/* Letter Reveal Rate Setting */}
           <div className="flex flex-col md:flex-row md:items-center justify-between bg-green-50/80 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg">
             <label
               htmlFor="revealCharacters"
               className="text-base sm:text-lg font-medium text-indigo-800 mb-1 md:mb-0"
             >
-              Letter Reveal Rate:{" "}
+              Letter Reveal Rate: 
               <span className="text-lg sm:text-xl font-bold">
                 {gameState.revealCharacters}%
               </span>
@@ -256,13 +261,13 @@ const LobbySettings = ({ user }) => {
                   focus:outline-none focus:ring-1 focus:ring-indigo-300 border border-indigo-200
                   cursor-pointer shadow-sm transition-all hover:border-indigo-400 pl-3"
               >
-                <option value="random">Random 🎲</option>
-                <option value="animals">Animals 🐘</option>
-                <option value="food">Food 🍕</option>
-                <option value="objects">Objects 📱</option>
-                <option value="vehicles">Vehicles 🚗</option>
-                <option value="sports">Sports ⚽</option>
-                <option value="video games">Video Games 👾</option>
+                <option value="random">Random </option>
+                <option value="animals">Animals </option>
+                <option value="food">Food </option>
+                <option value="objects">Objects </option>
+                <option value="vehicles">Vehicles </option>
+                <option value="sports">Sports </option>
+                <option value="video games">Video Games</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-indigo-600">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -317,7 +322,7 @@ const LobbySettings = ({ user }) => {
             onClick={handleCreateLobby}
             disabled={loading}
           >
-            {loading ? "Creating..." : "✨ START GAME! ✨"}
+            {loading ? "Creating..." : "Create Lobby"}
           </button>
         </div>
       </div>

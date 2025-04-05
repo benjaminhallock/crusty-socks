@@ -142,10 +142,10 @@ export const getAllUsers = async () => {
   console.log("Fetching all users list");
   try {
     const response = await makeApiCall(API_ENDPOINTS.GET_ALL_USERS);
-    return { success: true, users: response.data.users };
+    return { success: true, users: response.data.users || [] };
   } catch (error) {
     console.error("Failed to fetch users:", error);
-    return { success: false, users: [] };
+    throw error;
   }
 };
 

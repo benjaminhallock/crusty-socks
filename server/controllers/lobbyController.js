@@ -1,4 +1,3 @@
-import { GAME_STATE } from '../../shared/constants.js';
 import Lobby from '../models/lobby.js';
 
 export const lobbyController = {

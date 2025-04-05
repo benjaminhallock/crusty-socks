@@ -2,22 +2,28 @@ import { useState } from 'react';
 
 import Button from '../common/ui/Button';
 
+// AccountSettings component displays user account details and provides account actions
 const AccountSettings = ({ user }) => {
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  // State to manage error messages
+  const [error] = useState("");
+  // State to manage success messages
+  const [success] = useState("");
+  // State to manage loading status for actions
+  const [isLoading] = useState(false);
 
   return (
     <div className="min-h-screen py-12 px-4">
       <div className="max-w-md mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Account Settings</h2>
         
+        {/* Display error message if any */}
         {error && (
           <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
         
+        {/* Display success message if any */}
         {success && (
           <div className="bg-green-100 dark:bg-green-900/50 border border-green-400 text-green-700 dark:text-green-200 px-4 py-3 rounded mb-4">
             {success}
@@ -25,6 +31,7 @@ const AccountSettings = ({ user }) => {
         )}
 
         <div className="space-y-6">
+          {/* Display username */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Username
@@ -34,6 +41,7 @@ const AccountSettings = ({ user }) => {
             </p>
           </div>
 
+          {/* Display email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Email
@@ -43,6 +51,7 @@ const AccountSettings = ({ user }) => {
             </p>
           </div>
 
+          {/* Display account type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Account Type
@@ -52,6 +61,7 @@ const AccountSettings = ({ user }) => {
             </p>
           </div>
 
+          {/* Display member since date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Member Since
@@ -67,10 +77,12 @@ const AccountSettings = ({ user }) => {
             </p>
           </div>
 
+          {/* Account actions section */}
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Account Actions</h3>
             
             <div className="space-y-3">
+              {/* Placeholder for password change action */}
               <Button
                 onClick={() => {}} // TODO: Implement password change
                 variant="dark"

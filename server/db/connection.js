@@ -17,8 +17,6 @@ export const connectDB = async () => {
       maxPoolSize: 10
     });
   } catch (error) {
-    // Allowing console for critical errors
-    console.error('MongoDB connection error:', error);
     process.exit(1);
   }
 };
@@ -27,18 +25,12 @@ const db = mongoose.connection;
 
 // Single handlers for connection events
 db.on('disconnected', () => {
-  // Allowing console for important connection status
-  console.warn('MongoDB disconnected, attempting to reconnect...');
 });
 
 db.on('reconnected', () => {
-  // Allowing console for important connection status
-  console.info('MongoDB reconnected');
 });
 
 db.on('error', err => {
-  // Allowing console for critical errors
-  console.error('MongoDB error:', err);
 });
 
 export default connectDB;

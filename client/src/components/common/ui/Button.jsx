@@ -1,26 +1,29 @@
+// Button component is a reusable UI element with customizable styles and behavior
 const Button = ({ 
-  children, 
-  variant = 'primary', 
-  fullWidth = false,
-  disabled = false,
-  type = 'button',
-  onClick,
-  className
+  children, // Content inside the button (e.g., text or icons)
+  variant = 'primary', // Style variant of the button (e.g., primary, secondary, light, dark)
+  fullWidth = false, // Whether the button should take the full width of its container
+  disabled = false, // Whether the button is disabled
+  type = 'button', // Button type (e.g., button, submit, reset)
+  onClick, // Function to handle button clicks
+  className // Additional custom classes for styling
 }) => {
+  // Base styles applied to all buttons
   const baseStyles = 'px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
+  // Update style variants for light and dark modes
   const variants = {
-    primary: 'bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white',
-    secondary: 'bg-gray-600 dark:bg-gray-500 hover:bg-gray-700 dark:hover:bg-gray-600 text-white',
-    light: 'bg-white/70 text-gray-700 hover:bg-white/90 dark:bg-gray-800/30 dark:text-gray-300 dark:hover:bg-gray-700/40',
-    dark: 'bg-gray-800 text-white hover:bg-gray-700 dark:bg-purple-700 dark:hover:bg-purple-600',
+    primary: 'bg-purple-500 hover:bg-purple-400 text-white dark:bg-gray-700 dark:hover:bg-gray-800',
+    secondary: 'bg-gray-600 hover:bg-purple-400 text-white dark:bg-gray-700 dark:hover:bg-gray-800',
+    light: 'bg-purple-500 hover:bg-purple-400 text-white dark:bg-gray-700 dark:hover:bg-gray-800',
+    dark: 'bg-gray-700 hover:bg-purple-400 text-white dark:bg-purple-500 dark:hover:bg-gray-800',
   };
 
   return (
     <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseStyles} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className || ''}`}
+      type={type} // Set the button type
+      onClick={onClick} // Attach the click handler
+      disabled={disabled} // Disable the button if needed
+      className={`${baseStyles} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className || ''}`} // Combine styles
     >
       {children}
     </button>

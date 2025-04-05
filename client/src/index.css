@@ -1,7 +1,9 @@
+/* Import Tailwind CSS base, components, and utilities */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Define a custom font face for the application */
 @font-face {
   font-family: 'W95FA';
   src: url('/w95fa.woff') format('truetype');
@@ -9,31 +11,34 @@
   font-style: normal;
 }
 
+/* Base styles for the application */
 @layer base {
   :root {
-    color-scheme: dark light;
+    color-scheme: dark light; /* Support both dark and light modes */
   }
   
   html {
-    font-family: "W95FA", monospace;
-    letter-spacing: 2px;
-    -webkit-font-smoothing: antialiased;
-    scroll-behavior: smooth;
+    font-family: "W95FA", monospace; /* Use the custom font */
+    letter-spacing: 2px; /* Add spacing between letters */
+    -webkit-font-smoothing: antialiased; /* Improve font rendering */
+    scroll-behavior: smooth; /* Enable smooth scrolling */
   }
 }
 
+/* Global body styles */
 body {
   @apply relative min-h-screen m-0 overflow-x-hidden text-gray-900 bg-white dark:text-white dark:bg-gray-900;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none; /* Hide scrollbar in IE */
+  scrollbar-width: none; /* Hide scrollbar in Firefox */
 }
 
-/* More reliable background implementation */
+/* Background styling for the app */
 #app-background {
   @apply fixed inset-0 bg-no-repeat bg-center bg-cover opacity-90 -z-10;
-  background-image: url('/wallpaper.svg');
+  background-image: url('/wallpaper.svg'); /* Set the background image */
 }
 
+/* Hide scrollbars for Webkit browsers */
 ::-webkit-scrollbar {
   display: none;
 }

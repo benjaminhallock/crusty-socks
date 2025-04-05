@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
-/**
- * This script synchronizes the API endpoints, socket events, and game constants
- * between the client and server constants files.
- * 
- * Usage: node sync-constants.js
- */
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const fs = require('fs');
-const path = require('path');
+// Convert __dirname for ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Path to the constants files
 const SERVER_CONSTANTS_PATH = path.join(__dirname, 'server', 'constants.js');
@@ -38,10 +36,12 @@ for (const section of SHARED_SECTIONS) {
   const match = regex.exec(serverConstants);
   
   if (match && match[1]) {
-    extractedSections[section] = match[0]; // Store the whole export statement
-    console.log(`✓ Extracted ${section} from server constants`);
+    if (!extractedSections[section]) {
+      extractedSections[section] = match[0]; // Store the whole export statement
+      console.log(`✓ Extracted ${section} from server constants`);
+    }
   } else {
-    console.error(`✗ Failed to extract ${section} from server constants`);
+    console.warn(`✗ Skipping ${section} as it was not found in server constants`);
   }
 }
 
@@ -49,13 +49,13 @@ for (const section of SHARED_SECTIONS) {
 let updatedClientConstants = clientConstants;
 
 for (const [section, content] of Object.entries(extractedSections)) {
-  const regex = new RegExp(`export const ${section} = \\{[\\s\\S]*?\\};`, 'gm');
-  
+  const regex = new RegExp(`export const ${section} = (\\{[\\s\\S]*?\\};)`, 'gm'); // Define regex inside the loop
   if (regex.test(updatedClientConstants)) {
     updatedClientConstants = updatedClientConstants.replace(regex, content);
     console.log(`✓ Updated ${section} in client constants`);
   } else {
-    console.error(`✗ Section ${section} not found in client constants`);
+    updatedClientConstants += `\n\n${content}`;
+    console.log(`✓ Added ${section} to client constants`);
   }
 }
 

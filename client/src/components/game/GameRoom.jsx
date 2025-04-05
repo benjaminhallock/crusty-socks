@@ -7,19 +7,28 @@ import PlayerList from "./PlayerList";
 import PixelCanvas from "./PixelCanvas";
 import GameSettings from "./GameSettings";
 import RoundEndModal from "./RoundEndModal";
-import RoundSummaryModal from "./RoundSummaryModal";
+import { GAME_STATE } from "../../constants";
 import { fetchLobby } from "../../services/auth";
+import RoundSummaryModal from "./RoundSummaryModal";
 import { socketManager } from "../../services/socket.js";
-import { GAME_STATE } from "../../../../shared/constants";
+import LoadingSpinner from "../common/ui/LoadingSpinner.jsx";
 
+// GameRoom component manages the game room's state, interactions, and UI
 const GameRoom = ({ user }) => {
-  const { roomId } = useParams();
+  const { roomId } = useParams(); // Get the room ID from the URL
+  const navigate = useNavigate(); // Navigation hook for redirecting users
+
+  const [isLoading, setIsLoading] = useState(true); // State to manage loading state
+
+  // State to store the lobby ID
   const [lobbyId, setLobbyId] = useState();
-  const navigate = useNavigate();
-  const [isConnecting, setIsConnecting] = useState(true);
+  // State to store error messages
   const [error, setError] = useState("");
+  // Ref to track connection attempts
   const connectionAttempts = useRef(0);
-  const maxAttempts = 5;
+  const maxAttempts = 5; // Maximum connection attempts
+
+  // State to store game data
   const [gameData, setGameData] = useState({
     players: [],
     playerLimit: 0,
@@ -39,180 +48,76 @@ const GameRoom = ({ user }) => {
     isTimerRunning: false,
   });
 
-  const isTimerCompleted = useRef(false);
+  // Refs to track various states and prevent redundant actions
   const hasConnectedRef = useRef(false);
   const hasJoinedRef = useRef(false);
+  const allPlayersDrawnRef = useRef(false);
+  const prevPlayerScoresRef = useRef({}); // Store previous player scores
+  const lastSummaryRoundRef = useRef(0); // Track the last round summary shown
+
+  // State to manage modals
   const [showRoundEnd, setShowRoundEnd] = useState(false);
   const [showRoundSummary, setShowRoundSummary] = useState(false);
-  const allPlayersDrawnRef = useRef(false);
-
-  // Add a ref to store previous player scores to calculate round points
-  const prevPlayerScoresRef = useRef({});
-
-  // Add a new ref to track the round number when summary was last shown
-  const lastSummaryRoundRef = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
 
-    if (!user) {
-      console.log("User not found, redirecting to login");
-      navigate("/");
-      return;
-    }
+    const initializeGameRoom = async () => {
+      if (!user) {
+        console.log("User not found, redirecting to login");
+        navigate("/");
+        return;
+      }
 
-    const setupSocket = async () => {
       try {
-        // Prevent multiple connection attempts
-        if (hasConnectedRef.current) {
-          console.log("Socket already set up, skipping connection");
-          return;
-        }
-
         if (!socketManager.isConnected()) {
-          console.log("Socket not connected, connecting...");
+          console.log("Connecting socket...");
           socketManager.connect(user);
         }
 
-        hasConnectedRef.current = true;
-
-        // Wait for socket to be ready with timeout
-        const maxWaitTime = 5000;
-        const startTime = Date.now();
-
-        while (
-          !socketManager.isConnected() &&
-          Date.now() - startTime < maxWaitTime
-        ) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        if (!socketManager.isConnected()) {
-          connectionAttempts.current++;
-          if (connectionAttempts.current >= maxAttempts) {
-            setError(
-              "Failed to connect to game server after multiple attempts"
-            );
-            console.error("Failed to connect after maximum attempts");
-            if (isMounted) navigate("/");
-            return;
-          }
-          throw new Error("Socket connection timeout");
-        }
-
-        // Fetch lobby data
         const response = await fetchLobby(roomId);
         if (!isMounted) return;
 
         if (!response.success) {
           console.error("Failed to fetch lobby:", response.error);
           setError(response.error || "Failed to join game room");
-          if (isMounted) navigate("/");
+          navigate("/");
           return;
         }
 
-        console.log("Fetched lobby data:", response.lobby);
         setLobbyId(response.lobby.roomId);
-        setError(""); // Clear any previous errors
+        setGameData((prevData) => ({
+          ...prevData,
+          ...response.lobby,
+        }));
 
-        // Only join if not already joined
         if (!hasJoinedRef.current) {
           hasJoinedRef.current = true;
           socketManager.joinLobby(response.lobby.roomId, user.username);
         }
 
-        setGameData((prevData) => ({
-          ...prevData,
-          gameState: response.lobby.gameState,
-          currentDrawer: response.lobby.currentDrawer,
-          currentWord: response.lobby.currentWord,
-          maxRounds: response.lobby.maxRounds,
-          revealCharacters: response.lobby.revealCharacters,
-          selectWord: response.lobby.selectWord,
-          selectCategory: response.lobby.selectCategory,
-          playerLimit: response.lobby.playerLimit,
-          players: response.lobby.players,
-          messages: response.lobby.messages,
-          canvasState: response.lobby.canvasState,
-          startTime: response.lobby.startTime,
-          roundTime: response.lobby.roundTime,
-          currentRound: response.lobby.currentRound,
-        }));
-
-        setIsConnecting(false);
-
-        // Clean up previous listeners before setting new ones
         socketManager.offGameStateUpdate();
         socketManager.onGameStateUpdate((data) => {
-          console.log("[GameRoom] Received game state update:", {
-            newState: data.lobby.gameState,
-            currentState: gameData.gameState,
-            word: data.lobby.currentWord,
-            drawer: data.lobby.currentDrawer,
-          });
-
+          console.log("[GameRoom] Received game state update:", data);
           if (data.lobby) {
-            setGameData((prevData) => {
-              // Check if all players have drawn
-              const allPlayersDrawn = data.lobby.players.every(
-                (p) => p.hasDrawn
-              );
-              const isEndOfRound =
-                allPlayersDrawn && data.lobby.gameState === GAME_STATE.DRAW_END;
-
-              // Calculate round scores if it's end of round
-              if (isEndOfRound) {
-                data.lobby.players.forEach((player) => {
-                  player.roundScore =
-                    player.score -
-                    (prevData.players.find(
-                      (p) => p.username === player.username
-                    )?.score || 0);
-                });
-              }
-
-              // Show appropriate modal
-              if (data.lobby.gameState === GAME_STATE.DRAW_END) {
-                const allPlayersDrawn = data.lobby.players.every(
-                  (p) => p.hasDrawn
-                );
-
-                // Store the all players drawn state in the ref
-                allPlayersDrawnRef.current = allPlayersDrawn;
-
-                // Only show round end modal first, RoundSummaryModal will show after it closes
-                setShowRoundEnd(true);
-                setShowRoundSummary(false);
-              } else {
-                setShowRoundEnd(false);
-                setShowRoundSummary(false);
-              }
-
-              return {
-                ...prevData,
-                ...data.lobby,
-              };
-            });
+            setGameData((prevData) => ({
+              ...prevData,
+              ...data.lobby,
+            }));
           }
         });
+
+        setError(""); // Clear any previous errors
       } catch (error) {
-        console.error("Error in setup:", error);
+        console.error("Error initializing game room:", error);
         setError(error.message || "Failed to join game room");
-        if (connectionAttempts.current < maxAttempts) {
-          console.log(
-            `Retrying connection (${
-              connectionAttempts.current + 1
-            }/${maxAttempts})...`
-          );
-          setTimeout(setupSocket, 1000);
-        } else {
-          console.error("Failed to connect after maximum attempts");
-          if (isMounted) navigate("/");
-        }
+        navigate("/");
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    setupSocket();
+    initializeGameRoom();
 
     return () => {
       isMounted = false;
@@ -222,7 +127,7 @@ const GameRoom = ({ user }) => {
     };
   }, [roomId, navigate, user]);
 
-  // Handle browser window/tab close events to properly clean up sockets
+  // Handle browser window/tab close events to clean up sockets
   useEffect(() => {
     const handleBeforeUnload = () => {
       console.log(
@@ -244,10 +149,8 @@ const GameRoom = ({ user }) => {
     };
   }, []);
 
-  // Update useEffect to store previous scores when game state changes
+  // Update previous scores when game state changes
   useEffect(() => {
-    // Create a snapshot of player scores whenever players array changes
-    // This will help us calculate point differences for the round
     if (gameData.players && gameData.players.length > 0) {
       const scoreMap = {};
       gameData.players.forEach((player) => {
@@ -255,38 +158,29 @@ const GameRoom = ({ user }) => {
       });
       prevPlayerScoresRef.current = scoreMap;
     }
-  }, [gameData.gameState]);
+  }, [gameData.gameState, gameData.players]);
 
+  // Show round summary when conditions are met
   useEffect(() => {
-    // Only show round summary when:
-    // 1. The round ended (DRAW_END state)
-    // 2. All players have drawn (every player's hasDrawn is true)
-    // 3. We haven't shown the summary for this round yet
-
     if (
       gameData.gameState === GAME_STATE.DRAW_END &&
       gameData.players.every((player) => player.hasDrawn) &&
       gameData.currentRound > lastSummaryRoundRef.current
     ) {
-      // Update the last summary round to prevent showing it again
       lastSummaryRoundRef.current = gameData.currentRound;
-
-      // Show round end modal first, then summary after it closes
       setShowRoundEnd(true);
     }
   }, [gameData.gameState, gameData.players, gameData.currentRound]);
 
-  // Function to calculate points earned in the current round
+  // Calculate points earned in the current round
   const calculateRoundPoints = (player) => {
     const prevScore = prevPlayerScoresRef.current[player.username] || 0;
     return player.score - prevScore;
   };
 
-  // Handler for when the RoundEndModal completes
+  // Handle completion of the RoundEndModal
   const handleRoundEndComplete = () => {
     setShowRoundEnd(false);
-
-    // Only show round summary if all players have drawn
     if (gameData.players.every((player) => player.hasDrawn)) {
       setTimeout(() => {
         setShowRoundSummary(true);
@@ -294,15 +188,25 @@ const GameRoom = ({ user }) => {
     }
   };
 
+  if (error) {
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-2">
+        <strong className="font-bold">Error: </strong>
+        <span className="block sm:inline">{error}</span>
+      </div>
+    );
+  }
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] mx-1 md:mx-2 lg:mx-4 dark:bg-gray-900 transition-colors">
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-2">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-      <div className="h-full flex flex-col gap-0.5 py-0.5">
+    <div className="min-h-[calc(100vh-4rem)] dark:bg-gray-600 transition-colors">
+      <div className="h-full flex flex-col">
         <HiddenWord
           word={gameData.currentWord}
           isDrawing={gameData.currentDrawer === user.username}
@@ -314,8 +218,8 @@ const GameRoom = ({ user }) => {
           maxRounds={gameData.maxRounds}
           roomId={lobbyId}
         />
-        <div className="flex-1 flex flex-col lg:flex-row gap-0.5">
-          <div className="lg:w-72 flex flex-col">
+        <div className="flex-1 flex flex-col lg:flex-row">
+          <div className="lg:w-72">
             <PlayerList
               players={gameData.players}
               drawerUsername={gameData.currentDrawer}
@@ -324,15 +228,14 @@ const GameRoom = ({ user }) => {
               currentUsername={user.username}
               isAdmin={user.isAdmin} // Add this line
             />
-          
-          {/* Game Settings */}
+
+            {/* /* Game Settings */}
             <GameSettings
               revealCharacters={gameData.revealCharacters}
               maxRounds={gameData.maxRounds}
               selectWord={gameData.selectWord}
               selectCategory={gameData.selectCategory}
               playerLimit={gameData.playerLimit}
-              className="text-lg font-bold bg-white dark:bg-gray-800 shadow-md rounded-lg p-4"
             />
           </div>
 
@@ -343,15 +246,15 @@ const GameRoom = ({ user }) => {
           {gameData.gameState === GAME_STATE.PICKING_WORD &&
             gameData.currentDrawer === user.username &&
             gameData.currentWord.includes(",") && (
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <p className="text-3xl font-bold mb-6 bg-white dark:bg-gray-800 px-8 py-4 rounded-lg shadow-md">
+              <div className="p-5 m-1 flex-1 flex flex-col items-center justify-center">
+                <p className="text-3xl font-bold mb-6 text-white px-8 py-4 rounded-lg shadow-lg text-center bg-gradient-to-r from-purple-800 via-purple-500 to-purple-100/50">
                   Select a word:
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center">
                   {gameData.currentWord.split(",").map((word, index) => (
                     <button
                       key={index}
-                      className="px-10 py-6 bg-blue-500 text-white text-2xl font-bold rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                      className="px-10 py-6 bg-gradient-to-r from-indigo-400 via-purple-500 to-purple-100/50 text-white text-2xl font-bold rounded-xl hover:bg-purple-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                       onClick={() =>
                         socketManager.selectWord(roomId, word.trim())
                       }
@@ -367,7 +270,7 @@ const GameRoom = ({ user }) => {
             gameData.currentDrawer === user.username &&
             !gameData.currentWord.includes(",") && (
               <div className="flex-1 flex items-center justify-center">
-                <p className="text-3xl font-bold bg-white dark:bg-gray-800 px-8 py-4 rounded-lg shadow-md">
+                <p className="text-3xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg shadow-lg text-center">
                   Starting your turn...
                 </p>
               </div>
@@ -376,7 +279,7 @@ const GameRoom = ({ user }) => {
           {gameData.gameState === GAME_STATE.PICKING_WORD &&
             gameData.currentDrawer !== user.username && (
               <div className="flex-1 flex flex-col items-center justify-center">
-                <p className="text-3xl font-bold mb-6 bg-white dark:bg-gray-800 px-8 py-4 rounded-lg shadow-md center">
+                <p className="text-3xl font-bold mb-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg shadow-lg text-center">
                   Waiting for {gameData.currentDrawer} to start drawing...
                 </p>
               </div>
@@ -399,7 +302,7 @@ const GameRoom = ({ user }) => {
 
           {gameData.gameState === GAME_STATE.FINISHED && (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-4xl font-bold bg-white dark:bg-gray-800 px-8 py-4 rounded-lg shadow-md">
+              <p className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg shadow-lg text-center">
                 Game Over! Thanks for playing!
               </p>
             </div>

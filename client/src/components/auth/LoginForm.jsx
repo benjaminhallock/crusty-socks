@@ -2,20 +2,26 @@ import { useState } from "react";
 
 import { login, register } from "../../services/auth";
 
+// LoginForm component handles user authentication (login and registration)
 const LoginForm = ({ onLoginSuccess }) => {
+  // State to manage loading status during authentication
   const [isLoading, setIsLoading] = useState(false);
+  // State to store error messages
   const [error, setError] = useState("");
+  // State to toggle between login and registration modes
   const [isRegister, setIsRegister] = useState(false);
+  // State to store form data for email, password, and username
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     username: "",
   });
 
+  // Handle form submission for login or registration
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate input
+    // Validate input fields
     if (
       !formData.email ||
       !formData.password ||
@@ -47,12 +53,14 @@ const LoginForm = ({ onLoginSuccess }) => {
     try {
       let res;
       if (isRegister) {
+        // Call register service for new user registration
         res = await register(
           formData.email,
           formData.username,
           formData.password
         );
       } else {
+        // Call login service for existing user authentication
         res = await login(formData.email, formData.password);
       }
       if (res?.user && res?.token) {
@@ -71,6 +79,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     }
   };
 
+  // Toggle between login and registration modes
   const toggleMode = () => {
     setIsRegister(!isRegister);
     setError("");
@@ -79,18 +88,20 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl animate-slide-in">
+      <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
         <img className="mx-auto h-40 w-auto" src="/logo.svg" alt="Logo" />
         <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
           {isRegister ? "Create an account" : "Sign in"}
         </h2>
 
+        {/* Display error message if any */}
         {error && (
           <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
+        {/* Form for login or registration */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"

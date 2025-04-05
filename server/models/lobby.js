@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-import { GAME_STATE } from '../../shared/constants.js';
+import { GAME_STATE } from '../constants.js';
 
 /**
  * Lobby Schema
@@ -158,14 +158,12 @@ lobbySchema.methods.findPlayerByUsername = function (username) {
 
 // Updates game state with validation
 lobbySchema.methods.setGameState = function (state) {
-  console.log('Updating game state:', { roomId: this.roomId, newState: state });
   this.gameState = state;
   return this.save();
 };
 
 // Adds new player if not already in lobby
 lobbySchema.methods.addPlayer = function (username) {
-  console.log('Adding player to lobby:', { roomId: this.roomId, username });
   if (!this.players.find((p) => p.username === username)) {
     this.players.push({ username });
     return this.save();
@@ -174,17 +172,12 @@ lobbySchema.methods.addPlayer = function (username) {
 
 // Removes player from lobby
 lobbySchema.methods.removePlayerByUsername = function (username) {
-  console.log('Removing player from lobby:', { roomId: this.roomId, username });
   this.players = this.players.filter((p) => p.username !== username);
   return this.save();
 };
 
 // Adds chat message to history
 lobbySchema.methods.addMessage = function (messageData) {
-  console.log('Adding message to lobby:', {
-    roomId: this.roomId,
-    username: messageData.username,
-  });
   this.messages.push({
     user: messageData.username,
     message: messageData.message,
@@ -195,7 +188,6 @@ lobbySchema.methods.addMessage = function (messageData) {
 
 // Adds a user to the kicked list
 lobbySchema.methods.addKickedUser = function (username) {
-  console.log('Adding user to kicked list:', { roomId: this.roomId, username });
   if (!this.isUserKicked(username)) {
     this.kickedUsers.push({ username });
     return this.save();
@@ -215,7 +207,6 @@ lobbySchema.methods.isUserKicked = function (username) {
 
 // Creates or retrieves existing lobby
 lobbySchema.statics.findOrCreate = async function (roomId) {
-  console.log('Finding or creating lobby:', roomId);
   let lobby = await this.findOne({ roomId });
   if (!lobby) {
     lobby = new this({

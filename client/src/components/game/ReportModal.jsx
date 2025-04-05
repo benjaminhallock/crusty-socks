@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+
 import { createReport } from '../../services/reports';
 
 const REPORT_REASONS = [
@@ -10,13 +11,15 @@ const REPORT_REASONS = [
   'Other'
 ];
 
+// ReportModal component allows users to report other players for various reasons
 const ReportModal = ({ onClose, reportedUser, currentUsername, roomId, chatLogs }) => {
-  const [selectedReason, setSelectedReason] = useState('');
-  const [additionalComments, setAdditionalComments] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [selectedReason, setSelectedReason] = useState(''); // State to track the selected reason for reporting
+  const [additionalComments, setAdditionalComments] = useState(''); // State to store additional comments
+  const [isSubmitting, setIsSubmitting] = useState(false); // State to track submission status
+  const [error, setError] = useState(''); // State to store error messages
+  const [success, setSuccess] = useState(false); // State to track successful submission
 
+  // Handle form submission for reporting a player
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -30,12 +33,12 @@ const ReportModal = ({ onClose, reportedUser, currentUsername, roomId, chatLogs 
     
     try {
       const reportData = {
-        reportedUser,
-        reportedBy: currentUsername,
-        roomId,
-        reason: selectedReason,
-        additionalComments,
-        chatLogs: chatLogs?.slice(-10) || [],
+        reportedUser, // Username of the reported player
+        reportedBy: currentUsername, // Username of the reporting player
+        roomId, // ID of the game room
+        reason: selectedReason, // Selected reason for reporting
+        additionalComments, // Additional comments provided by the user
+        chatLogs: chatLogs?.slice(-10) || [], // Last 10 chat logs for context
       };
       
       const result = await createReport(reportData);

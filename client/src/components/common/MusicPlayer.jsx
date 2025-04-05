@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 const tracks = [
   '/audio/testTrack1.mp3',
@@ -62,7 +62,7 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
       audio.removeEventListener('ended', handleTrackEnd);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, []); // Only run on mount
+  }, [isPlaying]); // Only run on mount
 
   // Handle mute changes
   useEffect(() => {

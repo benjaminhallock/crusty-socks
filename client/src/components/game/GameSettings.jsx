@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
+// GameSettings component displays the current game settings in a collapsible UI
 const GameSettings = ({ revealCharacters, maxRounds, selectWord, selectCategory, playerLimit }) => {
+  // State to manage whether the settings panel is expanded or collapsed
   const [expanded, setExpanded] = useState(false);
 
   // Map category values to readable labels with emojis
@@ -15,17 +17,19 @@ const GameSettings = ({ revealCharacters, maxRounds, selectWord, selectCategory,
   };
 
   return (
-    <div className="max-w-xs mx-auto mt-2 mb-1.5 sm:max-w-sm md:max-w-md lg:max-w-lg">
+    <div className="w-full">
+      {/* Button to toggle the expanded state of the settings panel */}
       <button 
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-2 py-1 text-left rounded-lg bg-indigo-100 dark:bg-gray-700 hover:bg-indigo-200 dark:hover:bg-gray-600"
+        className="w-full flex items-center justify-between px-2 py-1 text-left bg-gray-200 dark:bg-gray-700 hover:bg-indigo-500 dark:hover:bg-gray-600 hover:text-white"
       >
         <span className="text-xs font-medium">Game Settings</span>
         <span className="text-xs">{expanded ? '▼' : '▶'}</span>
       </button>
       
+      {/* Display the settings details if expanded */}
       {expanded && (
-        <div className="p-2 mt-1 text-xs rounded-lg shadow bg-white/90 dark:bg-gray-800/90 animate-fade-in">
+        <div className="p-2 text-xs bg-white/90 dark:bg-gray-800/90 animate-fade-in">
           <ul className="space-y-1">
             <li className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-300">Rounds:</span>

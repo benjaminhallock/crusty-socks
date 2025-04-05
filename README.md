@@ -20,7 +20,7 @@ This project consists of two main parts:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/crustysocks.git
+git clone https://github.com/benjaminhallock/crusty-socks.git
 cd crustysocks
 ```
 

@@ -1,23 +1,42 @@
 import { useState, useEffect } from "react";
 
-import { getAllReports, updateReportStatus, updateReport } from "../../services/reports";
-import { getAllUsers, getAllLobbies } from "../../services/auth";
 import { updateUser } from "../../services/reports";
 import { updateLobby } from "../../services/reports";
+import LoadingSpinner from '../common/ui/LoadingSpinner';
+import { getAllUsers, getAllLobbies } from "../../services/auth";
+import { getAllReports, updateReportStatus, updateReport } from "../../services/reports";
 
+// Add light and dark mode styles
+const adminStyles = {
+  light: "bg-gray-100 text-gray-900",
+  dark: "bg-gray-900 text-white",
+};
+
+// Admin component provides an interface for managing users, lobbies, and reports
+// Accessible only to users with admin privileges
 const Admin = ({ user }) => {
+  // State to store fetched data for users, lobbies, and reports
   const [data, setData] = useState({ users: [], lobbies: [], reports: [] });
+  // State to manage loading status
   const [loading, setLoading] = useState(true);
+  // State to store error messages
   const [error, setError] = useState("");
+  // State to track the currently active tab (e.g., reports, users, lobbies)
   const [activeTab, setActiveTab] = useState("reports");
+  // State to store the search term for filtering data
   const [searchTerm, setSearchTerm] = useState("");
+  // State to manage sorting configuration
   const [sortConfig, setSortConfig] = useState({ field: "timestamp", direction: "desc" });
+  // State to track the item being edited
   const [editingItem, setEditingItem] = useState(null);
+  // State to store form data for editing
   const [editFormData, setEditFormData] = useState({});
+  // State to display success messages
   const [successMessage, setSuccessMessage] = useState("");
+  // State to manage the visibility of the sidebar on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check if user has admin privileges
+  // useEffect to fetch data and check admin privileges on component mount
   useEffect(() => {
     if (!user || !user.isAdmin) {
       setError("You don't have permission to access this page");
@@ -30,20 +49,28 @@ const Admin = ({ user }) => {
         setLoading(true);
         setError("");
         
+        // Fetch users, lobbies, and reports data concurrently
         const [usersResponse, lobbiesResponse, reportsResponse] = await Promise.all([
-          getAllUsers(),
-          getAllLobbies(),
-          getAllReports()
+          getAllUsers().catch(error => ({ success: false, error: error.message })),
+          getAllLobbies().catch(error => ({ success: false, error: error.message })),
+          getAllReports().catch(error => ({ success: false, error: error.message }))
         ]);
 
+        // Set the data with proper error handling
         setData({
           users: usersResponse.success ? usersResponse.users : [],
           lobbies: lobbiesResponse.success ? lobbiesResponse.lobbies : [],
           reports: reportsResponse.success ? reportsResponse.reports : []
         });
 
-        if (!usersResponse.success || !lobbiesResponse.success || !reportsResponse.success) {
-          setError('Some data failed to load. Please refresh to try again.');
+        // Collect any errors that occurred
+        const errors = [];
+        if (!usersResponse.success) errors.push(`Users: ${usersResponse.error}`);
+        if (!lobbiesResponse.success) errors.push(`Lobbies: ${lobbiesResponse.error}`);
+        if (!reportsResponse.success) errors.push(`Reports: ${reportsResponse.error}`);
+        
+        if (errors.length > 0) {
+          setError(`Failed to load some data: ${errors.join(', ')}`);
         }
       } catch (err) {
         console.error("Error fetching admin data:", err);
@@ -55,6 +82,25 @@ const Admin = ({ user }) => {
     fetchData();
   }, [user]);
 
+  // Ensure getAllUsers fetches data correctly
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await getAllUsers();
+        if (response.success) {
+          setData((prev) => ({ ...prev, users: response.users }));
+        } else {
+          setError("Failed to fetch users.");
+        }
+      } catch (err) {
+        setError("An error occurred while fetching users.");
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Function to handle sorting of data
   const handleSort = (field) => {
     setSortConfig(prev => ({
       field,
@@ -62,6 +108,7 @@ const Admin = ({ user }) => {
     }));
   };
 
+  // Function to update the status of a report
   const handleUpdateStatus = async (reportId, newStatus) => {
     try {
       const result = await updateReportStatus(reportId, newStatus);
@@ -76,21 +123,24 @@ const Admin = ({ user }) => {
       } else {
         setError("Failed to update report status: " + result.error);
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while updating report status");
     }
   };
-  
+
+  // Function to handle the start of editing an item
   const handleEditClick = (item, type) => {
     setEditingItem({ id: item._id, type });
     setEditFormData({ ...item });
   };
-  
+
+  // Function to cancel editing
   const handleCancelEdit = () => {
     setEditingItem(null);
     setEditFormData({});
   };
-  
+
+  // Function to handle input changes in the edit form
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setEditFormData(prev => ({
@@ -98,7 +148,8 @@ const Admin = ({ user }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
   };
-  
+
+  // Function to save the edited item
   const handleSaveEdit = async () => {
     try {
       const { type, id } = editingItem;
@@ -154,7 +205,8 @@ const Admin = ({ user }) => {
       setError(`An error occurred while updating: ${err.message}`);
     }
   };
-  
+
+  // Function to display a success message temporarily
   const showSuccessMessage = (message) => {
     setSuccessMessage(message);
     setTimeout(() => {
@@ -162,6 +214,7 @@ const Admin = ({ user }) => {
     }, 3000);
   };
 
+  // Function to filter and sort data based on the active tab and search term
   const filterAndSortData = (items, type) => {
     const searchLower = searchTerm.toLowerCase();
     
@@ -192,7 +245,7 @@ const Admin = ({ user }) => {
       if (sortConfig.direction === "asc") {
         return aValue > bValue ? 1 : -1;
       }
-      return aValue < bValue ? 1 : -1;
+      return aValue < bValue ? -1 : 1;
     });
   };
 
@@ -562,6 +615,12 @@ const Admin = ({ user }) => {
     }
   };
 
+  // Function to toggle the visibility of the sidebar on mobile
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  // Function to change the active tab
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     // On mobile, close the sidebar after selecting a tab
@@ -570,15 +629,19 @@ const Admin = ({ user }) => {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
   if (loading) {
     return (
       <div className="p-4 text-white">
         <h1 className="text-2xl font-bold mb-4">Admin Portal</h1>
-        <p>Loading...</p>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+        {/* Ghost wireframe for skeleton UI */}
+        <div className="space-y-4">
+          <div className="h-6 bg-gray-700 rounded w-1/3"></div>
+          <div className="h-6 bg-gray-700 rounded w-2/3"></div>
+          <div className="h-6 bg-gray-700 rounded w-1/2"></div>
+        </div>
       </div>
     );
   }

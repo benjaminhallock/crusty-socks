@@ -1,27 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { GAME_STATE } from '../../../../shared/constants';
+import { useEffect, useState } from 'react';
 
+import { GAME_STATE } from '../../constants';
+
+// RoundSummaryModal component displays a summary of the round
+// Includes player rankings, points earned, and a countdown to the next round or game over
 const RoundSummaryModal = ({ 
-  isOpen, 
-  onClose, 
-  players, 
-  roundNumber, 
-  maxRounds, 
-  gameState 
+  isOpen, // Whether the modal is open
+  onClose, // Callback to close the modal
+  players, // List of players with their scores and round points
+  roundNumber, // Current round number
+  maxRounds, // Total number of rounds in the game
+  gameState // Current game state
 }) => {
-  // Change the initial time to 10 seconds for consistency
-  const [timeLeft, setTimeLeft] = useState(10);
-  const SUMMARY_DURATION = 10; // 10 seconds
-  
+  const [timeLeft, setTimeLeft] = useState(10); // State to track the remaining time for the summary
+  const SUMMARY_DURATION = 10; // Duration of the summary in seconds
+
+  // Effect to manage the countdown timer
   useEffect(() => {
     let timer;
     if (isOpen) {
-      // Reset timer when modal opens
-      setTimeLeft(SUMMARY_DURATION);
+      setTimeLeft(SUMMARY_DURATION); // Reset timer when modal opens
       
       // Start countdown timer
       timer = setInterval(() => {
-        setTimeLeft(prev => {
+        setTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
             onClose(); // Auto-close and start next round when timer reaches 0
@@ -37,25 +39,25 @@ const RoundSummaryModal = ({
       if (timer) clearInterval(timer);
     };
   }, [isOpen, onClose]);
-  
-  if (!isOpen) return null;
-  
+
+  if (!isOpen) return null; // Do not render if the modal is not open
+
   // Check if all players have drawn
-  const allPlayersHaveDrawn = players.every(player => player.hasDrawn);
-  
+  const allPlayersHaveDrawn = players.every((player) => player.hasDrawn);
+
   // Only show the full round summary when all players have drawn
   if (!allPlayersHaveDrawn && gameState === GAME_STATE.DRAW_END) {
     return null;
   }
-  
+
   // Sort players by their roundPoints for this round
   const sortedPlayers = [...players].sort((a, b) => (b.roundPoints || 0) - (a.roundPoints || 0));
-  
+
   // Calculate timer bar width percentage
   const timerPercentage = (timeLeft / SUMMARY_DURATION) * 100;
-  
-  const isGameOver = roundNumber >= maxRounds;
-  
+
+  const isGameOver = roundNumber >= maxRounds; // Check if the game is over
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">

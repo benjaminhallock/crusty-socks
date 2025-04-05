@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { useState, useEffect } from "react";
+// Import necessary libraries and components
+import { useRef, useState, useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -18,45 +18,49 @@ import Navbar from "./components/common/Navbar";
 import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
-import LobbySettings from "./components/lobby/LobbySettings";
-import AccountSettings from "./components/auth/AccountSettings";
-import Leaderboard from "./components/leaderboard/Leaderboard";
 import UserProfile from "./components/users/UserProfile";
+import LobbySettings from "./components/lobby/LobbySettings";
+import Leaderboard from "./components/leaderboard/Leaderboard";
+import AccountSettings from "./components/auth/AccountSettings";
 
+// ProtectedRoute ensures only authenticated users can access certain routes
+// Redirects unauthorized users to the home page
 const ProtectedRoute = ({ user, children }) => {
   const location = useLocation();
-  if (!user)
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to="/" replace state={{ from: location.pathname }} />;
   return children;
 };
 
+// AdminRoute ensures only admin users can access certain routes
+// Redirects unauthorized users to the home page
 const AdminRoute = ({ user, children }) => {
   const location = useLocation();
-  if (!user)
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
-  if (!user.isAdmin)
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  if (!user || !user.isAdmin) return <Navigate to="/" replace state={{ from: location.pathname }} />;
   return children;
 };
 
 function App() {
+  // State to manage the logged-in user
   const [user, setUser] = useState(null);
+  // State to manage loading status during authentication check
   const [isLoading, setIsLoading] = useState(true);
+  // State to manage background image loading status
   const [bgLoaded, setBgLoaded] = useState(false);
+  // Ref to ensure authentication check runs only once
   const initialCheckRef = useRef(false);
+
+  // Preload background image for smoother UI transitions
   useEffect(() => {
     const bgImage = new Image();
     bgImage.src = "/wallpaper.svg";
-    bgImage.onload = () => {
-      setBgLoaded(true);
-    };
-    bgImage.onerror = (err) => {
-      console.error("Failed to load background:", err);
-      // Set as loaded anyway so the app continues to work
+    bgImage.onload = () => setBgLoaded(true);
+    bgImage.onerror = () => {
+      console.error("Failed to load background image");
       setBgLoaded(true);
     };
   }, []);
 
+  // Check user authentication on initial load
   useEffect(() => {
     if (!localStorage.getItem("token")) {
       setIsLoading(false);
@@ -67,11 +71,9 @@ function App() {
 
     const checkUserAuth = async () => {
       try {
-        console.log("Checking user authentication...");
         const response = await checkAuth();
         if (response?.user) {
           const userData = { ...response.user, id: response.user._id };
-          console.log("User authenticated, saving user data:", userData);
           setUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
         } else {
@@ -88,6 +90,7 @@ function App() {
     checkUserAuth();
   }, []);
 
+  // Handle user login by updating state and localStorage
   const handleLogin = ({ user, token }) => {
     if (!user || !token) {
       console.error("Invalid login data");
@@ -99,12 +102,14 @@ function App() {
     socketManager.connect(userInfo);
   };
 
+  // Handle user logout by clearing state and localStorage
   const handleLogout = () => {
     localStorage.clear();
     socketManager.disconnect();
     setUser(null);
   };
 
+  // Show loading spinner while checking authentication
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -169,9 +174,9 @@ function App() {
               }
             />
             <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route 
-              path="/users/profile/:username" 
-              element={<UserProfile currentUser={user} />} 
+            <Route
+              path="/user/:username"
+              element={<UserProfile currentUser={user} />}
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

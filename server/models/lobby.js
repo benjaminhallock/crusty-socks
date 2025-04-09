@@ -1,22 +1,16 @@
 import mongoose from 'mongoose';
 
 import { GAME_STATE } from '../constants.js';
-
-/**
- * Lobby Schema
- * Central data model for game rooms and their state
- * Handles player management, game settings, and real-time state
- */
+import Chat from './chat.js'; // Importing the Chat model
+import User from './user.js'; // Importing the User model
 const lobbySchema = new mongoose.Schema(
   {
-    // Core lobby identifiers
     roomId: {
       type: String,
       required: true,
       unique: true,
       index: true, // Indexed for quick lobby lookups
     },
-    // Game configuration
     playerLimit: {
       type: Number,
       default: 8,
@@ -24,7 +18,6 @@ const lobbySchema = new mongoose.Schema(
       min: 2,
       required: true,
     },
-    // Player roster with scoring
     players: [
       {
         userId: {
@@ -48,26 +41,22 @@ const lobbySchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+        drawPoints: {
+          type: Number,
+          default: 0,
+        },
         roundScore: {
           type: Number,
           default: 0,
         },
       },
     ],
-
-    // Chat history
     messages: [
       {
-        user: String,
-        message: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Chat',
       },
     ],
-
-    // Game progression tracking
     currentRound: {
       type: Number,
       default: 1,
@@ -78,8 +67,6 @@ const lobbySchema = new mongoose.Schema(
       min: 1,
       max: 10,
     },
-
-    // Game mode settings
     revealCharacters: {
       type: Number,
       min: 0,
@@ -96,7 +83,6 @@ const lobbySchema = new mongoose.Schema(
       type: String,
       default: 'random', // Default category
     },
-    // Active game state
     currentWord: {
       type: String,
       default: '',
@@ -112,8 +98,6 @@ const lobbySchema = new mongoose.Schema(
       default: GAME_STATE.WAITING,
       set: (v) => v || GAME_STATE.WAITING, // Fallback for undefined states
     },
-
-    // Drawing canvas state
     canvasState: {
       data: String,
       lastUpdate: Date,
@@ -124,69 +108,49 @@ const lobbySchema = new mongoose.Schema(
       min: 30,
       max: 180,
     },
-    // Timer end timestamp
     startTime: {
       type: Date,
       default: null,
     },
-    // List of kicked users who cannot rejoin this lobby
-    kickedUsers: [{
-      username: {
-        type: String,
-        required: true
-      },
-      kickedAt: {
-        type: Date,
-        default: Date.now
-      }
-    }],
+    usedWords: {
+      type: [String],
+      default: [],
     },
-    {
-    timestamps: true, // Adds createdAt and updatedAt
+    kickedUsers: [
+      {
+        username: {
+          type: String,
+          required: true,
+          ref: 'User',
+        },
+        kickedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+  },
+  {
+    timestamps: true // Adds createdAt and updatedAt
   }
 );
 
-/**
- * Instance Methods
- * Helper functions for common lobby operations
- */
-
-// Finds player by username
 lobbySchema.methods.findPlayerByUsername = function (username) {
   return this.players.find((p) => p.username === username);
 };
-
-// Updates game state with validation
-lobbySchema.methods.setGameState = function (state) {
-  this.gameState = state;
-  return this.save();
+lobbySchema.methods.findPlayerById = function (userId) {
+  return this.players.find((p) => p.userId.toString() === userId.toString());
 };
 
-// Adds new player if not already in lobby
-lobbySchema.methods.addPlayer = function (username) {
-  if (!this.players.find((p) => p.username === username)) {
-    this.players.push({ username });
-    return this.save();
-  }
-};
-
-// Removes player from lobby
-lobbySchema.methods.removePlayerByUsername = function (username) {
-  this.players = this.players.filter((p) => p.username !== username);
-  return this.save();
-};
-
-// Adds chat message to history
-lobbySchema.methods.addMessage = function (messageData) {
+lobbySchema.methods.addMessage = function ({ username, message, timestamp }) {
   this.messages.push({
-    user: messageData.username,
-    message: messageData.message,
-    timestamp: new Date(messageData.timestamp),
+    user: username,
+    message,
+    timestamp: new Date(timestamp),
   });
   return this.save();
 };
 
-// Adds a user to the kicked list
 lobbySchema.methods.addKickedUser = function (username) {
   if (!this.isUserKicked(username)) {
     this.kickedUsers.push({ username });
@@ -195,31 +159,26 @@ lobbySchema.methods.addKickedUser = function (username) {
   return this;
 };
 
-// Checks if a user has been kicked
 lobbySchema.methods.isUserKicked = function (username) {
-  return this.kickedUsers.some(kicked => kicked.username === username);
+  return this.kickedUsers.some((kicked) => kicked.username === username);
 };
 
-/**
- * Static Methods
- * Utility functions for lobby management
- */
 
-// Creates or retrieves existing lobby
-lobbySchema.statics.findOrCreate = async function (roomId) {
-  let lobby = await this.findOne({ roomId });
-  if (!lobby) {
-    lobby = new this({
-      roomId,
-      gameState: GAME_STATE.WAITING,
-      players: [],
-    });
-    await lobby.save();
-  }
+lobbySchema.statics.findByRoomId = async function (roomId) {
+  if (!roomId) throw new Error('Room ID is required');
+  const lobby = await this.findOne({ roomId })
+    .populate('messages')
+    .populate('players.userId', 'username email profileImage');
+  lobby._id = lobby._id.toString();
+  if (!lobby) throw new Error('Lobby not found');
   return lobby;
 };
 
-// Performance optimizations
+lobbySchema.methods.removePlayer = function (username) {
+  this.players = this.players.filter(player => player.username !== username);
+  return this.save();
+};
+
 lobbySchema.index({ createdAt: -1 });
 lobbySchema.index({ 'players.userId': 1, roomId: 1 }, { unique: true });
 

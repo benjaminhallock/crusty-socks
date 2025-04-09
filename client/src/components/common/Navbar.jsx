@@ -44,6 +44,13 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     }
   };
 
+  // Toggle mute state
+  const toggleAudio = () => {
+    setIsMuted((prev) => !prev);
+    setIsPlaying(!isPlaying);
+    if (!isPlaying && showPlayButton) setShowPlayButton(false);
+  };
+
   // Close dropdown menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -176,10 +183,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           )}
 
           <Button
-            onClick={() => {
-              setIsPlaying(!isPlaying);
-              if (!isPlaying && showPlayButton) setShowPlayButton(false);
-            }}
+            onClick={toggleAudio}
             className="text-sm flex items-center gap-2 bg-purple/80 dark:bg-gray-800/50"
           >
             {isPlaying ? (

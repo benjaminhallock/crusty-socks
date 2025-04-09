@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { createReport } from '../../services/reports';
+import { createReport } from '../../services/api';
 
 const REPORT_REASONS = [
   'AFK / Inactive',

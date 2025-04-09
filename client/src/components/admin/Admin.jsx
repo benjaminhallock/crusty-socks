@@ -1,19 +1,16 @@
 import { useState, useEffect } from "react";
 
-import { updateUser } from "../../services/reports";
-import { updateLobby } from "../../services/reports";
 import LoadingSpinner from '../common/ui/LoadingSpinner';
-import { getAllUsers, getAllLobbies } from "../../services/auth";
-import { getAllReports, updateReportStatus, updateReport } from "../../services/reports";
+import {
+  getAllUsers,
+  getAllLobbies,
+  getAllReports,
+  updateReportStatus,
+  updateReport,
+  updateUser,
+  updateLobby
+} from "../../services/api";
 
-// Add light and dark mode styles
-const adminStyles = {
-  light: "bg-gray-100 text-gray-900",
-  dark: "bg-gray-900 text-white",
-};
-
-// Admin component provides an interface for managing users, lobbies, and reports
-// Accessible only to users with admin privileges
 const Admin = ({ user }) => {
   // State to store fetched data for users, lobbies, and reports
   const [data, setData] = useState({ users: [], lobbies: [], reports: [] });
@@ -51,9 +48,9 @@ const Admin = ({ user }) => {
         
         // Fetch users, lobbies, and reports data concurrently
         const [usersResponse, lobbiesResponse, reportsResponse] = await Promise.all([
-          getAllUsers().catch(error => ({ success: false, error: error.message })),
-          getAllLobbies().catch(error => ({ success: false, error: error.message })),
-          getAllReports().catch(error => ({ success: false, error: error.message }))
+          getAllUsers(),
+          getAllLobbies(),
+          getAllReports()
         ]);
 
         // Set the data with proper error handling
@@ -72,33 +69,16 @@ const Admin = ({ user }) => {
         if (errors.length > 0) {
           setError(`Failed to load some data: ${errors.join(', ')}`);
         }
-      } catch (err) {
-        console.error("Error fetching admin data:", err);
+      } catch (error) {
+        console.error("Error fetching admin data:", error);
         setError("Failed to load admin data. Please refresh to try again.");
       } finally {
         setLoading(false);
       }
     };
+    
     fetchData();
   }, [user]);
-
-  // Ensure getAllUsers fetches data correctly
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await getAllUsers();
-        if (response.success) {
-          setData((prev) => ({ ...prev, users: response.users }));
-        } else {
-          setError("Failed to fetch users.");
-        }
-      } catch (err) {
-        setError("An error occurred while fetching users.");
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   // Function to handle sorting of data
   const handleSort = (field) => {
@@ -149,7 +129,7 @@ const Admin = ({ user }) => {
     }));
   };
 
-  // Function to save the edited item
+  // Handle saving edited item
   const handleSaveEdit = async () => {
     try {
       const { type, id } = editingItem;
@@ -165,6 +145,8 @@ const Admin = ({ user }) => {
                 user._id === id ? result.user : user
               )
             }));
+          } else {
+            setError(result.error || "Failed to update user");
           }
           break;
         case 'lobby':
@@ -194,12 +176,10 @@ const Admin = ({ user }) => {
           return;
       }
       
-      if (result.success) {
+      if (result?.success) {
         showSuccessMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully`);
         setEditingItem(null);
         setEditFormData({});
-      } else {
-        setError(`Failed to update ${type}: ${result.error}`);
       }
     } catch (err) {
       setError(`An error occurred while updating: ${err.message}`);

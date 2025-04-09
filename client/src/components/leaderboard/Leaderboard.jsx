@@ -1,68 +1,36 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ENV_CONFIG, API_ENDPOINTS } from "../../constants";
 
+import { fetchLeaderboard } from "../../services/api";
 import LoadingSpinner from "../common/ui/LoadingSpinner";
 
 // Leaderboard component displays the leaderboard of players
-// Includes rankings, scores, games played, wins, and win rates
 const Leaderboard = () => {
-  const [leaderboard, setLeaderboard] = useState([]); // State to store leaderboard data
-  const [isLoading, setIsLoading] = useState(true); // State to track loading status
-  const [error, setError] = useState(null); // State to store error messages
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fetch leaderboard data from the server
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    const loadLeaderboard = async () => {
       try {
         setIsLoading(true);
-        // Use the correct API endpoint path
-        const apiUrl = `${ENV_CONFIG.getClientApiUrl()}${API_ENDPOINTS.LEADERBOARD}`;
-        console.log("Fetching leaderboard from:", apiUrl);
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "include",
-        });
+        const response = await fetchLeaderboard();
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Failed to fetch leaderboard data: ${response.status} ${errorText}`
-          );
+        if (!response.success) {
+          throw new Error(response.error);
         }
 
-        const data = await response.json();
-
-        if (!data || !data.leaderboard) {
-          // Handle different response formats
-          if (Array.isArray(data)) {
-            console.log("Received array response:", data);
-            setLeaderboard(data);
-          } else if (data.users) {
-            console.log("Received users array:", data.users);
-            setLeaderboard(data.users);
-          } else {
-            console.log("Unexpected response format:", data);
-            throw new Error("Invalid response format from server");
-          }
-        } else {
-          console.log("Leaderboard data received:", data);
-          setLeaderboard(data.leaderboard || []);
-        }
+        setLeaderboard(response.leaderboard);
       } catch (error) {
-        console.error("Error fetching leaderboard:", error);
+        console.error("Error loading leaderboard:", error);
         setError(error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchLeaderboard();
-  }, []);      
+    loadLeaderboard();
+  }, []);
 
   if (isLoading) {
     return (

@@ -11,10 +11,14 @@ router.get('/all', auth, isAdmin, lobbyController.getAllLobbies);
 // Create a new lobby
 router.post('/create', auth, lobbyController.createLobby);
 
+router.post('/leave', auth, lobbyController.leaveLobby);
+
 // Get lobby by ID
 router.get('/:roomId', auth, lobbyController.getLobbyById);
 
 // Update a lobby (admin only)
 router.put('/:lobbyId', auth, isAdmin, lobbyController.updateLobby);
+
+
 
 export default router;

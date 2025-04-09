@@ -5,8 +5,8 @@
 
 /* Define a custom font face for the application */
 @font-face {
-  font-family: 'W95FA';
-  src: url('/w95fa.woff') format('truetype');
+  font-family: "W95FA";
+  src: url("/w95fa.woff") format("truetype");
   font-weight: normal;
   font-style: normal;
 }
@@ -16,7 +16,7 @@
   :root {
     color-scheme: dark light; /* Support both dark and light modes */
   }
-  
+
   html {
     font-family: "W95FA", monospace; /* Use the custom font */
     letter-spacing: 2px; /* Add spacing between letters */
@@ -35,7 +35,7 @@ body {
 /* Background styling for the app */
 #app-background {
   @apply fixed inset-0 bg-no-repeat bg-center bg-cover opacity-90 -z-10;
-  background-image: url('/wallpaper.svg'); /* Set the background image */
+  background-image: url("/wallpaper.svg"); /* Set the background image */
 }
 
 /* Hide scrollbars for Webkit browsers */

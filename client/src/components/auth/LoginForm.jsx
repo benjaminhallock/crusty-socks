@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { login, register } from "../../services/auth";
+import { login, register } from "../../services/api";
 
 // LoginForm component handles user authentication (login and registration)
 const LoginForm = ({ onLoginSuccess }) => {

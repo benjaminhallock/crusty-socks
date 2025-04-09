@@ -2,72 +2,65 @@ import jwt from 'jsonwebtoken';
 
 import User from '../models/user.js';
 
+class AuthError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
+// Common authentication middleware
+const authenticate = async (req, requireAdmin = false) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token?.trim()) throw new AuthError('Authorization header missing or malformed');
+
+  try {
+    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(userId);
+    
+    if (!user) throw new AuthError('User not found');
+    if (requireAdmin && !user.isAdmin) throw new AuthError('Access denied');
+
+    // Attach user to request
+    Object.assign(req, {
+      user,
+      token: `Bearer ${token}`,
+      _id: user._id,
+    });
+    
+    return true;
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      throw new AuthError('Token has expired');
+    } else if (err.name === 'JsonWebTokenError') {
+      throw new AuthError('Invalid token');
+    }
+    throw err;
+  }
+};
+
+// User authentication middleware
 export const auth = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token?.trim()) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded?.userId);
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    req.user = user;
-    req.token = `Bearer ${token}`;
-    req._id = user._id;
+    await authenticate(req);
     next();
   } catch (err) {
     res.status(401).json({
       success: false,
-      message: 'Authentication failed',
+      message: err.message || 'Authentication failed',
     });
   }
 };
 
+// Admin authentication middleware
 export const isAdmin = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token?.trim()) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded?.userId);
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-    if (!user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied',
-      });
-    }
-    req.user = user;
-    req.token = `Bearer ${token}`;
-    req._id = user._id;
-
+    await authenticate(req, true);
     next();
   } catch (err) {
-    res.status(401).json({
+    res.status(err instanceof AuthError && err.message === 'Access denied' ? 403 : 401).json({
       success: false,
-      message: 'Token is not valid',
+      message: err.message || 'Authentication failed',
     });
   }
 };

@@ -1,107 +1,32 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import ContextMenu from "./ContextMenu";
 import ReportModal from "./ReportModal";
 import { GAME_STATE } from "../../constants";
-import { socketManager } from "../../services/socket";
+import { socketManager } from "../../services/socketManager";
 
-// CSS for point animation - moved to the top
-const floatUpAnimation = `
-  @keyframes float-up {
-    0% {
-      transform: translateY(0);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(-20px);
-      opacity: 0;
-    }
-  }
-`;
-
-// Component for animating point changes
-const PointChangeAnimation = ({ points }) => {
-  if (points <= 0) return null;
-
-  return (
-    <span
-      className="absolute right-2 text-green-500 font-bold text-sm animate-point-float"
-      style={{
-        animation: "float-up 1.5s ease-out forwards",
-        opacity: 0,
-      }}
-    >
-      +{points}
-    </span>
-  );
-};
-
-// PlayerList component displays the list of players in the game
-// Includes features like context menus, report modals, and point change animations
 const PlayerList = ({
-  players, // List of players in the game
-  drawerUsername, // Username of the current drawer
-  roomId, // ID of the game room
-  gameState, // Current game state (e.g., DRAWING, WAITING)
-  currentUsername, // Username of the current user
-  isAdmin, // Whether the current user is an admin
-  chatLogs = [], // Chat logs for reporting purposes
+  players,
+  drawerUsername,
+  roomId,
+  gameState,
+  currentUsername,
+  isAdmin,
+  chatLogs = [],
+  onStartGame,
 }) => {
-  const navigate = useNavigate(); // Hook for navigation
-  const [showPopup, setShowPopup] = useState(false); // State to manage invite link popup
-  const [contextMenu, setContextMenu] = useState(null); // State to manage context menu
-  const [reportModal, setReportModal] = useState(null); // State to manage report modal
-  const prevScoresRef = useRef({}); // Ref to track previous scores for animations
-  const [pointAnimations, setPointAnimations] = useState({}); // State to manage point change animations
+  const navigate = useNavigate();
+  const [showPopup, setShowPopup] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [reportModal, setReportModal] = useState(null);
 
-  // Effect to detect score changes and trigger animations
-  useEffect(() => {
-    const newAnimations = {};
-    let hasChanges = false;
-
-    players.forEach((player) => {
-      const prevScore = prevScoresRef.current[player.username] || 0;
-      const currentScore = player.score || 0;
-      const pointDiff = currentScore - prevScore;
-
-      // Only animate positive point changes
-      if (pointDiff > 0) {
-        newAnimations[player.username] = pointDiff;
-        hasChanges = true;
-
-        // Auto-remove animation after 1.5s
-        setTimeout(() => {
-          setPointAnimations((current) => {
-            const updated = { ...current };
-            delete updated[player.username];
-            return updated;
-          });
-        }, 1500);
-      }
-
-      // Update reference for next comparison
-      prevScoresRef.current[player.username] = currentScore;
-    });
-
-    if (hasChanges) {
-      setPointAnimations((prev) => ({ ...prev, ...newAnimations }));
-    }
-  }, [players]);
-
-  // Handle copying the invite link to the clipboard
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 2000); // Hide popup after 2 seconds
+    setTimeout(() => setShowPopup(false), 2000);
   };
 
-  // Handle kicking a player from the game
-  const handleKickPlayer = (username) => {
-    socketManager.kickPlayer(roomId, username);
-  };
-
-  // Handle player click to show context menu
   const handlePlayerClick = (e, player) => {
     e.preventDefault();
     if (player.username === currentUsername) {
@@ -111,7 +36,7 @@ const PlayerList = ({
         options: [
           {
             label: "Leave Game",
-            onClick: () => socketManager.leaveRoom(roomId),
+            onClick: () => socketManager.leaveLobby(roomId),
             isDestructive: true,
           },
         ],
@@ -121,50 +46,41 @@ const PlayerList = ({
       x: e.pageX,
       y: e.pageY,
       options: [
-        {
-          label: "View Profile",
-          onClick: () => navigate(`/user/${player.username}`),
-        },
-        {
-          label: "Report Player",
-          onClick: () => setReportModal(player.username),
-        },
-        {
-          label: "Kick Player",
-          onClick: () => handleKickPlayer(player.username),
-          isDestructive: true,
-          disabled: !isAdmin,
-        },
+      {
+        label: "View Profile",
+        onClick: () => window.open(`/user/${player.username}`, '_blank'),
+      },
+      {
+        label: "Report Player",
+        onClick: () => setReportModal(player.username),
+      },
+      {
+        label: "Kick Player",
+        onClick: () => socketManager.kickPlayer(roomId, player.username),
+        isDestructive: true,
+        disabled: !isAdmin,
+      },
       ],
     });
   };
 
   const getPlayerBackgroundClass = (player) => {
-    if (player.hasGuessedCorrect) return "bg-white dark:bg-gray-800";
-    if (
-      player.username === drawerUsername &&
-      gameState === GAME_STATE.DRAWING
-    ) {
-      return "bg-emerald-200 dark:bg-emerald-800";
+    if (gameState === GAME_STATE.DRAWING) {
+      if (player.username === drawerUsername) {
+        return "bg-emerald-200 dark:bg-emerald-800";
+      }
+      if (player.hasGuessedCorrect) {
+        return "bg-green-200 dark:bg-green-800";
+      }
     }
-    if (player.username === currentUsername)
-      return "bg-white-100 dark:bg-grey-100";
-    return "bg-gray-200 dark:bg-gray-600";
-  };
-
-  // Fix the undefined lobby reference
-  const isCurrentDrawer = (player) => {
-    return player.username === drawerUsername;
+    if (player.username === currentUsername) {
+      return "bg-white/50 dark:bg-gray-800/50";
+    }
+    return "bg-gray-200/50 dark:bg-gray-600/50";
   };
 
   return (
-    <div
-      id="playerList"
-      className="bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors"
-    >
-      {/* Fix the invalid jsx/global attributes by using standard style tag */}
-      <style dangerouslySetInnerHTML={{ __html: floatUpAnimation }} />
-
+    <div className="bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
           Players
@@ -178,10 +94,10 @@ const PlayerList = ({
           </button>
           <button
             className="bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => socketManager.startGame(roomId)}
+            onClick={onStartGame}
             disabled={
-              gameState !== GAME_STATE.WAITING &&
-              gameState !== GAME_STATE.FINISHED
+              gameState !== GAME_STATE.FINISHED &&
+              gameState !== GAME_STATE.WAITING
             }
           >
             {gameState === GAME_STATE.FINISHED ? "Play Again" : "Start Game"}
@@ -214,10 +130,8 @@ const PlayerList = ({
                 className="w-8 h-8 rounded-full"
               />
             ) : !player.hasDrawn ? (
-              // hamburger icon
               <div className="w-8 h-8 rounded-full bg-gray-000 dark:bg-grey-250 flex items-center justify-center">
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 text-gray-800 dark:text-gray-100"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -230,40 +144,19 @@ const PlayerList = ({
                     d="M4 6h16M4 12h16M4 18h16"
                   />
                 </svg>
-                {player.hasGuessedCorrect && (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-3 w-3 text-white"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
               </div>
             ) : null}
             <span className="flex justify-between w-full text-gray-800 dark:text-gray-200 font-medium text-sm">
               <span className="flex items-center gap-2">
                 {player.username}
-                {player.hasGuessedCorrect && !isCurrentDrawer(player) && (
-                  <span className="text-xs text-green-600 dark:text-green-400">
-                    Guessed!
-                  </span>
-                )}
+                {player.hasGuessedCorrect &&
+                  player.username !== drawerUsername && (
+                    <span className="text-xs text-green-600 dark:text-green-400">
+                      Guessed!
+                    </span>
+                  )}
               </span>
-              <span className="score relative">
-                {player.score}
-                {/* Point change animation */}
-                {pointAnimations[player.username] && (
-                  <PointChangeAnimation
-                    points={pointAnimations[player.username]}
-                  />
-                )}
-              </span>
+              <span>{player.score}</span>
             </span>
           </li>
         ))}

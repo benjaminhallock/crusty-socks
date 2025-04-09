@@ -6,75 +6,60 @@ import {
   FaUndo,
   FaRedo,
   FaDownload,
+  FaTrash,
 } from "react-icons/fa";
 
-import { socketManager } from "../../services/socket";
-import {
-  GAME_CONSTANTS,
-  GAME_STATE,
-} from "../../constants";
+import { socketManager } from "../../services/socketManager";
+import { GAME_CONSTANTS, GAME_STATE } from "../../constants";
 
-/**
- * ToolButton Component
- * Reusable button component for drawing tools with active state styling
- */
-const ToolButton = ({ active, onClick, children, title }) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={`p-2 rounded-md text-sm transition-colors ${
-      active
-        ? "bg-indigo-600 text-white hover:bg-indigo-700"
-        : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-    }`}
-  >
-    {children}
-  </button>
-);
-
-/**
- * PixelCanvas Component
- * Main drawing interface for the game
- * Handles all drawing tools, canvas interactions, and state management
- */
-// PixelCanvas component provides the main drawing interface for the game
-// It includes tools for drawing, erasing, filling, undo/redo, and saving the canvas
 const PixelCanvas = ({
-  isDrawer, // Whether the current user is the drawer
-  drawerUsername, // Username of the current drawer
-  canvasState, // Initial state of the canvas
-  gameState, // Current game state (e.g., DRAWING, PICKING_WORD)
-  roundTime, // Time allocated for the current round
-  startTime, // Start time of the current round
-  roomId, // ID of the game room
+  isDrawer,
+  drawerUsername,
+  canvasState,
+  gameState,
+  roundTime,
+  startTime,
+  lobbyId,
 }) => {
-  // console.log('PixelCanvas rendered:', { isDrawer, drawerUsername });
-  // Core canvas state and refs
-  const canvasRef = useRef(null); // Reference to the canvas element
-  const [isDrawing, setIsDrawing] = useState(false); // Whether the user is currently drawing
-  const [currentColor, setCurrentColor] = useState("#000000"); // Current drawing color
-  const [currentTool, setCurrentTool] = useState("brush"); // Current drawing tool (e.g., brush, eraser)
-  const [history, setHistory] = useState([]); // History of canvas states for undo functionality
-  const [redoStates, setRedoStates] = useState([]); // Stack of redo states
-  const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE); // Grid size for the canvas
-
-  // Canvas configuration constants
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentColor, setCurrentColor] = useState("#800080");
+  const [currentTool, setCurrentTool] = useState("brush");
+  const [history, setHistory] = useState([]);
+  const [redoStates, setRedoStates] = useState([]);
+  const [gridSize, setGridSize] = useState(GAME_CONSTANTS.CANVAS_GRID_SIZE);
   const CANVAS_HEIGHT = GAME_CONSTANTS.CANVAS_HEIGHT;
   const CANVAS_WIDTH = GAME_CONSTANTS.CANVAS_WIDTH;
-
-  // Add throttling references for optimizing canvas updates
-  const lastUpdateTimeRef = useRef(0); // Timestamp of the last canvas update
-  const UPDATE_INTERVAL = 100; // milliseconds between updates
+  const lastUpdateTimeRef = useRef(0);
+  const UPDATE_INTERVAL = 50; // Reduced from 100 to 50ms for more responsive updates
   const batchTimeoutRef = useRef(null);
+  const [lastPoint, setLastPoint] = useState(null);
+  const drawQueueRef = useRef([]);
+  const isDrawingRef = useRef(false);
+  const BATCH_INTERVAL = 16; // Changed to match 60fps (~16ms)
+  const batchUpdateRef = useRef(null);
 
-  /**
-   * Draws a single pixel on the grid
-   * Handles both regular drawing and eraser functionality
-   */
+  // Determine if the user can draw based on game state and socket connection
+  const canDraw = () => {
+    // First check if socket is connected
+    if (!socketManager.isConnected()) {
+      return false;
+    }
+
+    if (gameState === GAME_STATE.WAITING) {
+      // Everyone can draw in the waiting state
+      return true;
+    } else if (gameState === GAME_STATE.DRAWING) {
+      // Only the drawer can draw during the drawing state
+      return isDrawer;
+    }
+    // No one can draw during other states
+    return false;
+  };
+
   const drawPixel = (ctx, x, y, color) => {
     const gridX = Math.floor(x / gridSize);
     const gridY = Math.floor(y / gridSize);
-
     if (
       gridX >= 0 &&
       gridX < CANVAS_WIDTH / gridSize &&
@@ -84,21 +69,28 @@ const PixelCanvas = ({
       ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
       ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
 
-      // Throttle canvas updates
-      const now = Date.now();
-      if (now - lastUpdateTimeRef.current > UPDATE_INTERVAL) {
-        // If enough time has passed, send update immediately
-        lastUpdateTimeRef.current = now;
-        const canvasData = canvasRef.current.toDataURL();
-        socketManager.updateCanvas(canvasData);
-      } else {
-        // Otherwise, schedule a batch update
-        if (batchTimeoutRef.current === null) {
+      // Send updates if we can draw and socket is connected
+      if (canDraw() && socketManager.isConnected()) {
+        const now = Date.now();
+        const canvasState = {
+          data: canvasRef.current.toDataURL(),
+          timestamp: now,
+        };
+
+        if (now - lastUpdateTimeRef.current > UPDATE_INTERVAL) {
+          lastUpdateTimeRef.current = now;
+          socketManager.updateCanvas({ canvasState, lobbyId });
+        } else if (batchTimeoutRef.current === null) {
           batchTimeoutRef.current = setTimeout(() => {
-            if (canvasRef.current) {
+            if (canvasRef.current && socketManager.isConnected()) {
               lastUpdateTimeRef.current = Date.now();
-              const canvasData = canvasRef.current.toDataURL();
-              socketManager.updateCanvas(canvasData);
+              socketManager.updateCanvas({
+                canvasState: {
+                  data: canvasRef.current.toDataURL(),
+                  timestamp: Date.now(),
+                },
+                lobbyId,
+              });
             }
             batchTimeoutRef.current = null;
           }, UPDATE_INTERVAL);
@@ -107,29 +99,17 @@ const PixelCanvas = ({
     }
   };
 
-  /**
-   * Saves current canvas state for undo functionality
-   */
   const saveState = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return; // Add null check
-
+    if (!canvas) return;
     setHistory([...history, canvas.toDataURL()]);
-    setRedoStates([]); // Clear redo stack on new action
+    setRedoStates([]);
   };
 
-  /**
-   * Implements simplified flood fill (paint bucket) tool
-   * Uses a simple, reliable approach for filling connected pixels
-   */
   const floodFill = (ctx, startX, startY, fillColorHex) => {
     if (!ctx) return;
-
-    // Convert to grid coordinates
     const gridX = Math.floor(startX / gridSize);
     const gridY = Math.floor(startY / gridSize);
-
-    // Get target color at starting position
     const targetColorData = ctx.getImageData(
       gridX * gridSize,
       gridY * gridSize,
@@ -137,168 +117,219 @@ const PixelCanvas = ({
       1
     ).data;
     const targetColor = `rgb(${targetColorData[0]}, ${targetColorData[1]}, ${targetColorData[2]})`;
-
-    // Don't fill if target is the same as fill color
     if (targetColor === fillColorHex) return false;
-
-    // Simple stack-based flood fill
     const stack = [[gridX, gridY]];
     const width = Math.floor(CANVAS_WIDTH / gridSize);
     const height = Math.floor(CANVAS_HEIGHT / gridSize);
     const visited = new Set();
     const pixelsToFill = [];
-
-    // Reasonable limit to prevent browser hanging
     const maxPixels = 2500;
-
     while (stack.length > 0 && pixelsToFill.length < maxPixels) {
       const [x, y] = stack.pop();
       const key = `${x},${y}`;
-
-      // Skip if outside canvas or already visited
-      if (x < 0 || y < 0 || x >= width || y >= height || visited.has(key)) {
+      if (x < 0 || y < 0 || x >= width || y >= height || visited.has(key))
         continue;
-      }
-
-      // Check if pixel matches target color
       const pixelData = ctx.getImageData(x * gridSize, y * gridSize, 1, 1).data;
       const pixelColor = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
-
-      if (pixelColor !== targetColor) {
-        continue;
-      }
-
-      // Mark as visited and add to fill list
+      if (pixelColor !== targetColor) continue;
       visited.add(key);
       pixelsToFill.push([x, y]);
-
-      // Add 4-connected neighbors to stack
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
-
-    // Fill all the collected pixels
     ctx.fillStyle = fillColorHex;
     for (const [x, y] of pixelsToFill) {
       ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
     }
-
     return pixelsToFill.length > 0;
   };
 
-  const handleDraw = (e) => {
-    if (!isDrawing || !isDrawer) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return; // Ensure canvas is valid
+  const interpolatePoints = (x1, y1, x2, y2) => {
+    const points = [];
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.floor(distance / (gridSize / 2)));
 
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps;
+      const x = x1 + (x2 - x1) * t;
+      const y = y1 + (y2 - y1) * t;
+      points.push({ x, y });
+    }
+    return points;
+  };
+
+  const drawPoints = (ctx, points, color) => {
+    points.forEach((point) => {
+      const gridX = Math.floor(point.x / gridSize);
+      const gridY = Math.floor(point.y / gridSize);
+      if (
+        gridX >= 0 &&
+        gridX < CANVAS_WIDTH / gridSize &&
+        gridY >= 0 &&
+        gridY < CANVAS_HEIGHT / gridSize
+      ) {
+        ctx.fillStyle = currentTool === "eraser" ? "#ffffff" : color;
+        ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
+      }
+    });
+  };
+
+  const processDrawQueue = () => {
+    if (!canvasRef.current || drawQueueRef.current.length === 0) return;
+
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+
+    drawQueueRef.current.forEach(({ points, color }) => {
+      drawPoints(ctx, points, color);
+    });
+    // Only send canvas update if we're actually drawing
+    if (isDrawingRef.current && canDraw()) {
+      socketManager.updateCanvas({
+        canvasState: {
+          data: canvasRef.current.toDataURL(),
+          timestamp: Date.now(),
+        },
+        lobbyId,
+      });
+    }
+    drawQueueRef.current = [];
+  };
+
+  useEffect(() => {
+    const processingInterval = setInterval(processDrawQueue, BATCH_INTERVAL);
+    return () => clearInterval(processingInterval);
+  }, []);
+
+  const handleDraw = (e) => {
+    if (!isDrawing || !canDraw()) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext("2d");
-    if (!ctx) return; // Ensure context is valid
-
+    if (!ctx) return;
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
-
     if (currentTool === "fill") {
       saveState();
-      const filled = floodFill(ctx, x, y, currentColor);
-      if (filled) {
-        // Only send update if something was filled
-        socketManager.updateCanvas(canvas.toDataURL());
+      if (floodFill(ctx, x, y, currentColor)) {
+        socketManager.updateCanvas({
+          canvasState: {
+            data: canvas.toDataURL(),
+            timestamp: Date.now(),
+          },
+          lobbyId,
+        });
       }
       setIsDrawing(false);
     } else {
-      drawPixel(ctx, x, y, currentColor);
+      if (lastPoint) {
+        const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y);
+        drawQueueRef.current.push({ points, color: currentColor });
+        isDrawingRef.current = true;
+      }
+      setLastPoint({ x, y });
     }
   };
 
   const handleMouseDown = (e) => {
-    if (!isDrawer) return;
+    if (!canDraw()) return;
     setIsDrawing(true);
-
-    // Add drawing on click without requiring drag
+    isDrawingRef.current = true;
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
-
-    // For fill tool, handle it directly here
     if (currentTool === "fill") {
       saveState();
-      const filled = floodFill(ctx, x, y, currentColor);
-      if (filled) {
-        socketManager.updateCanvas(canvas.toDataURL());
+      if (floodFill(ctx, x, y, currentColor)) {
+        socketManager.updateCanvas({
+          canvasState: {
+            data: canvas.toDataURL(),
+            timestamp: Date.now(),
+          },
+          lobbyId,
+        });
       }
     } else {
-      // For brush/eraser, draw a single pixel
-      drawPixel(ctx, x, y, currentColor);
+      setLastPoint({ x, y });
+      drawQueueRef.current.push({
+        points: [{ x, y }],
+        color: currentColor,
+      });
     }
   };
 
   const handleMouseUp = () => {
-    if (!isDrawer) return;
+    if (!canDraw()) return;
     setIsDrawing(false);
-
-    // Save the current state for undo history
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const currentState = canvas.toDataURL();
-      setHistory((prevHistory) => [...prevHistory, currentState]);
-      setRedoStates([]); // Clear redo stack on new action
-
-      // Send canvas update
-      socketManager.updateCanvas(currentState);
+    isDrawingRef.current = false;
+    setLastPoint(null);
+    saveState();
+    // Final update after drawing is complete
+    if (canvasRef.current) {
+      socketManager.updateCanvas({
+        canvasState: {
+          data: canvasRef.current.toDataURL(),
+          timestamp: Date.now(),
+        },
+        lobbyId,
+      });
     }
   };
 
-  const handleTouchStart = (e) => {
-    e.preventDefault();
-    handleMouseDown(e.touches[0]);
-  };
+  // Add clear canvas function
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    isDrawingRef.current = false;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  const handleTouchMove = (e) => {
-    e.preventDefault();
-    handleDraw(e.touches[0]);
-  };
-
-  const handleTouchEnd = (e) => {
-    e.preventDefault();
-    handleMouseUp();
+    const clearedState = canvas.toDataURL();
+    setHistory([...history, clearedState]);
+    setRedoStates([]);
+    socketManager.updateCanvas({
+      canvasState: {
+        data: clearedState,
+        timestamp: Date.now(),
+      },
+      lobbyId,
+    });
   };
 
   const undo = () => {
     if (history.length > 1) {
-      // Keep at least initial state
-      const currentState = history[history.length - 1];
       const prevState = history[history.length - 2];
-
-      setRedoStates([...redoStates, currentState]);
-      setHistory(history.slice(0, -1));
-
+      setRedoStates((prevRedo) => [history.pop(), ...prevRedo]);
+      setHistory((prevHistory) => prevHistory.slice(0, -1));
       const canvas = canvasRef.current;
-      if (!canvas) return; // Add null check
-
+      if (!canvas) return;
       const img = new Image();
       img.src = prevState;
       img.onload = () => {
         const ctx = canvas.getContext("2d");
-        if (!ctx) return; // Add null check for context
-
+        if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-
-        // Send the updated canvas to other players
         if (isDrawer) {
-          socketManager.updateCanvas(canvas.toDataURL());
+          socketManager.updateCanvas({
+            canvasState: {
+              data: canvas.toDataURL(),
+              timestamp: Date.now(),
+            },
+            lobbyId,
+          });
         }
       };
     }
@@ -307,24 +338,25 @@ const PixelCanvas = ({
   const redo = () => {
     if (redoStates.length > 0) {
       const nextState = redoStates[redoStates.length - 1];
-
       setHistory([...history, nextState]);
       setRedoStates(redoStates.slice(0, -1));
-
       const canvas = canvasRef.current;
-      if (!canvas) return; // Add null check
-
+      if (!canvas) return;
       const img = new Image();
       img.src = nextState;
       img.onload = () => {
         const ctx = canvas.getContext("2d");
-        if (!ctx) return; // Add null check for context
-
+        if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-
         if (isDrawer) {
-          socketManager.updateCanvas(nextState);
+          socketManager.updateCanvas({
+            canvasState: {
+              data: canvas.toDataURL(),
+              timestamp: Date.now(),
+            },
+            lobbyId,
+          });
         }
       };
     }
@@ -332,187 +364,235 @@ const PixelCanvas = ({
 
   const saveToPng = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return; // Add null check
-
+    if (!canvas) return;
     const link = document.createElement("a");
     link.download = "pixel-art.png";
     link.href = canvas.toDataURL();
     link.click();
   };
 
-  // Clean up batch timeout on unmount
   useEffect(() => {
+    const cleanupSocketHandler = socketManager.onStatusChange((status) => {
+      if (status === "disconnected" || status === "error") {
+        // Clear any pending updates when socket disconnects
+        if (batchTimeoutRef.current) {
+          clearTimeout(batchTimeoutRef.current);
+          batchTimeoutRef.current = null;
+        }
+      }
+    });
     return () => {
       if (batchTimeoutRef.current) {
         clearTimeout(batchTimeoutRef.current);
       }
+      cleanupSocketHandler();
     };
   }, []);
 
-  // Initialize canvas and load saved state
+  // Simplified canvas state handling
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return; // Add null check
-
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    // Wait for next tick to ensure canvas is fully initialized
-    setTimeout(() => {
-      if (canvasState?.data) {
-        const img = new Image();
-        img.src = canvasState.data;
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          saveState(); // Save loaded state for undo/redo
-        };
-      } else {
-        // Initialize with white background if no saved state
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        saveState();
+    // Reset canvas for new game states
+    if (
+      gameState === GAME_STATE.PICKING_WORD ||
+      gameState === GAME_STATE.WAITING
+    ) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      const newState = canvas.toDataURL();
+      setHistory([newState]);
+      setRedoStates([]);
+      if (isDrawer || gameState === GAME_STATE.WAITING) {
+        socketManager.updateCanvas({
+          canvasState: {
+            data: newState,
+            timestamp: Date.now(),
+          },
+          lobbyId,
+        });
       }
-    }, 0);
-  }, [canvasState?.data, canvasRef]);
-
-  // Add useEffect to listen for canvas updates from other players
-  useEffect(() => {
-    if (!isDrawer) {
-      const unsubscribe = socketManager.onCanvasUpdate((canvasData) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return; // Add null check
-
-        const img = new Image();
-        img.src = canvasData;
-        img.onload = () => {
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return;
-
-          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-          ctx.drawImage(img, 0, 0);
-        };
-      });
-
-      return unsubscribe; // Clean up subscription when component unmounts
+      return;
     }
-  }, [isDrawer, canvasRef]);
-
-  // Add effect to load initial canvas state
-  useEffect(() => {
+    // Handle incoming canvas state
     if (canvasState?.data) {
-      // Add a small delay to ensure canvas is fully initialized
-      setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return; // Add null check
+      const img = new Image();
+      img.src = canvasState.data;
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const currentState = canvas.toDataURL();
+        if (!history.includes(currentState)) {
+          setHistory((prev) => [...prev, currentState]);
+        }
+      };
+    }
+  }, [
+    canvasState?.data,
+    gameState,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    isDrawer,
+    lobbyId,
+  ]);
 
-        const img = new Image();
-        img.src = canvasState.data;
-        img.onload = () => {
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return;
+  // Always subscribe to canvas updates regardless of drawer status
+  useEffect(() => {
+    const unsubscribe = socketManager.onCanvasUpdate((data) => {
+      if (!data?.canvasState?.data) {
+        console.warn("Received invalid canvas update");
+        return;
+      }
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const img = new Image();
+      img.src = data.canvasState.data;
+      img.onload = () => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(img, 0, 0);
+      };
+    });
+    return unsubscribe;
+  }, [canvasRef]);
 
-          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-          ctx.drawImage(img, 0, 0);
-
-          // Only save state if we successfully rendered
-          if (canvasRef.current) {
-            saveState();
+  useEffect(() => {
+    if (canvasState?.data && socketManager.isConnected()) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const img = new Image();
+      img.src = canvasState.data;
+      img.onload = () => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(img, 0, 0);
+        if (canvasRef.current) {
+          saveState();
+          // Initial sync of canvas state if we're the drawer
+          if (isDrawer) {
+            socketManager.updateCanvas({
+              canvasState: {
+                data: canvas.toDataURL(),
+                timestamp: Date.now(),
+              },
+              lobbyId,
+            });
           }
-        };
-      }, 50);
+        }
+      };
     }
   }, [canvasState?.data, canvasRef]);
 
-  // Add effect to handle grid size changes
   useEffect(() => {
     if (!canvasRef.current) return;
-
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    // Only redraw if there's history (canvas has content)
     if (history.length > 0) {
       const currentState = history[history.length - 1];
-
       const img = new Image();
       img.src = currentState;
       img.onload = () => {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         ctx.drawImage(img, 0, 0);
-
-        // Send update to other players if you're the drawer
         if (isDrawer) {
-          socketManager.updateCanvas(canvas.toDataURL());
+          socketManager.updateCanvas({
+            canvasState: {
+              data: canvas.toDataURL(),
+              timestamp: Date.now(),
+            },
+            lobbyId,
+          });
         }
       };
     }
   }, [gridSize, history, isDrawer, canvasRef]);
 
-  // Add timer effect for drawing round
   useEffect(() => {
     let timerId;
     if (gameState === GAME_STATE.DRAWING && startTime) {
       const endTime = new Date(startTime).getTime() + roundTime * 1000;
-
       const checkTime = () => {
         const now = Date.now();
         if (now >= endTime) {
           clearInterval(timerId);
-          console.log("Time's up!");
-          // socketManager.emit(SOCKET_EVENTS.END_DRAWING, { roomId });
         }
       };
-
       timerId = setInterval(checkTime, 1000);
-      checkTime(); // Check immediately
+      checkTime();
     }
-
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [gameState, startTime, roundTime, roomId]);
+  }, [gameState, startTime, roundTime, lobbyId]);
 
-  // Update when drawer changes or game state changes to clear canvas
+  // Initialize canvas dimensions and context
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Clear canvas when:
-    // 1. Game transitions to PICKING_WORD state (new round/turn)
-    // 2. Game transitions to DRAWING state with a new drawer
-    // 3. Whenever drawer username changes
-    if (
-      gameState === GAME_STATE.PICKING_WORD ||
-      gameState === GAME_STATE.DRAWING
-    ) {
-      console.log(
-        `Clearing canvas for new drawing round (state: ${gameState}, drawer: ${drawerUsername})`
-      );
+    if (ctx) {
+      ctx.lineCap = "round";
+      ctx.lineWidth = 2;
+      // Set initial white background
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // Reset history for undo/redo
       setHistory([canvas.toDataURL()]);
-      setRedoStates([]);
-
-      // If we're in DRAWING state, send the cleared canvas to all players
-      if (gameState === GAME_STATE.DRAWING && isDrawer) {
-        socketManager.updateCanvas(canvas.toDataURL());
-      }
     }
-  }, [gameState, drawerUsername, CANVAS_WIDTH, CANVAS_HEIGHT, isDrawer]);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
+
+  useEffect(() => {
+    const resizeCanvas = () => {
+      if (!canvasRef.current) return;
+      saveState();
+      canvasRef.current.width = CANVAS_WIDTH;
+      canvasRef.current.height = CANVAS_HEIGHT;
+      const lastState = history[history.length - 1];
+      if (lastState) {
+        const img = new Image();
+        img.src = lastState;
+        img.onload = () => {
+          const ctx = canvasRef.current?.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+          }
+        };
+      }
+    };
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, history]);
+
+  useEffect(() => {
+    if (!canvasRef.current || !isDrawer) return;
+    canvasRef.current.width = CANVAS_WIDTH;
+    canvasRef.current.height = CANVAS_HEIGHT;
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.lineCap = "round";
+      ctx.lineWidth = 2;
+    }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, isDrawer]);
 
   return (
     <div
       id="canvas"
       className="flex flex-col items-center w-full h-full bg-white/90 dark:bg-gray-800/90 rounded-none transition-colors"
     >
-      {!isDrawer && (
+      {gameState === GAME_STATE.WAITING && (
+        <div className="bg-white/95 dark:bg-gray-800/95 px-3 py-1 rounded-lg shadow-sm mb-1 text-center">
+          <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            Draw together while waiting for the game to start
+          </p>
+        </div>
+      )}
+      {!isDrawer && gameState === GAME_STATE.DRAWING && (
         <div className="bg-white/95 dark:bg-gray-800/95 px-3 py-1 rounded-lg shadow-sm mb-1 text-center">
           <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             {drawerUsername} is drawing...
@@ -530,7 +610,7 @@ const PixelCanvas = ({
           touchAction: "none",
         }}
         className={`border-2 rounded-lg bg-white/100 ${
-          isDrawer
+          canDraw()
             ? "border-indigo-800 dark:border-indigo-400 cursor-crosshair"
             : "border-gray-200 dark:border-gray-700"
         }`}
@@ -538,12 +618,20 @@ const PixelCanvas = ({
         onMouseMove={handleDraw}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          handleMouseDown(e.touches[0]);
+        }}
+        onTouchMove={(e) => {
+          e.preventDefault();
+          handleDraw(e.touches[0]);
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          handleMouseUp();
+        }}
       />
-
-      {isDrawer && (
+      {canDraw() && (
         <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-700/50 p-1.5 rounded-lg transition-colors mt-1 w-full">
           <input
             type="color"
@@ -553,7 +641,6 @@ const PixelCanvas = ({
             title="Choose color"
             aria-label="Choose color"
           />
-
           <div className="flex flex-wrap gap-1">
             <ToolButton
               active={currentTool === "brush"}
@@ -582,11 +669,13 @@ const PixelCanvas = ({
             <ToolButton onClick={redo} title="Redo">
               <FaRedo className="w-4 h-4" />
             </ToolButton>
+            <ToolButton onClick={clearCanvas} title="Clear Canvas">
+              <FaTrash className="w-4 h-4" />
+            </ToolButton>
             <ToolButton onClick={saveToPng} title="Save as PNG">
               <FaDownload className="w-4 h-4" />
             </ToolButton>
           </div>
-
           <div className="flex items-center ml-auto">
             <span className="text-xs text-gray-700 dark:text-gray-300 mr-1 whitespace-nowrap">
               Size: {gridSize}px
@@ -598,8 +687,7 @@ const PixelCanvas = ({
               step="4"
               value={gridSize}
               onChange={(e) => setGridSize(parseInt(e.target.value))}
-              className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
-              dark:bg-gray-600 accent-indigo-600"
+              className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 accent-indigo-600"
             />
           </div>
         </div>
@@ -607,5 +695,19 @@ const PixelCanvas = ({
     </div>
   );
 };
+
+const ToolButton = ({ active, onClick, children, title }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    className={`p-2 rounded-md text-sm transition-colors ${
+      active
+        ? "bg-indigo-600 text-white hover:bg-indigo-700"
+        : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+    }`}
+  >
+    {children}
+  </button>
+);
 
 export default PixelCanvas;

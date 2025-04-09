@@ -1,55 +1,43 @@
-// Import necessary libraries and components
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
-  BrowserRouter,
   Routes,
   Route,
-  Navigate,
   useLocation,
+  Navigate,
+  useNavigate,
 } from "react-router-dom";
 
-import "./styles/main.css";
-import { checkAuth } from "./services/auth";
-import { socketManager } from "./services/socket";
-
-// Component imports
+import { checkAuth } from "./services/api";
 import Admin from "./components/admin/Admin";
 import Navbar from "./components/common/Navbar";
 import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
-import UserProfile from "./components/users/UserProfile";
 import LobbySettings from "./components/lobby/LobbySettings";
+import UserProfile from "./components/leaderboard/UserProfile";
 import Leaderboard from "./components/leaderboard/Leaderboard";
 import AccountSettings from "./components/auth/AccountSettings";
 
-// ProtectedRoute ensures only authenticated users can access certain routes
-// Redirects unauthorized users to the home page
-const ProtectedRoute = ({ user, children }) => {
-  const location = useLocation();
-  if (!user) return <Navigate to="/" replace state={{ from: location.pathname }} />;
-  return children;
-};
-
-// AdminRoute ensures only admin users can access certain routes
-// Redirects unauthorized users to the home page
-const AdminRoute = ({ user, children }) => {
-  const location = useLocation();
-  if (!user || !user.isAdmin) return <Navigate to="/" replace state={{ from: location.pathname }} />;
-  return children;
-};
-
 function App() {
-  // State to manage the logged-in user
   const [user, setUser] = useState(null);
-  // State to manage loading status during authentication check
   const [isLoading, setIsLoading] = useState(true);
-  // State to manage background image loading status
   const [bgLoaded, setBgLoaded] = useState(false);
-  // Ref to ensure authentication check runs only once
-  const initialCheckRef = useRef(false);
+  const navigate = useNavigate();
 
-  // Preload background image for smoother UI transitions
+  const ProtectedRoute = ({ children }) => {
+    const location = useLocation();
+    if (!user)
+      return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    return children;
+  };
+
+  const AdminRoute = ({ children }) => {
+    const location = useLocation();
+    if (!user || !user.isAdmin)
+      return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    return children;
+  };
+
   useEffect(() => {
     const bgImage = new Image();
     bgImage.src = "/wallpaper.svg";
@@ -60,56 +48,74 @@ function App() {
     };
   }, []);
 
-  // Check user authentication on initial load
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      setIsLoading(false);
-      return;
-    }
-    if (initialCheckRef.current) return;
-    initialCheckRef.current = true;
-
     const checkUserAuth = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await checkAuth();
-        if (response?.user) {
-          const userData = { ...response.user, id: response.user._id };
-          setUser(userData);
-          localStorage.setItem("user", JSON.stringify(userData));
-        } else {
-          throw new Error("Invalid user data");
+        if (!response || !response.success) {
+          console.log("Auth check failed - no success flag");
+          throw new Error("Invalid response");
         }
-      } catch (error) {
-        console.error("Authentication check failed:", error);
-        localStorage.clear();
+
+        if (!response.user) {
+          console.log("Auth check failed - no user data");
+          throw new Error("Invalid user");
+        }
+
+        const userData = { ...response.user, id: response.user._id };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+      } catch (err) {
+        console.error("Auth check failed:", err);
+
+        // Don't clear local storage for connection errors
+        if (err.message !== "Connection error") {
+          localStorage.clear();
+          setUser(null);
+        } else {
+          // For connection errors, try to use cached user
+          const cachedUser = localStorage.getItem("user");
+          if (cachedUser) {
+            try {
+              setUser(JSON.parse(cachedUser));
+            } catch (e) {
+              localStorage.clear();
+              setUser(null);
+            }
+          }
+        }
+        navigate("/");
       } finally {
         setIsLoading(false);
       }
     };
 
     checkUserAuth();
-  }, []);
+  }, [navigate]);
 
-  // Handle user login by updating state and localStorage
   const handleLogin = ({ user, token }) => {
-    if (!user || !token) {
-      console.error("Invalid login data");
-      return;
-    }
+    if (!user || !token) return console.error("Invalid login data");
     const userInfo = { ...user, id: user._id };
+
+    // Ensure token is properly saved to localStorage
     localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(userInfo));
+
     setUser(userInfo);
-    socketManager.connect(userInfo);
   };
 
-  // Handle user logout by clearing state and localStorage
   const handleLogout = () => {
     localStorage.clear();
-    socketManager.disconnect();
     setUser(null);
+    navigate("/");
   };
 
-  // Show loading spinner while checking authentication
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -119,70 +125,73 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <div className="min-h-screen">
-        <div
-          id="app-background"
-          style={{
-            opacity: bgLoaded ? 0.9 : 0,
-            transition: "opacity 0.5s ease-in-out",
-          }}
-        />
-        <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
-        <main className="h-[calc(100vh-4rem)]">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                user ? (
-                  <CreateLobby user={user} />
-                ) : (
-                  <LoginForm onLoginSuccess={handleLogin} />
-                )
-              }
-            />
-            <Route
-              path="/account"
-              element={
-                <ProtectedRoute user={user}>
-                  <AccountSettings user={user} />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/lobby/new"
-              element={
-                <ProtectedRoute user={user}>
-                  <LobbySettings user={user} />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/lobby/:roomId"
-              element={
-                <ProtectedRoute user={user}>
-                  <GameRoom user={user} />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute user={user}>
-                  <Admin user={user} />
-                </AdminRoute>
-              }
-            />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route
-              path="/user/:username"
-              element={<UserProfile currentUser={user} />}
-            />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <div className="min-h-screen">
+      <div
+        id="app-background"
+        style={{
+          opacity: bgLoaded ? 0.9 : 0,
+          transition: "opacity 0.5s ease-in-out",
+          backgroundColor: window.matchMedia("(prefers-color-scheme: dark)")
+            .matches
+            ? "rgba(0, 0, 0, 0.8)"
+            : "rgba(255, 255, 255, 0.8)",
+        }}
+      />
+      <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
+      <main className="h-[calc(100vh-4rem)]">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              user ? (
+                <CreateLobby user={user} />
+              ) : (
+                <LoginForm onLoginSuccess={handleLogin} />
+              )
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountSettings user={user} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lobby/new"
+            element={
+              <ProtectedRoute>
+                <LobbySettings user={user} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lobby/:roomId"
+            element={
+              <ProtectedRoute>
+                <GameRoom user={user} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <Admin user={user} />
+              </AdminRoute>
+            }
+          />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route
+            path="/user/:username"
+            element={<UserProfile currentUser={user} />}
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+        {!user && <Navigate to="/" replace />}
+      </main>
+    </div>
   );
 }
 

@@ -91,8 +91,10 @@ const Admin = ({ user }) => {
   // Function to update the status of a report
   const handleUpdateStatus = async (reportId, newStatus) => {
     try {
+      setError("");
       const result = await updateReportStatus(reportId, newStatus);
       if (result.success) {
+        // Update local state with new data
         setData(prev => ({
           ...prev,
           reports: prev.reports.map(report => 
@@ -101,9 +103,9 @@ const Admin = ({ user }) => {
         }));
         showSuccessMessage("Report status updated successfully");
       } else {
-        setError("Failed to update report status: " + result.error);
+        setError("Failed to update report status: " + (result.error || "Unknown error"));
       }
-    } catch {
+    } catch (error) {
       setError("An error occurred while updating report status");
     }
   };
@@ -513,27 +515,31 @@ const Admin = ({ user }) => {
       case 'report':
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl text-white font-bold mb-4">Edit Report</h2>
               
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-2">Reported User</label>
-                <input
-                  name="reportedUser"
-                  value={editFormData.reportedUser || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-2 bg-gray-700 text-white rounded"
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-2">Reported By</label>
-                <input
-                  name="reportedBy"
-                  value={editFormData.reportedBy || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-2 bg-gray-700 text-white rounded"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mb-4">
+                  <label className="block text-gray-300 mb-2">Reported User</label>
+                  <input
+                    name="reportedUser"
+                    value={editFormData.reportedUser || ''}
+                    onChange={handleInputChange}
+                    className="w-full p-2 bg-gray-700 text-white rounded"
+                    readOnly
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-gray-300 mb-2">Reported By</label>
+                  <input
+                    name="reportedBy"
+                    value={editFormData.reportedBy || ''}
+                    onChange={handleInputChange}
+                    className="w-full p-2 bg-gray-700 text-white rounded"
+                    readOnly
+                  />
+                </div>
               </div>
               
               <div className="mb-4">
@@ -570,6 +576,22 @@ const Admin = ({ user }) => {
                   <option value="reviewed">Reviewed</option>
                   <option value="resolved">Resolved</option>
                 </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-300 mb-2">Chat Logs</label>
+                <div className="bg-gray-700 p-3 rounded max-h-48 overflow-y-auto">
+                  {editFormData.chatLogs && editFormData.chatLogs.length > 0 ? (
+                    editFormData.chatLogs.map((log, index) => (
+                      <div key={index} className="mb-2 text-sm">
+                        <span className="text-blue-400">{log.username}: </span>
+                        <span className="text-gray-300">{log.message}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400">No chat logs available</p>
+                  )}
+                </div>
               </div>
               
               <div className="flex justify-end space-x-4 mt-6">
@@ -699,7 +721,7 @@ const Admin = ({ user }) => {
             <table className="min-w-full">
               <thead className="bg-gray-700">
                 <tr className="border-b border-gray-700">
-                  {['Reported User', 'Reported By', 'Reason', 'Status', 'Timestamp'].map((header) => (
+                  {['Reported User', 'Reported By', 'Reason', 'Status', 'Timestamp', 'Actions'].map((header) => (
                     <th
                       key={header}
                       onClick={() => handleSort(header.toLowerCase().replace(' ', ''))}
@@ -713,22 +735,23 @@ const Admin = ({ user }) => {
                       )}
                     </th>
                   ))}
-                  <th className="px-3 md:px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {filterAndSortData(data.reports, 'reports').map((report) => (
                   <tr key={report._id} className="hover:bg-gray-700">
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300 whitespace-nowrap">{report.reportedUser}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300 whitespace-nowrap">{report.reportedBy}</td>
                     <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">
-                      <div>
+                      {report.reportedUser}
+                    </td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">
+                      {report.reportedBy}
+                    </td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">
+                      <div className="max-w-xs">
                         <span className="font-medium">{report.reason}</span>
                         {report.additionalComments && (
-                          <p className="text-gray-400 text-xs mt-1 max-w-xs overflow-hidden text-ellipsis">
-                            {report.additionalComments.length > 50 
-                              ? `${report.additionalComments.substring(0, 50)}...` 
-                              : report.additionalComments}
+                          <p className="text-gray-400 text-xs mt-1 truncate">
+                            {report.additionalComments}
                           </p>
                         )}
                       </div>
@@ -742,15 +765,15 @@ const Admin = ({ user }) => {
                         {report.status}
                       </span>
                     </td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300 whitespace-nowrap">
+                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-300">
                       {new Date(report.timestamp).toLocaleString()}
                     </td>
                     <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">
-                      <div className="flex flex-col md:flex-row gap-2">
+                      <div className="flex gap-2">
                         <select
                           value={report.status}
                           onChange={(e) => handleUpdateStatus(report._id, e.target.value)}
-                          className="bg-gray-700 text-white rounded p-1 text-xs md:text-sm"
+                          className="bg-gray-700 text-white rounded px-2 py-1 text-xs md:text-sm"
                         >
                           <option value="pending">Pending</option>
                           <option value="reviewed">Reviewed</option>

@@ -237,15 +237,7 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
 
   const renderWordSelection = () => {
     if (lobby.gameState === GAME_STATE.PICKING_WORD && isDrawing) {
-      // Debug logs to understand what data we're working with
-      // console.log("Word selection data:", {
-      //   words: lobby.words,
-      //   currentWord: lobby.currentWord,
-      //   selectWord: lobby.selectWord,
-      // });
-
       let wordChoices = [];
-
       // Check all possible sources of word choices in priority order
       if (Array.isArray(lobby.words) && lobby.words.length > 0) {
         // Option 1: Use the words array if available

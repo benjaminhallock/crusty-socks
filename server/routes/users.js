@@ -14,7 +14,7 @@ router.get('/top', userController.getLeaderboard);
 router.get('/auth', auth, userController.validateToken); // Fallback endpoint
 
 // Route for users to update their own profile
-router.put('/profile/:username', auth, userController.updateOwnProfile); // Update own profile
+router.put('/update/:username', auth, userController.updateOwnProfile); // Update own profile
 
 // Admin routes
 router.get('/all', auth, isAdmin, userController.getAllUsers); // Get list of all users (admin only)

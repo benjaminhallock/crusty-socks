@@ -1,8 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-import { GAME_STATE } from '../constants.js';
-import Chat from './chat.js'; // Importing the Chat model
-import User from './user.js'; // Importing the User model
+import { GAME_STATE } from "../constants.js";
+import Chat from "./chat.js"; // Importing the Chat model
+import User from "./user.js"; // Importing the User model
 const lobbySchema = new mongoose.Schema(
   {
     roomId: {
@@ -22,7 +22,7 @@ const lobbySchema = new mongoose.Schema(
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'User', // Reference to User model
+          ref: "User", // Reference to User model
         },
         username: String,
         score: {
@@ -54,7 +54,7 @@ const lobbySchema = new mongoose.Schema(
     messages: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Chat',
+        ref: "Chat",
       },
     ],
     currentRound: {
@@ -81,16 +81,16 @@ const lobbySchema = new mongoose.Schema(
     },
     selectCategory: {
       type: String,
-      default: 'random', // Default category
+      default: "random", // Default category
     },
     currentWord: {
       type: String,
-      default: '',
+      default: "",
     },
     currentDrawer: {
       type: String,
-      ref: 'User',
-      default: '',
+      ref: "User",
+      default: "",
     },
     gameState: {
       type: String,
@@ -121,7 +121,7 @@ const lobbySchema = new mongoose.Schema(
         username: {
           type: String,
           required: true,
-          ref: 'User',
+          ref: "User",
         },
         kickedAt: {
           type: Date,
@@ -131,7 +131,7 @@ const lobbySchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true // Adds createdAt and updatedAt
+    timestamps: true, // Adds createdAt and updatedAt
   }
 );
 
@@ -163,24 +163,23 @@ lobbySchema.methods.isUserKicked = function (username) {
   return this.kickedUsers.some((kicked) => kicked.username === username);
 };
 
-
 lobbySchema.statics.findByRoomId = async function (roomId) {
-  if (!roomId) throw new Error('Room ID is required');
+  if (!roomId) throw new Error("Room ID is required");
   const lobby = await this.findOne({ roomId })
-    .populate('messages')
-    .populate('players.userId', 'username email profileImage');
+    .populate("messages")
+    .populate("players.userId", "username email profileImage");
   lobby._id = lobby._id.toString();
-  if (!lobby) throw new Error('Lobby not found');
+  if (!lobby) throw new Error("Lobby not found");
   return lobby;
 };
 
 lobbySchema.methods.removePlayer = function (username) {
-  this.players = this.players.filter(player => player.username !== username);
+  this.players = this.players.filter((player) => player.username !== username);
   return this.save();
 };
 
 lobbySchema.index({ createdAt: -1 });
-lobbySchema.index({ 'players.userId': 1, roomId: 1 }, { unique: true });
+lobbySchema.index({ "players.userId": 1, roomId: 1 }, { unique: true });
 
-const Lobby = mongoose.model('Lobby', lobbySchema);
+const Lobby = mongoose.model("Lobby", lobbySchema);
 export default Lobby;

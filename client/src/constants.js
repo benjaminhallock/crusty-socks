@@ -23,7 +23,7 @@ export const API_ENDPOINTS = {
   VALIDATE: '/api/user/auth',
   GET_ALL_USERS: '/api/user/all',
   GET_USER_PROFILE: (username) => `/api/user/${username}`,
-  UPDATE_USER_PROFILE: (username) => `/api/user/${username}`,
+  UPDATE_USER_PROFILE: (username) => `/api/user/update/${username}`,
   LEADERBOARD: '/api/user/top',
 
   // Lobby routes

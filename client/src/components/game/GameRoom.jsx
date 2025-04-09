@@ -192,7 +192,7 @@ const GameRoom = ({ user }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-blue-300 via-pink-300 to-yellow-300 dark:from-gray-800 dark:via-purple-800 dark:to-indigo-800 p-4 rounded-lg shadow-2xl">
+    <div className="min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-blue-300 via-pink-300 to-yellow-300 dark:from-gray-800 dark:via-purple-800 dark:to-indigo-800 rounded-lg shadow-2xl">
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-2">
           <strong className="font-bold">Error: </strong>
@@ -204,11 +204,11 @@ const GameRoom = ({ user }) => {
           <LoadingSpinner />
         </div>
       )}
-      <div className="h-full w-full flex flex-col gap-4 rounded-lg bg-white/90 dark:bg-gray-700/90 p-4 shadow-lg">
-        <div className="flex items-center w-full">
+      <div className="h-full w-full flex flex-col gap-4 rounded-lg bg-white/90 dark:bg-gray-700/90 shadow-lg">
+        <div className="flex justify-end px-4 pt-2">
           <SocketStatusIcon status={socketStatus} />
         </div>
-        <div className="">
+        <div className="px-4">
           <HiddenWord
             lobby={lobby}
             user={user}
@@ -217,7 +217,7 @@ const GameRoom = ({ user }) => {
             }}
           />
         </div>
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 w-full">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 px-4 pb-4">
           <div className="lg:w-72 flex flex-col gap-4">
             <PlayerList
               players={lobby.players}

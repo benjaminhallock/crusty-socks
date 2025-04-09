@@ -149,15 +149,15 @@ export const getAllUsers = async () => {
 export const getAllLobbies = async () => {
   try {
     const { data } = await api.get(x.GET_ALL_LOBBIES);
-    
+
     const lobbies = data?.lobbies || (Array.isArray(data) ? data : []);
-    
+
     return {
       success: true,
-      lobbies
+      lobbies,
     };
   } catch (error) {
-    console.error('getAllLobbies error:', error.message);
+    console.error("getAllLobbies error:", error.message);
     return handleApiError(error);
   }
 };

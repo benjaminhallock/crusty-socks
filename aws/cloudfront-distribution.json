@@ -1,0 +1,29 @@
+{
+  "Comment": "CloudFront Distribution for Crustysocks",
+  "Origins": {
+    "S3Origin": {
+      "DomainName": "crustysocks-client.s3.amazonaws.com",
+      "OriginPath": "",
+      "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+      }
+    }
+  },
+  "DefaultCacheBehavior": {
+    "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+    "CachedMethods": ["GET", "HEAD", "OPTIONS"],
+    "TargetOriginId": "S3Origin",
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      }
+    },
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "MinTTL": 0,
+    "DefaultTTL": 3600,
+    "MaxTTL": 86400
+  },
+  "Enabled": true,
+  "PriceClass": "PriceClass_100"
+}

@@ -9,37 +9,30 @@
     "server"
   ],
   "scripts": {
-    "dev:client": "cd client && npm run dev",
-    "dev:server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "build:client": "cd client && npm run build",
-    "build:server": "cd server && npm run build",
-    "build": "npm run sync-constants && npm run build:client",
-    "start:client": "cd client && npm run start",
-    "start:server": "cd server && npm run start",
-    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
-    "lint": "concurrently \"cd client && npm run lint\" \"cd server && npm run lint\"",
-    "lint:fix": "concurrently \"cd client && npm run lint:fix\" \"cd server && npm run lint:fix\"",
+    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\"",
+    "build": "npm run sync-constants && cd client && npm run build && cd ../server && npm run build",
+    "start": "npm run start --workspace=client && npm run start --workspace=server",
+    "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
+    "lint:fix": "npm run lint:fix --workspace=client && npm run lint:fix --workspace=server",
     "sync-constants": "node sync-constants.js",
     "predev": "npm run sync-constants",
     "prebuild": "npm run sync-constants",
+    "update-all": "npm update --workspace client && npm update --workspace server",
+    "upgrade-all": "ncu -u --deep && npm install",
+    "upgrade-client": "ncu -u --workspace client && npm install --workspace client",
+    "upgrade-server": "ncu -u --workspace server && npm install --workspace server",
+    "upgrade-react-vite": "npx npm-check-updates \"/^(vite|react)/\" -u --deep",
     "deploy:aws": "npm run build && eb deploy",
-    "deploy:vercel": "vercel --prod"
+    "deploy:client": "aws s3 sync client/dist/ s3://crustysocks-client --delete",
+    "deploy:server": "eb deploy",
+    "test": "npm run test:client && npm run test:server",
+    "test:client": "cd client && npm test",
+    "test:server": "cd server && npm test",
+    "clean": "cd client && npm run clean && cd ../server && npm run clean",
+    "superclean": "rm -rf node_modules client/node_modules server/node_modules dist client/dist server/dist package-lock.json client/package-lock.json server/package-lock.json .eslintcache .jest .nyc_output coverage .cache .next"
   },
-  "keywords": [
-    "drawing",
-    "game",
-    "socket.io",
-    "react",
-    "vite",
-    "express"
-  ],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
-    "concurrently": "^8.2.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "concurrently": "^9.1.2",
+    "npm-check-updates": "^17.1.18"
   }
 }

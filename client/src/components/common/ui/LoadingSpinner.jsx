@@ -1,7 +1,9 @@
 // LoadingSpinner component provides a consistent loading animation
-const LoadingSpinner = ({ size = 'h-12 w-12', color = 'border-indigo-500' }) => {
+const LoadingSpinner = () => {
   return (
-    <div className={`animate-spin rounded-full ${size} border-t-2 border-b-2 ${color}`}></div>
+    <div className="flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white"></div>
+    </div>
   );
 };
 

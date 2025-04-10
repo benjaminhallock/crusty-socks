@@ -12,17 +12,17 @@ const ChatBox = ({ user, roomId, lobbyObjectId, gameState, currentWord, currentD
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Set up socket listeners and load chat history
+  // Set up socket listeners with proper cleanup
   useEffect(() => {
     if (!socketManager.isConnected() || !lobbyObjectId) return;
 
-    // Request chat history when component mounts
+    // Request chat history once when component mounts
     socketManager.requestChatHistory(lobbyObjectId);
 
-    // Handle incoming messages
+    // Create a stable reference to the handler functions
     const handleNewMessage = (message) => {
       setMessages(prev => {
-        // Prevent duplicate messages
+        // Prevent duplicate messages by checking ID
         if (message._id && prev.some(m => m._id === message._id)) {
           return prev;
         }
@@ -30,13 +30,13 @@ const ChatBox = ({ user, roomId, lobbyObjectId, gameState, currentWord, currentD
       });
     };
 
-    // Handle chat history
     const handleChatHistory = (history) => {
       if (Array.isArray(history)) {
         setMessages(history);
       }
     };
 
+    // Set up listeners with stable references
     const cleanupMessage = socketManager.onMessage(handleNewMessage);
     const cleanupHistory = socketManager.onChatHistory(handleChatHistory);
 
@@ -44,16 +44,30 @@ const ChatBox = ({ user, roomId, lobbyObjectId, gameState, currentWord, currentD
       cleanupMessage();
       cleanupHistory();
     };
-  }, [lobbyObjectId]);
+  }, [lobbyObjectId]); // Only depend on lobbyObjectId
 
+  // Simplify the submit handler
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmedMessage = input.trim();
-    if (!trimmedMessage || !user?.username) return;
+    
+    // Enhanced validation
+    if (!trimmedMessage || !user?.username || !lobbyObjectId) {
+      console.error("Missing required data:", {
+        message: trimmedMessage,
+        username: user?.username,
+        lobbyObjectId
+      });
+      return;
+    }
 
-    // Send message regardless of game state
-    socketManager.sendMessage(lobbyObjectId, trimmedMessage, user.username);
-    setInput("");
+    try {
+      // Send message and wait for server to broadcast it back
+      socketManager.sendMessage(lobbyObjectId, trimmedMessage, user.username);
+      setInput("");
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
   };
 
   return (

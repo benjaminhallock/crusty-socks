@@ -300,8 +300,10 @@ class SocketManager {
 
     this.socket.volatile.emit(SOCKET_EVENTS.CANVAS_UPDATE, {
       lobbyId,
-      canvasData: canvasState.data,
-      timestamp: canvasState.timestamp,
+      canvasState: {
+        data: canvasState.data,
+        timestamp: canvasState.timestamp
+      }
     });
   }
 

@@ -283,3 +283,51 @@ export const updateReport = async (reportId, reportData) => {
     return handleApiError(error);
   }
 };
+
+export const verifyEmail = async () => {
+  try {
+    const { data } = await api.post(x.VERIFY_EMAIL);
+    return { success: true, message: data.message };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  try {
+    const { data } = await api.put(x.CHANGE_PASSWORD, {
+      currentPassword,
+      newPassword,
+    });
+    return { success: true, message: data.message };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+export const changeEmail = async ({ newEmail, password }) => {
+  try {
+    const { data } = await api.put(x.CHANGE_EMAIL, { newEmail, password });
+    return { success: true, message: data.message };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+export const updateUserPreferences = async (preferences) => {
+  try {
+    const { data } = await api.put(x.UPDATE_PREFERENCES, preferences);
+    return { success: true, preferences: data.preferences };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+export const deleteAccount = async () => {
+  try {
+    const { data } = await api.delete(x.DELETE_ACCOUNT);
+    return { success: true, message: data.message };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};

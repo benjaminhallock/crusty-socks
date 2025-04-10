@@ -68,6 +68,30 @@ const userSchema = new mongoose.Schema(
         default: Date.now,
       },
     },
+    preferences: {
+      profanityFilter: {
+        type: Boolean,
+        default: true,
+      },
+      emailNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      showOnlineStatus: {
+        type: Boolean,
+        default: true,
+      }
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    pendingEmail: {
+      type: String,
+      default: null
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
   },
   {
     timestamps: {

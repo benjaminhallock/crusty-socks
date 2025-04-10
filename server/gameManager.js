@@ -39,57 +39,32 @@ class GameManager {
       );
       socket.on(se.LEAVE_LOBBY, () => this.handleDisconnect(socket));
       socket.on(se.CANVAS_UPDATE, (data) => {
-        const { canvasData, timestamp, lobbyId } = data;
-        if (!canvasData) {
-          console.error("Canvas data is empty");
-          return;
-        }
-        const connection = this.activeConnections.get(socket.id);
-        if (!connection) {
-          // console.error("Connection not found for socket", socket.id);
-          return;
-        }
-        const { roomId } = connection;
-        if (!roomId) {
-          console.error("Room ID not found in connection data");
-          return;
-        }
+        if (!data?.canvasState?.data) return;
 
-        // Fast path: emit to room immediately for real-time updates
-        // Remove async/await for fastest possible relay to other clients
+        const connection = this.activeConnections.get(socket.id);
+        if (!connection) return;
+
+        const { roomId } = connection;
+        if (!roomId) return;
+
+        // Emit to room immediately
         socket.to(roomId).volatile.emit(se.CANVAS_UPDATE, {
-          canvasState: {
-            data: canvasData,
-            timestamp: timestamp || Date.now(),
-          },
+          canvasState: data.canvasState
         });
 
-        // Debounced background save - we don't need to save every single update
-        if (this._canvasSaveTimer?.[lobbyId]) {
-          clearTimeout(this._canvasSaveTimer[lobbyId]);
+        // Debounced save
+        if (this._canvasSaveTimer?.[roomId]) {
+          clearTimeout(this._canvasSaveTimer[roomId]);
         }
-
-        // Initialize the timers object if needed
         if (!this._canvasSaveTimer) this._canvasSaveTimer = {};
 
-        // Set a timer to save after a short delay (100ms)
-        this._canvasSaveTimer[lobbyId] = setTimeout(() => {
-          // Fire and forget - no await to prevent blocking
-          Lobby.findByIdAndUpdate(
-            lobbyId,
-            {
-              canvasState: {
-                data: canvasData,
-                timestamp: timestamp || Date.now(),
-              },
-            },
+        this._canvasSaveTimer[roomId] = setTimeout(() => {
+          Lobby.findOneAndUpdate(
+            { roomId },
+            { canvasState: data.canvasState },
             { new: true }
-          )
-            .exec()
-            .catch((err) => {
-              console.error("Error saving canvas state:", err);
-            });
-        }, 100);
+          ).exec().catch(console.error);
+        }, 1000);
       });
       socket.on(se.REQUEST_CHAT_HISTORY, (data) =>
         this.handleRequestChatHistory(socket, data)
@@ -112,102 +87,86 @@ class GameManager {
         return;
       }
 
-      // Remove existing connection for this user if any
-      for (const [socketId, conn] of this.activeConnections.entries()) {
-        if (conn.username === userData.username && conn.roomId === roomId) {
-          console.log(`Removing existing connection for ${userData.username}`);
-          this.activeConnections.delete(socketId);
-          break;
-        }
-      }
+      const existingConnection = Array.from(this.activeConnections.values())
+        .find(conn => conn.username === userData.username && conn.roomId === roomId);
 
-      // Track this new connection
-      this.activeConnections.set(socket.id, {
-        userId: userData._id,
-        username: userData.username,
-        roomId: roomId,
-        lobbyObjectId: lobby._id,
-      });
-
-      const isAlreadyInLobby = !!lobby.findPlayerByUsername(userData.username);
-
-      // Only add the player if they're not already in the lobby
-      if (!isAlreadyInLobby) {
-        const isLobbyFull = lobby.players.length >= lobby.playerLimit;
-        if (isLobbyFull) {
-          socket.emit("error", { message: "Lobby is full" });
-          this.releaseSaveLock(roomId);
-          return;
-        }
-
-        lobby.players.push({
-          username: userData.username,
-          userId: userData._id,
-          score: 0,
-          hasDrawn: false,
-          hasGuessedCorrect: false,
+      if (existingConnection) {
+        // User already in room, just update socket
+        this.activeConnections.set(socket.id, {
+          ...existingConnection,
+          socketId: socket.id
         });
-        await lobby.save();
+      } else {
+        // New connection
+        this.activeConnections.set(socket.id, {
+          userId: userData._id,
+          username: userData.username,
+          roomId: roomId,
+          lobbyObjectId: lobby._id,
+        });
+
+        if (!lobby.findPlayerByUsername(userData.username)) {
+          if (lobby.players.length >= lobby.playerLimit) {
+            socket.emit("error", { message: "Lobby is full" });
+            this.releaseSaveLock(roomId);
+            return;
+          }
+
+          lobby.players.push({
+            username: userData.username,
+            userId: userData._id,
+            score: 0,
+            hasDrawn: false,
+            hasGuessedCorrect: false,
+          });
+          await lobby.save();
+
+          // Only send join message for new players
+          const joinMessage = await Chat.create({
+            lobbyObjectId: lobby._id,
+            username: "Server",
+            message: `${userData.username} has joined the lobby.`,
+            timestamp: Date.now(),
+            isSystemMessage: true,
+          });
+
+          this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+            _id: joinMessage._id,
+            username: "Server",
+            message: `${userData.username} has joined the lobby.`,
+            timestamp: joinMessage.timestamp,
+            isSystemMessage: true,
+          });
+        }
       }
 
-      // Join the socket to the room
       await socket.join(roomId);
-      console.log(`${userData.username} successfully joined room: ${roomId}`);
 
-      // Send game state update to the room
+      // Send game state update with current canvas
       const updatedLobby = await Lobby.findOne({ roomId });
+      if (updatedLobby?.canvasState?.data) {
+        socket.emit(se.CANVAS_UPDATE, {
+          canvasState: updatedLobby.canvasState
+        });
+      }
+      
       this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby: updatedLobby });
 
-      try {
-        // Find or initialize chat history for this lobby
-        await Chat.findOneOrCreate(lobby._id);
+      // Send chat history
+      const messages = await Chat.find({
+        lobbyObjectId: lobby._id,
+        $or: [
+          { visibleTo: null },
+          { visibleTo: { $exists: false } },
+          { visibleTo: userData.username },
+        ],
+      })
+        .sort({ timestamp: -1 })
+        .limit(50)
+        .sort({ timestamp: 1 });
 
-        // Get public messages from chat history
-        const messages = await Chat.find({
-          lobbyObjectId: lobby._id,
-          $or: [
-            { visibleTo: null },
-            { visibleTo: { $exists: false } },
-            { visibleTo: userData.username },
-          ],
-        })
-          .sort({ timestamp: -1 })
-          .limit(50)
-          .sort({ timestamp: 1 });
+      socket.emit(se.CHAT_HISTORY, messages);
 
-        // Format and send messages to client
-        const formattedMessages = messages.map((msg) => ({
-          _id: msg._id,
-          username: msg.username,
-          message: msg.message,
-          timestamp: msg.timestamp,
-          isSystemMessage: msg.isSystemMessage,
-          isGuessMessage: msg.isGuessMessage,
-        }));
-
-        socket.emit(se.CHAT_HISTORY, formattedMessages);
-
-        // Add system join message
-        const joinMessage = await Chat.create({
-          lobbyObjectId: lobby._id,
-          username: "Server",
-          message: `${userData.username} has joined the lobby.`,
-          timestamp: Date.now(),
-          isSystemMessage: true,
-        });
-
-        // Broadcast the join message
-        this.io.to(roomId).emit(se.CHAT_MESSAGE, {
-          _id: joinMessage._id,
-          username: "Server",
-          message: `${userData.username} has joined the lobby.`,
-          timestamp: joinMessage.timestamp,
-          isSystemMessage: true,
-        });
-      } catch (error) {
-        console.error("Error handling chat history:", error);
-        // Don't fail the whole connection if chat fails
-      }
     } catch (error) {
       console.error("Error in handleConnectAck:", error);
       socket.emit("error", { message: error.message || "Failed to connect" });
@@ -218,34 +177,66 @@ class GameManager {
 
   async handleChatMessage(socket, { lobbyObjectId, message, username }) {
     try {
+      console.log('Server received chat message:', {
+        lobbyObjectId,
+        username,
+        messageLength: message?.length
+      });
+
       if (!lobbyObjectId || !message || !username) {
         console.error('Missing required chat message data');
         return;
       }
   
       const connection = this.activeConnections.get(socket.id);
-      if (!connection) return;
+      if (!connection) {
+        console.log('No active connection found for socket:', socket.id);
+        return;
+      }
   
       const lobby = await Lobby.findById(lobbyObjectId);
-      if (!lobby) return;
+      if (!lobby) {
+        console.log('Lobby not found:', lobbyObjectId);
+        return;
+      }
   
-      // Validate message
       const trimmedMessage = message.trim();
       if (!trimmedMessage) return;
   
       const isDrawer = lobby.gameState === GAME_STATE.DRAWING && username === lobby.currentDrawer;
   
-      // Check for word guess during drawing phase
+      // Check for word guess during drawing phase first
       if (lobby.gameState === GAME_STATE.DRAWING && !isDrawer) {
         const isCorrectGuess = lobby.currentWord.toLowerCase().trim() === trimmedMessage.toLowerCase().trim();
         if (isCorrectGuess) {
-          return this.handleCheckWordGuess({
+          // Handle the guess through the existing guess handler
+          await this.handleCheckWordGuess({
             socket,
             roomId: lobby.roomId,
             guess: trimmedMessage,
             username
           });
+          return; // Don't broadcast the message if it's a guess
         }
+
+        // Store failed guess but make it visible only to the guesser
+        const failedGuessChat = await Chat.create({
+          lobbyObjectId,
+          username,
+          message: trimmedMessage,
+          timestamp: Date.now(),
+          isGuessMessage: false,
+          visibleTo: username,
+        });
+
+        // Send the failed guess only to the user who made it
+        socket.emit(se.CHAT_MESSAGE, {
+          _id: failedGuessChat._id,
+          username,
+          message: trimmedMessage,
+          timestamp: failedGuessChat.timestamp,
+        });
+        return; // Don't broadcast failed guesses
       }
   
       // Block drawer from sharing word variations
@@ -273,35 +264,25 @@ class GameManager {
         }
       }
   
-      // Save chat message (non-blocking)
-      const chatPromise = Chat.create({
+      // If we get here, it's a regular chat message that should be broadcast
+      const savedChat = await Chat.create({
         lobbyObjectId,
         userId: connection.userId,
         username,
         message: trimmedMessage,
         timestamp: Date.now(),
         isSystemMessage: false
-      }).catch(err => console.error('Error saving chat:', err));
-  
-      // Emit immediately for real-time response
+      });
+
       const messageData = {
-        _id: Date.now().toString(), // Temporary ID until save completes
+        _id: savedChat._id,
         username,
         message: trimmedMessage,
-        timestamp: Date.now(),
+        timestamp: savedChat.timestamp,
         isSystemMessage: false
       };
-  
-      // Broadcast to room
+
       this.io.to(lobby.roomId).emit(se.CHAT_MESSAGE, messageData);
-  
-      // Update the _id after save completes
-      chatPromise.then(savedChat => {
-        if (savedChat) {
-          messageData._id = savedChat._id;
-          this.io.to(lobby.roomId).emit(se.CHAT_MESSAGE, messageData);
-        }
-      });
   
     } catch (error) {
       console.error("Error in handleChatMessage:", error);
@@ -776,10 +757,14 @@ class GameManager {
 
   async handleRequestChatHistory(socket, { lobbyObjectId }) {
     try {
+      console.log('Chat history requested for lobby:', lobbyObjectId);
       if (!lobbyObjectId) return;
 
       const connection = this.activeConnections.get(socket.id);
-      if (!connection) return;
+      if (!connection) {
+        console.log('No active connection found for socket:', socket.id);
+        return;
+      }
 
       const messages = await Chat.find({
         lobbyObjectId,
@@ -794,6 +779,7 @@ class GameManager {
         .select('_id username message timestamp isSystemMessage isGuessMessage')
         .lean();
   
+      console.log('Sending chat history, count:', messages.length);
       socket.emit(se.CHAT_HISTORY, messages.reverse());
     } catch (error) {
       console.error("Error fetching chat history:", error);

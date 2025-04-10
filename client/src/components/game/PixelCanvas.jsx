@@ -212,7 +212,8 @@ const PixelCanvas = ({
     const scaleY = canvas.height / rect.height
     const x = (e.clientX - rect.left) * scaleX
     const y = (e.clientY - rect.top) * scaleY
-    if (currentTool === 'fill') {
+
+    if (currentTool === 'fill' && !isDrawingRef.current) {
       saveState()
       if (floodFill(ctx, x, y, currentColor)) {
         socketManager.updateCanvas({
@@ -224,15 +225,37 @@ const PixelCanvas = ({
         })
       }
       setIsDrawing(false)
-    } else {
-      if (lastPoint) {
-        const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
-        drawQueueRef.current.push({ points, color: currentColor })
-        isDrawingRef.current = true
-      }
-      setLastPoint({ x, y })
+      return
+    }
+
+    if (lastPoint) {
+      const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
+      drawQueueRef.current.push({ points, color: currentColor })
+      isDrawingRef.current = true
+    }
+    setLastPoint({ x, y })
+  }
+
+  const updateCanvas = () => {
+    if (!canvasRef.current || !isDrawingRef.current || !canDraw()) return
+    const now = Date.now()
+    if (now - lastUpdateTimeRef.current > UPDATE_INTERVAL) {
+      lastUpdateTimeRef.current = now
+      socketManager.updateCanvas({
+        canvasState: {
+          data: canvasRef.current.toDataURL(),
+          timestamp: now,
+        },
+        lobbyId,
+      })
     }
   }
+
+  // Add this effect for more efficient canvas updates
+  useEffect(() => {
+    const updateInterval = setInterval(updateCanvas, UPDATE_INTERVAL)
+    return () => clearInterval(updateInterval)
+  }, [])
 
   const handleMouseDown = (e) => {
     if (!canDraw()) return

@@ -12,6 +12,9 @@
     "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\"",
     "build": "npm run sync-constants && cd client && npm run build && cd ../server && npm run build",
     "start": "npm run start --workspace=client && npm run start --workspace=server",
+    "install:all": "npm install",
+    "install:client": "npm install --workspace=client",
+    "install:server": "npm install --workspace=server",
     "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
     "lint:fix": "npm run lint:fix --workspace=client && npm run lint:fix --workspace=server",
     "sync-constants": "node sync-constants.js",
@@ -28,11 +31,12 @@
     "test": "npm run test:client && npm run test:server",
     "test:client": "cd client && npm test",
     "test:server": "cd server && npm test",
-    "clean": "cd client && npm run clean && cd ../server && npm run clean",
-    "superclean": "rm -rf node_modules client/node_modules server/node_modules dist client/dist server/dist package-lock.json client/package-lock.json server/package-lock.json .eslintcache .jest .nyc_output coverage .cache .next"
+    "clean": "rimraf \"{.,client,server}/{node_modules,dist,.cache,coverage,.nyc_output,package-lock.json,.eslintcache}\" && rimraf \"./{.jest,.next}\"",
+    "superclean": "rimraf \"{.,client,server}/{node_modules,dist,.cache,coverage,.nyc_output,package-lock.json,.eslintcache}\" && rimraf \"./{.jest,.next}\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "npm-check-updates": "^17.1.18"
+    "npm-check-updates": "^17.1.18",
+    "rimraf": "^6.0.1"
   }
 }

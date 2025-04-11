@@ -1,8 +1,7 @@
-import js from '@eslint/js';
-import globals from 'globals';
-import react from 'eslint-plugin-react';
-import reactHooks from 'eslint-plugin-react-hooks';
-import perfectionist from 'eslint-plugin-perfectionist';
+import js from '@eslint/js'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
+import perfectionist from 'eslint-plugin-perfectionist'
 
 export default [
   { ignores: ['dist'] },
@@ -12,24 +11,35 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: {
-        ...globals.browser,
-        ...globals.es2021
+        // Browser globals
+        document: 'readonly',
+        navigator: 'readonly',
+        window: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        alert: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        // ES2021 globals
+        AggregateError: 'readonly',
+        FinalizationRegistry: 'readonly',
+        WeakRef: 'readonly',
       },
       parserOptions: {
-        ecmaFeatures: { jsx: true }
-      }
+        ecmaFeatures: { jsx: true },
+      },
     },
-    settings: { 
+    settings: {
       react: { version: 'detect' },
       perfectionist: {
         type: 'line-length',
-        partitionByComment: true
-      }
+        partitionByComment: true,
+      },
     },
     plugins: {
       react,
       'react-hooks': reactHooks,
-      perfectionist
+      perfectionist,
     },
     rules: {
       ...js.configs.recommended.rules,
@@ -39,7 +49,7 @@ export default [
       'react/prop-types': 'off',
       'perfectionist/sort-imports': 'error',
       'react/jsx-uses-react': 'off',
-      'react/react-in-jsx-scope': 'off'
-    }
-  }
-];
+      'react/react-in-jsx-scope': 'off',
+    },
+  },
+]

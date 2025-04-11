@@ -8,8 +8,7 @@
     "build": "vite build",
     "test": "jest",
     "lint": "eslint src --ext .js,.jsx --fix",
-    "preview": "vite preview",
-    "clean": "rm -rf node_modules client/node_modules package-lock.json client/package-lock.json"
+    "preview": "vite preview"
   },
   "jest": {
     "testEnvironment": "jsdom",

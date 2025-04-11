@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import ContextMenu from './ContextMenu'
@@ -13,13 +13,39 @@ const PlayerList = ({
   gameState,
   currentUsername,
   isAdmin,
-  chatLogs = [],
   onStartGame,
 }) => {
   const navigate = useNavigate()
   const [showPopup, setShowPopup] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [reportModal, setReportModal] = useState(null)
+  const [chatLogs, setChatLogs] = useState([])
+  const [canvasState, setCanvasState] = useState(null)
+
+  // Set up chat history and canvas state for reports
+  useEffect(() => {
+    if (socketManager.isConnected()) {
+      const unsubscribeChatHistory = socketManager.onChatHistory((messages) => {
+        if (Array.isArray(messages)) {
+          setChatLogs(messages)
+        }
+      })
+
+      const unsubscribeCanvas = socketManager.onCanvasUpdate((data) => {
+        if (data?.canvasState?.data) {
+          setCanvasState(data.canvasState)
+        }
+      })
+
+      // Request chat history when component mounts
+      socketManager.requestChatHistory(roomId, currentUsername)
+
+      return () => {
+        unsubscribeChatHistory()
+        unsubscribeCanvas()
+      }
+    }
+  }, [roomId, currentUsername])
 
   const handleInviteLink = () => {
     navigator.clipboard.writeText(window.location.href)
@@ -42,6 +68,7 @@ const PlayerList = ({
         ],
       })
     }
+
     setContextMenu({
       x: e.pageX,
       y: e.pageY,
@@ -58,10 +85,18 @@ const PlayerList = ({
           label: 'Kick Player',
           onClick: () => socketManager.kickPlayer(roomId, player.username),
           isDestructive: true,
-          disabled: !isAdmin,
+          hidden: !isAdmin,
         },
       ],
     })
+  }
+
+  const closeContextMenu = () => {
+    setContextMenu(null)
+  }
+
+  const closeReportModal = () => {
+    setReportModal(null)
   }
 
   const getPlayerBackgroundClass = (player) => {
@@ -78,6 +113,13 @@ const PlayerList = ({
     }
     return 'bg-gray-200/50 dark:bg-gray-600/50'
   }
+
+  // Sort players: drawer first, then by score
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.username === drawerUsername) return -1
+    if (b.username === drawerUsername) return 1
+    return b.score - a.score
+  })
 
   return (
     <div className='bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors'>
@@ -105,7 +147,7 @@ const PlayerList = ({
         </div>
       </div>
       <ul className='space-y-1 overflow-y-auto'>
-        {players.map((player, index) => (
+        {sortedPlayers.map((player, index) => (
           <li
             key={`player-${player.username}-${index}`}
             onClick={(e) => handlePlayerClick(e, player)}
@@ -156,17 +198,20 @@ const PlayerList = ({
       </ul>
       {contextMenu && (
         <ContextMenu
-          {...contextMenu}
-          onClose={() => setContextMenu(null)}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={closeContextMenu}
+          options={contextMenu.options}
         />
       )}
       {reportModal && (
         <ReportModal
           reportedUser={reportModal}
-          onClose={() => setReportModal(null)}
+          onClose={closeReportModal}
           chatLogs={chatLogs}
           currentUsername={currentUsername}
           roomId={roomId}
+          canvasState={canvasState}
         />
       )}
     </div>

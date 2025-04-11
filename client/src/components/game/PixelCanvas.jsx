@@ -116,25 +116,41 @@ const PixelCanvas = ({
       1,
       1
     ).data
-    const targetColor = `rgb(${targetColorData[0]}, ${targetColorData[1]}, ${targetColorData[2]})`
-    if (targetColor === fillColorHex) return false
+
+    // Convert RGB to hex for proper comparison
+    const targetColor = `#${targetColorData[0]
+      .toString(16)
+      .padStart(2, '0')}${targetColorData[1]
+      .toString(16)
+      .padStart(2, '0')}${targetColorData[2].toString(16).padStart(2, '0')}`
+
+    if (targetColor.toLowerCase() === fillColorHex.toLowerCase()) return false
+
     const stack = [[gridX, gridY]]
     const width = Math.floor(CANVAS_WIDTH / gridSize)
     const height = Math.floor(CANVAS_HEIGHT / gridSize)
     const visited = new Set()
     const pixelsToFill = []
     const maxPixels = 2500
+
     while (stack.length > 0 && pixelsToFill.length < maxPixels) {
       const [x, y] = stack.pop()
       const key = `${x},${y}`
       if (x < 0 || y < 0 || x >= width || y >= height || visited.has(key)) continue
+
       const pixelData = ctx.getImageData(x * gridSize, y * gridSize, 1, 1).data
-      const pixelColor = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`
-      if (pixelColor !== targetColor) continue
+      // Convert RGB to hex
+      const pixelColor = `#${pixelData[0].toString(16).padStart(2, '0')}${pixelData[1]
+        .toString(16)
+        .padStart(2, '0')}${pixelData[2].toString(16).padStart(2, '0')}`
+
+      if (pixelColor.toLowerCase() !== targetColor.toLowerCase()) continue
+
       visited.add(key)
       pixelsToFill.push([x, y])
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1])
     }
+
     ctx.fillStyle = fillColorHex
     for (const [x, y] of pixelsToFill) {
       ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize)
@@ -229,14 +245,14 @@ const PixelCanvas = ({
     }
 
     if (lastPoint) {
-      if (currentTool === "brush") {
+      if (currentTool === 'brush') {
         const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
-        drawQueueRef.current.push({points, color: currentColor})
+        drawQueueRef.current.push({ points, color: currentColor })
         isDrawingRef.current = true
       }
-      if (currentTool === "eraser"){
+      if (currentTool === 'eraser') {
         const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
-        drawQueueRef.current.push({ points, color: "#FFFFFF" })
+        drawQueueRef.current.push({ points, color: '#FFFFFF' })
         isDrawingRef.current = true
       }
     }
@@ -288,20 +304,18 @@ const PixelCanvas = ({
           lobbyId,
         })
       }
-    }
-    else if (currentTool === 'brush'){
+    } else if (currentTool === 'brush') {
       setLastPoint({ x, y })
       drawQueueRef.current.push({
         points: [{ x, y }],
         color: currentColor,
       })
-    }
-    else if (currentTool === 'eraser'){
-        setLastPoint({ x, y })
-        drawQueueRef.current.push({
-          points: [{ x, y }],
-          color: "#FFFFFF",
-        })
+    } else if (currentTool === 'eraser') {
+      setLastPoint({ x, y })
+      drawQueueRef.current.push({
+        points: [{ x, y }],
+        color: '#FFFFFF',
+      })
     }
   }
 

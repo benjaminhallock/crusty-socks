@@ -17,8 +17,6 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
   useEffect(() => {
     if (isDrawing) {
       setCurrentRound(lobby.currentRound)
-    } else {
-      setCurrentRound(1)
     }
   }, [isDrawing, lobby.currentRound])
 
@@ -29,42 +27,43 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
       timerRef.current = null
     }
 
-    // Only start timers for drawing and word picking states
+    // Skip timer setup for non-active states
     if (
-      (lobby.gameState === GAME_STATE.DRAWING ||
-        lobby.gameState === GAME_STATE.PICKING_WORD) &&
-      lobby.startTime
+      lobby.gameState !== GAME_STATE.DRAWING &&
+      lobby.gameState !== GAME_STATE.PICKING_WORD
     ) {
-      // Calculate initial time left based on state
-      const maxTime = lobby.gameState === GAME_STATE.PICKING_WORD ? 
-                     WORD_SELECTION_TIME : lobby.roundTime;
-                     
-      if (lobby.timeLeft !== undefined) {
-        setTimeLeft(lobby.timeLeft)
-      } else {
-        // Calculate from startTime
-        const elapsed = (Date.now() - lobby.startTime) / 1000
-        const remaining = Math.max(0, Math.round(maxTime - elapsed))
-        setTimeLeft(remaining)
-      }
+      return
+    }
 
-      // Check if this is a new timer
-      const isNewTimer = lobby.startTime !== lastStartTimeRef.current
-      if (isNewTimer) {
-        lastStartTimeRef.current = lobby.startTime
+    // Calculate initial time left
+    let initialTimeLeft = 0
+    const currentTime = Date.now()
 
-        // Start new countdown timer
-        timerRef.current = setInterval(() => {
-          setTimeLeft((prev) => {
-            const newTime = Math.max(0, prev - 1)
-            if (newTime <= 0) {
-              clearInterval(timerRef.current)
-              timerRef.current = null
-            }
-            return newTime
-          })
-        }, 1000)
-      }
+    if (lobby.gameState === GAME_STATE.DRAWING && lobby.startTime) {
+      const startTime = new Date(lobby.startTime).getTime()
+      const elapsedSeconds = Math.floor((currentTime - startTime) / 1000)
+      initialTimeLeft = Math.max(0, lobby.roundTime - elapsedSeconds)
+    } else if (lobby.gameState === GAME_STATE.PICKING_WORD && lobby.startTime) {
+      const startTime = new Date(lobby.startTime).getTime()
+      const elapsedSeconds = Math.floor((currentTime - startTime) / 1000)
+      initialTimeLeft = Math.max(0, WORD_SELECTION_TIME - elapsedSeconds)
+    }
+
+    // Update the time left
+    setTimeLeft(initialTimeLeft)
+
+    // Start the timer if time is remaining
+    if (initialTimeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          const newTime = Math.max(0, prev - 1)
+          if (newTime <= 0) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
+          return newTime
+        })
+      }, 1000)
     }
 
     // Cleanup on unmount
@@ -102,12 +101,12 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
   // Calculate width based on the correct time limit for each state
   const getTimerWidth = () => {
     if (lobby.gameState === GAME_STATE.DRAWING) {
-      return (timeLeft / lobby.roundTime) * 100;
+      return Math.max(0, (timeLeft / lobby.roundTime) * 100)
     } else if (lobby.gameState === GAME_STATE.PICKING_WORD) {
       // Use WORD_SELECTION_TIME constant for picking phase
-      return (timeLeft / WORD_SELECTION_TIME) * 100;
+      return Math.max(0, (timeLeft / WORD_SELECTION_TIME) * 100)
     }
-    return 100;
+    return 100
   }
 
   // Calculate the current reveal percentage based on time elapsed
@@ -115,7 +114,10 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
     if (!lobby.revealCharacters || lobby.gameState !== GAME_STATE.DRAWING) return 0
 
     // Calculate time elapsed as a percentage of total round time
-    const timeElapsedPercent = ((lobby.roundTime - timeLeft) / lobby.roundTime) * 100
+    const timeElapsedPercent = Math.min(
+      100,
+      ((lobby.roundTime - timeLeft) / lobby.roundTime) * 100
+    )
 
     // Scale the reveal percentage based on time elapsed and max reveal rate
     return Math.min(
@@ -238,7 +240,6 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
       if (Array.isArray(lobby.words) && lobby.words.length > 0) {
         // Option 1: Use the words array if available
         wordChoices = lobby.words
-        console.log('Using lobby.words array:', wordChoices)
       } else if (
         typeof lobby.currentWord === 'string' &&
         lobby.currentWord.includes(',')
@@ -248,7 +249,6 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
           .split(',')
           .map((word) => word.trim())
           .filter((word) => word.length > 0)
-        // console.log("Parsed from currentWord:", wordChoices);
       } else if (
         typeof lobby.currentWord === 'string' &&
         lobby.currentWord &&
@@ -258,9 +258,6 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
         console.log(
           'Single word found in currentWord - might be in drawing state already'
         )
-      } else {
-        // No words found
-        console.log('No word options found in any expected location')
       }
 
       // If we have no word choices but we're in picking_word state and we're the drawer,
@@ -284,22 +281,15 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
 
       return (
         <div className='mt-4 flex flex-wrap gap-4 justify-center'>
-          {selectedWords.length > 0 ? (
-            selectedWords.map((wordOption, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  console.log(`Selected word: ${wordOption}`)
-                  onWordPick(wordOption)
-                }}
-                className='px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition'
-              >
-                {wordOption}
-              </button>
-            ))
-          ) : (
-            <p>No word options available. Please wait...</p>
-          )}
+          {selectedWords.map((wordOption, index) => (
+            <button
+              key={index}
+              onClick={() => onWordPick(wordOption)}
+              className='px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition'
+            >
+              {wordOption}
+            </button>
+          ))}
         </div>
       )
     }

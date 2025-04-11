@@ -63,7 +63,6 @@ const lobbySchema = new mongoose.Schema(
     },
     maxRounds: {
       type: Number,
-      default: 3,
       min: 1,
       max: 10,
     },
@@ -173,9 +172,13 @@ lobbySchema.statics.findByRoomId = async function (roomId) {
   return lobby;
 };
 
-lobbySchema.methods.removePlayer = function (username) {
-  this.players = this.players.filter((player) => player.username !== username);
-  return this.save();
+lobbySchema.methods.removePlayer = async function (username) {
+  const updatedLobby = await this.constructor.findOneAndUpdate(
+    { _id: this._id },
+    { $pull: { players: { username: username } } },
+    { new: true }
+  );
+  return updatedLobby;
 };
 
 lobbySchema.index({ createdAt: -1 });

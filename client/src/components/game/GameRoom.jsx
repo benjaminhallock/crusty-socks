@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate, useParams, useBeforeUnload } from 'react-router-dom'
 
 import ChatBox from './ChatBox'
 import HiddenWord from './HiddenWord'
@@ -50,6 +50,23 @@ const GameRoom = ({ user }) => {
   // State to manage modals
   const [showRoundEnd, setShowRoundEnd] = useState(false)
   const [showRoundSummary, setShowRoundSummary] = useState(false)
+
+  // Add navigation warning hook
+  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (
+          lobby?.gameState === GAME_STATE.DRAWING ||
+          lobby?.gameState === GAME_STATE.PICKING_WORD
+        ) {
+          event.preventDefault()
+          return (event.returnValue =
+            'Are you sure you want to leave? The game is still in progress!')
+        }
+      },
+      [lobby?.gameState]
+    )
+  )
 
   useEffect(() => {
     isMountedRef.current = true
@@ -157,6 +174,19 @@ const GameRoom = ({ user }) => {
       setError('Cannot start game - Socket not connected. Please refresh the page.')
     }
   }
+
+  // Fix leave game functionality
+  const handleLeaveGame = useCallback(() => {
+    if (roomId && socketManager.isConnected()) {
+      socketManager.leaveLobby(roomId)
+      if (lobby?.currentDrawer === user.username) {
+        socketManager.endRound(roomId) // End round if drawer leaves
+      }
+      navigate('/')
+    } else {
+      navigate('/')
+    }
+  }, [roomId, user, lobby?.currentDrawer, navigate])
 
   return (
     <div className='min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-blue-300 via-pink-300 to-yellow-300 dark:from-gray-800 dark:via-purple-800 dark:to-indigo-800 p-4 rounded-lg shadow-2xl'>

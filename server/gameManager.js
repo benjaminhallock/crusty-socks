@@ -316,8 +316,12 @@ class GameManager {
       const lobby = await Lobby.findOne({ roomId })
       if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) return
 
-      const isCorrect =
-        lobby.currentWord.toLowerCase().trim() === guess.toLowerCase().trim()
+      // Clean both the guess and current word for exact comparison
+      const cleanedGuess = guess.toLowerCase().trim().replace(/\s+/g, '')
+      const cleanedWord = lobby.currentWord.toLowerCase().trim().replace(/\s+/g, '')
+
+      // Only allow exact matches, not partial ones
+      const isCorrect = cleanedGuess === cleanedWord
 
       if (isCorrect) {
         const player = lobby.players.find((p) => p.username === username)
@@ -332,12 +336,12 @@ class GameManager {
           player.guessTime = Date.now()
           player.hasGuessedCorrect = true
 
-          // Award points to drawer for successful guess
+          // Award points to drawer for successful guess (fixed)
           const drawer = lobby.players.find((p) => p.username === lobby.currentDrawer)
           if (drawer) {
-            const basePoints = 10
-            drawer.drawPoints = (drawer.drawPoints || 0) + basePoints
-            drawer.score += basePoints
+            const drawerPoints = 20 // Fixed 20 points per correct guess
+            drawer.drawPoints = (drawer.drawPoints || 0) + drawerPoints
+            drawer.score += drawerPoints
           }
 
           await lobby.save()
@@ -406,10 +410,10 @@ class GameManager {
     try {
       const lobby = await Lobby.findOne({ roomId })
       if (lobby && lobby.findPlayerByUsername(username)) {
-        await lobby.removePlayer(username)
-        this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-      } else {
-        console.error('Lobby not found when disconnecting')
+        const updatedLobby = await lobby.removePlayer(username)
+        if (updatedLobby) {
+          this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby: updatedLobby })
+        }
       }
     } catch (error) {
       console.error('Error during disconnect:', error)

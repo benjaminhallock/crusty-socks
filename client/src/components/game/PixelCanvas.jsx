@@ -229,9 +229,16 @@ const PixelCanvas = ({
     }
 
     if (lastPoint) {
-      const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
-      drawQueueRef.current.push({ points, color: currentColor })
-      isDrawingRef.current = true
+      if (currentTool === "brush") {
+        const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
+        drawQueueRef.current.push({points, color: currentColor})
+        isDrawingRef.current = true
+      }
+      if (currentTool === "eraser"){
+        const points = interpolatePoints(lastPoint.x, lastPoint.y, x, y)
+        drawQueueRef.current.push({ points, color: "#FFFFFF" })
+        isDrawingRef.current = true
+      }
     }
     setLastPoint({ x, y })
   }
@@ -281,12 +288,20 @@ const PixelCanvas = ({
           lobbyId,
         })
       }
-    } else {
+    }
+    else if (currentTool === 'brush'){
       setLastPoint({ x, y })
       drawQueueRef.current.push({
         points: [{ x, y }],
         color: currentColor,
       })
+    }
+    else if (currentTool === 'eraser'){
+        setLastPoint({ x, y })
+        drawQueueRef.current.push({
+          points: [{ x, y }],
+          color: "#FFFFFF",
+        })
     }
   }
 

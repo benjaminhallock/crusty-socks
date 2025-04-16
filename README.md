@@ -18,7 +18,13 @@ Donovan Capet - Product Owner
 
 ## About
 
-A multiplayer drawing and guessing game inspired by Pictionary and scribbl.io. Built with React, Socket.io, Express.js, and a MongoDB-powered backend. 
+A multiplayer drawing and guessing game inspired by Pictionary and scribbl.io. Built with React, Socket.io, Express.js, and a MongoDB-powered backend.  
+
+
+Original Music by Benjamin Burton  
+
+Official tracks can be found at (PUT LINK HERE)  
+
 
 
 ## Project Structure

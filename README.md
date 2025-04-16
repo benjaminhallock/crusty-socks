@@ -1,6 +1,20 @@
-# CrustySocks (PixelParty)
+# Pixel Party
 
-A multiplayer drawing and guessing game inspired by Pictionary, built with React, Socket.io, and Express.js.
+version 1.2
+
+## Crusty Socks Studios
+
+Benjamin Burton - Scrum Master
+Benjamin Hallock - Product Manager
+Luis Reyes - Developer
+Vincenzo Montefusco - Developer
+
+Donovan Capet - Product Owner
+
+## About
+
+A multiplayer drawing and guessing game inspired by Pictionary and scribbl.io. Built with React, Socket.io, Express.js, and a MongoDB-powered backend. 
+
 
 ## Project Structure
 

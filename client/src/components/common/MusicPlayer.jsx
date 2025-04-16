@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 const tracks = [
-  '/audio/testTrack1.mp3',
+  '/audio/pixelPartyMainTheme1.mp3',
   '/audio/testTrack2.mp3',
   '/audio/testTrack3.mp3'
 ];

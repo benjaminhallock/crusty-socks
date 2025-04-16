@@ -4,12 +4,17 @@ version 1.2
 
 ## Crusty Socks Studios
 
-Benjamin Burton - Scrum Master
-Benjamin Hallock - Product Manager
-Luis Reyes - Developer
-Vincenzo Montefusco - Developer
+Benjamin Burton - Scrum Master  
 
-Donovan Capet - Product Owner
+Benjamin Hallock - Product Manager  
+
+Luis Reyes - Developer  
+
+Vincenzo Montefusco - Developer  
+
+
+Donovan Capet - Product Owner  
+
 
 ## About
 

@@ -9,11 +9,11 @@ const tracks = [
 const MusicPlayer = ({ isPlaying, isMuted }) => {
   const audioRef = useRef(null);
   const lastTrackIndexRef = useRef(null);
-  
+
   const playRandomTrack = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    
+
     let nextTrackIndex;
     do {
       nextTrackIndex = Math.floor(Math.random() * tracks.length);
@@ -22,64 +22,33 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
     console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
-    audio.play().catch(error => {
-      console.error('Autoplay prevented:', error);
-    });
+    audio.play().catch((error) => console.error('Autoplay prevented:', error));
   };
 
-  // Initial setup and track end handling
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTrackEnd = () => {
-      setTimeout(playRandomTrack, 4000);
-      localStorage.setItem('currentTrackIndex', lastTrackIndexRef.current);
-      localStorage.setItem('currentTime', 0);
-    };
-
-    const handleTimeUpdate = () => {
-      localStorage.setItem('currentTime', audio.currentTime);
-    };
+    const handleTrackEnd = () => setTimeout(playRandomTrack, 3000);
 
     audio.addEventListener('ended', handleTrackEnd);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
+    return () => audio.removeEventListener('ended', handleTrackEnd);
+  }, []);
 
-    // Resume from saved state or play random
-    const savedTrackIndex = localStorage.getItem('currentTrackIndex');
-    const savedTime = localStorage.getItem('currentTime');
-
-    if (savedTrackIndex !== null) {
-      lastTrackIndexRef.current = parseInt(savedTrackIndex, 10);
-      audio.src = tracks[lastTrackIndexRef.current];
-      audio.currentTime = savedTime ? parseFloat(savedTime) : 0;
-      if (isPlaying) {
-        audio.play().catch(error => console.error('Autoplay prevented:', error));
-      }
-    }
-
-    return () => {
-      audio.removeEventListener('ended', handleTrackEnd);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, [isPlaying]); // Only run on mount
-
-  // Handle mute changes
   useEffect(() => {
     const audio = audioRef.current;
-    audio.muted = isMuted;
+    if (audio) audio.muted = isMuted;
   }, [isMuted]);
 
-  // Handle play/pause
   useEffect(() => {
     const audio = audioRef.current;
+    if (!audio) return;
+
     if (isPlaying) {
-      if (!audio.src) {
-        playRandomTrack();
-      } else {
-        audio.play().catch(error => console.error('Autoplay prevented:', error));
-      }
-    } else {
+      if (!audio.src) playRandomTrack();
+      else audio.play().catch((error) => console.error('Autoplay prevented:', error));
+    } 
+    else {
       audio.pause();
     }
   }, [isPlaying]);

@@ -46,9 +46,11 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
   // Toggle mute state
   const toggleAudio = () => {
-    setIsMuted((prev) => !prev)
-    setIsPlaying(!isPlaying)
-    if (!isPlaying && showPlayButton) setShowPlayButton(false)
+    if (!isPlaying) {
+      setIsPlaying(true); // Start playing music
+    } else {
+      setIsMuted((prev) => !prev); // Toggle mute/unmute
+    }
   }
 
   // Close dropdown menu when clicking outside
@@ -196,7 +198,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
             onClick={toggleAudio}
             className='text-sm flex items-center gap-2 bg-purple/80 dark:bg-gray-800/50'
           >
-            {isPlaying ? (
+            {isPlaying && !isMuted ? (
               <FaVolumeMute className='h-4 w-4' />
             ) : (
               <FaMusic className='h-4 w-4' />

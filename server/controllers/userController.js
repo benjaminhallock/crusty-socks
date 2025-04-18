@@ -1,263 +1,264 @@
-import bcrypt from 'bcrypt'
-import crypto from 'crypto'
-import dotenv from 'dotenv'
-import jwt from 'jsonwebtoken'
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
-import sendEmail from '../utils/sendEmail.js'
-import User from '../models/user.js'
-
-dotenv.config('/config.env')
+import sendEmail from "../utils/sendEmail.js";
+import User from "../models/user.js";
+import { Filter } from "bad-words";
+dotenv.config("/config.env");
 
 const generateToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' })
-
-const cleanUser = (user) => ({
-  _id: user._id,
-  email: user.email,
-  username: user.username,
-  isAdmin: user.isAdmin,
-  createdAt: user.createdAt,
-  updatedAt: user.updatedAt,
-  isBanned: user.isBanned,
-
-  profile: {
-    displayName: user.profile?.displayName || user.username,
-    bio: user.profile?.bio || '',
-    avatarUrl: user.profile?.avatarUrl || '',
-    lastActive: user.profile?.lastActive || new Date(),
-  },
-})
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
 export const userController = {
   getUser: async (req, res) => {
     try {
-      const user = await User.findById(req.params.userId).select('-password')
+      const user = await User.findById(req.params.userId).select("-password");
       if (!user) {
         return res.status(404).json({
           ok: false,
-          message: 'User not found',
-        })
+          message: "User not found",
+        });
       }
       res.status(200).json({
-        user: cleanUser(user),
-      })
+        user: user,
+      });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: 'Failed to fetch user',
-      })
+        message: "Failed to fetch user",
+      });
     }
   },
 
   validateUser: async (req, res) => {
     try {
       res.status(200).json({
-        user: cleanUser(req.user),
+        user: req.user,
         token: req.token,
-      })
+      });
     } catch (error) {
       res.status(401).json({
         ok: false,
-        message: 'Invalid token',
-      })
+        message: "Invalid token",
+      });
     }
   },
 
   register: async (req, res) => {
-    const { username, email, password } = req.body
+    const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing required fields',
-      })
+        message: "Missing required fields",
+      });
+    }
+
+    const filter = new Filter();
+    if (filter.isProfane(username)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Username or email contains inappropriate language",
+      });
     }
 
     if (!/^[a-zA-Z0-9]{6,}$/.test(username)) {
       return res.status(400).json({
         ok: false,
         message:
-          'Username must be at least 6 characters and contain only letters and numbers',
-      })
+          "Username must be at least 6 characters and contain only letters and numbers",
+      });
     }
 
     if (!/^[a-zA-Z0-9]{6,}$/.test(password)) {
       return res.status(400).json({
         ok: false,
         message:
-          'Password must be at least 6 characters and contain only letters and numbers',
-      })
+          "Password must be at least 6 characters and contain only letters and numbers",
+      });
     }
 
     try {
       const existingUser = await User.findOne({
         $or: [{ email }, { username }],
-      })
+      });
 
       if (existingUser) {
         return res.status(400).json({
           ok: false,
           message:
             existingUser.email === email
-              ? 'Email already exists'
-              : 'Username already exists',
-        })
+              ? "Email already exists"
+              : "Username already exists",
+        });
       }
 
-      const user = await User.create({ username, email, password })
-      const token = generateToken(user._id)
+      const user = await User.create({ username, email, password });
+      const token = generateToken(user._id);
 
       res.status(201).json({
-        user: cleanUser(user),
+        user: user,
         token,
-      })
+      });
     } catch (error) {
       res.status(400).json({
         ok: false,
-        message: 'Registration failed',
-      })
+        message: "Registration failed",
+      });
     }
   },
-
   login: async (req, res) => {
-    const { email, password } = req.body
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
         ok: false,
-        message: 'Email and password required',
-      })
+        message: "Email and password required",
+      });
     }
-
     try {
-      const user = await User.findByCredentials(email, password)
-
+      const user = await User.findByCredentials(email, password);
       if (!user) {
         return res.status(401).json({
           ok: false,
-          message: 'Invalid credentials',
-        })
+          message: "Invalid credentials",
+        });
+      }
+      const token = generateToken(user._id);
+      if (!token) {
+        return res.status(401).json({
+          ok: false,
+          message: "Invalid token",
+        });
       }
 
-      const token = generateToken(user._id)
-
       res.status(200).json({
-        user: cleanUser(user),
+        user: user,
         token,
-        message: 'Login successful',
-      })
+        message: "Login successful",
+      });
     } catch (error) {
       res.status(401).json({
         ok: false,
-        message: 'Invalid credentials',
-      })
+        message: "Invalid credentials",
+      });
     }
   },
 
   getAllUsers: async (req, res) => {
     try {
-      const users = await User.find({}, '-password')
-      res.status(200).json({ users })
+      const users = await User.find({}, "-password");
+      res.status(200).json({ users });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: 'Failed to get users',
-      })
+        message: "Failed to get users",
+      });
     }
   },
 
   getUserProfile: async (req, res) => {
     try {
-      const { username } = req.params
+      const { username } = req.params;
       // Fix: Use only inclusions in select
       const user = await User.findOne({
-        username: { $regex: new RegExp(`^${username}$`, 'i') },
-      }).select('username email profile gameStats chatHistory createdAt')
+        username: { $regex: new RegExp(`^${username}$`, "i") },
+      }).select("username email profile gameStats chatHistory createdAt");
 
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'User profile not found',
-        })
+          message: "User profile not found",
+        });
       }
 
       // Initialize profile if it doesn't exist
       if (!user.profile) {
-        user.profile = {}
-        console.log('Profile was missing - initialized empty profile object')
+        user.profile = {};
+        console.log("Profile was missing - initialized empty profile object");
       }
 
       // Update last visited timestamp
-      user.profile.lastActive = new Date()
-      await user.save()
+      user.profile.lastActive = new Date();
+      await user.save();
 
       // Format response to include only necessary data
       const profileData = {
         username: user.username,
         displayName: user.profile?.displayName || user.username,
-        bio: user.profile?.bio || '',
-        avatarUrl: user.profile?.avatarUrl || '',
+        bio: user.profile?.bio || "",
+        avatarUrl: user.profile?.avatarUrl || "",
         gameStats: user.gameStats || {},
         joinedDate: user.createdAt,
         lastActive: user.profile?.lastActive,
-      }
+      };
 
-      console.log('Profile data prepared:', profileData.username)
+      console.log("Profile data prepared:", profileData.username);
 
       res.status(200).json({
         success: true,
         profile: profileData,
-      })
+      });
     } catch (error) {
-      console.error('Error in getUserProfile:', error)
+      console.error("Error in getUserProfile:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to fetch user profile',
+        message: "Failed to fetch user profile",
         error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      })
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
     }
   },
 
   updateUserProfile: async (req, res) => {
     try {
-      const { username } = req.params
-      const { displayName, bio, avatarUrl } = req.body
+      const { username } = req.params;
+      const { displayName, bio, avatarUrl } = req.body;
+
+      const filter = new Filter();
+      if (filter.isProfane(displayName) || filter.isProfane(bio)) {
+        return res.status(400).json({
+          success: false,
+          message: "Profile data contains inappropriate language",
+        });
+      }
 
       // Make sure user can only update their own profile unless they're admin
       if (req.user.username !== username && !req.user.isAdmin) {
         return res.status(403).json({
           success: false,
-          message: 'You can only update your own profile',
-        })
+          message: "You can only update your own profile",
+        });
       }
 
-      const user = await User.findOne({ username })
+      const user = await User.findOne({ username });
 
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'User not found',
-        })
+          message: "User not found",
+        });
       }
 
       // Initialize profile if it doesn't exist
       if (!user.profile) {
-        user.profile = {}
+        user.profile = {};
       }
 
       // Update profile fields if provided
-      if (displayName) user.profile.displayName = displayName
-      if (bio !== undefined) user.profile.bio = bio
-      if (avatarUrl) user.profile.avatarUrl = avatarUrl
+      if (displayName) user.profile.displayName = displayName;
+      if (bio !== undefined) user.profile.bio = bio;
+      if (avatarUrl) user.profile.avatarUrl = avatarUrl;
 
-      user.profile.lastActive = new Date()
+      user.profile.lastActive = new Date();
 
-      await user.save()
+      await user.save();
 
       res.status(200).json({
         success: true,
-        message: 'Profile updated successfully',
+        message: "Profile updated successfully",
         profile: {
           username: user.username,
           displayName: user.profile.displayName,
@@ -265,55 +266,62 @@ export const userController = {
           avatarUrl: user.profile.avatarUrl,
           lastActive: user.profile.lastActive,
         },
-      })
+      });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Failed to update profile',
+        message: "Failed to update profile",
         error: error.message,
-      })
+      });
     }
   },
 
   updateOwnProfile: async (req, res) => {
     try {
-      const { username } = req.params
-      const { displayName, bio, avatarUrl } = req.body
+      const { username } = req.params;
+      const { displayName, bio, avatarUrl } = req.body;
 
+      const filter = new Filter();
+      if (filter.isProfane(displayName) || filter.isProfane(bio)) {
+        return res.status(400).json({
+          success: false,
+          message: "Profile data contains inappropriate language",
+        });
+      }
       // Users can only update their own profile
       if (req.user.username !== username && !req.user.isAdmin) {
         return res.status(403).json({
           success: false,
-          message: 'You can only update your own profile',
-        })
+          message: "You can only update your own profile",
+        });
       }
 
-      const user = await User.findOne({ username })
+      const user = await User.findOne({ username });
 
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'User not found',
-        })
+          message: "User not found",
+        });
       }
 
       // Initialize profile if it doesn't exist
       if (!user.profile) {
-        user.profile = {}
+        user.profile = {};
       }
 
       // Update profile fields if provided
-      if (displayName) user.profile.displayName = displayName
-      if (bio !== undefined) user.profile.bio = bio
-      if (avatarUrl) user.profile.avatarUrl = avatarUrl
+      if (displayName) user.profile.displayName = displayName;
+      if (bio !== undefined) user.profile.bio = bio;
+      if (avatarUrl) user.profile.avatarUrl = avatarUrl;
 
-      user.profile.lastActive = new Date()
+      user.profile.lastActive = new Date();
 
-      await user.save()
+      await user.save();
 
       res.status(200).json({
         success: true,
-        message: 'Profile updated successfully',
+        message: "Profile updated successfully",
         profile: {
           username: user.username,
           displayName: user.profile.displayName,
@@ -321,48 +329,48 @@ export const userController = {
           avatarUrl: user.profile.avatarUrl,
           lastActive: user.profile.lastActive,
         },
-      })
+      });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Failed to update profile',
+        message: "Failed to update profile",
         error: error.message,
-      })
+      });
     }
   },
 
   updateUser: async (req, res) => {
     try {
-      const { userId } = req.params
-      const updateData = req.body
+      const { userId } = req.params;
+      const updateData = req.body;
 
       // Remove sensitive fields that shouldn't be updated directly
-      delete updateData.password
+      delete updateData.password;
 
       const updatedUser = await User.findByIdAndUpdate(
         userId,
         { $set: updateData },
         { new: true, runValidators: true }
-      ).select('-password')
+      ).select("-password");
 
       if (!updatedUser) {
         return res.status(404).json({
           ok: false,
-          message: 'User not found',
-        })
+          message: "User not found",
+        });
       }
 
       res.status(200).json({
         ok: true,
-        message: 'User updated successfully',
-        user: cleanUser(updatedUser),
-      })
+        message: "User updated successfully",
+        user: updatedUser,
+      });
     } catch (error) {
       res.status(500).json({
         ok: false,
-        message: 'Failed to update user',
+        message: "Failed to update user",
         error: error.message,
-      })
+      });
     }
   },
 
@@ -371,65 +379,73 @@ export const userController = {
     try {
       // Query users and sort by totalScore (descending)
       const leaderboard = await User.find({})
-        .select('username profile gameStats -_id')
-        .sort({ 'gameStats.totalScore': -1 })
-        .limit(50) // Get top 50 users
+        .select("username profile gameStats -_id")
+        .sort({ "gameStats.totalScore": -1 })
+        .limit(50); // Get top 50 users
 
       // Ensure all required fields are present and handle missing data gracefully
       const formattedLeaderboard = leaderboard.map((user) => ({
-        username: user.username || 'Unknown',
-        displayName: user.profile?.displayName || user.username || 'Unknown',
-        avatarUrl: user.profile?.avatarUrl || '',
+        username: user.username || "Unknown",
+        displayName: user.profile?.displayName || user.username || "Unknown",
+        avatarUrl: user.profile?.avatarUrl || "",
         totalScore: user.gameStats?.totalScore || 0,
         gamesPlayed: user.gameStats?.gamesPlayed || 0,
         gamesWon: user.gameStats?.gamesWon || 0,
         winRate:
           user.gameStats?.gamesPlayed > 0
-            ? Math.round((user.gameStats.gamesWon / user.gameStats.gamesPlayed) * 100)
+            ? Math.round(
+                (user.gameStats.gamesWon / user.gameStats.gamesPlayed) * 100
+              )
             : 0,
-      }))
+      }));
 
       res.status(200).json({
         success: true,
         leaderboard: formattedLeaderboard,
-      })
+      });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Failed to fetch leaderboard data',
+        message: "Failed to fetch leaderboard data",
         error: error.message,
-      })
+      });
     }
   },
 
   sendVerificationEmail: async (req, res) => {
     try {
-      const user = await User.findById(req.user._id)
+      const user = await User.findById(req.user._id);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' })
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
       }
 
       if (user.emailVerified) {
-        return res.status(400).json({ success: false, message: 'Email already verified' })
+        return res
+          .status(400)
+          .json({ success: false, message: "Email already verified" });
       }
 
-      const token = crypto.randomBytes(32).toString('hex')
-      user.emailVerificationToken = token
-      user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-      await user.save()
+      const token = crypto.randomBytes(32).toString("hex");
+      user.emailVerificationToken = token;
+      user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      await user.save();
 
-      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`
+      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
       await sendEmail({
         to: user.email,
-        subject: 'Verify your email',
+        subject: "Verify your email",
         text: `Please click the following link to verify your email: ${verificationUrl}`,
-      })
+      });
 
-      res.status(200).json({ success: true, message: 'Verification email sent' })
+      res
+        .status(200)
+        .json({ success: true, message: "Verification email sent" });
     } catch (error) {
       res
         .status(500)
-        .json({ success: false, message: 'Error sending verification email' })
+        .json({ success: false, message: "Error sending verification email" });
     }
   },
 
@@ -438,98 +454,117 @@ export const userController = {
       const user = await User.findOne({
         emailVerificationToken: req.params.token,
         emailVerificationExpires: { $gt: Date.now() },
-      })
+      });
 
       if (!user) {
         return res
           .status(400)
-          .json({ success: false, message: 'Invalid or expired token' })
+          .json({ success: false, message: "Invalid or expired token" });
       }
 
-      user.emailVerified = true
-      user.emailVerificationToken = undefined
-      user.emailVerificationExpires = undefined
-      await user.save()
+      user.emailVerified = true;
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpires = undefined;
+      await user.save();
 
-      res.status(200).json({ success: true, message: 'Email verified successfully' })
+      res
+        .status(200)
+        .json({ success: true, message: "Email verified successfully" });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error verifying email' })
+      res
+        .status(500)
+        .json({ success: false, message: "Error verifying email" });
     }
   },
 
   changePassword: async (req, res) => {
     try {
-      const { currentPassword, newPassword } = req.body
-      const user = await User.findById(req.user._id).select('+password')
+      const { currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user._id).select("+password");
 
       if (!(await bcrypt.compare(currentPassword, user.password))) {
         return res
           .status(401)
-          .json({ success: false, message: 'Current password is incorrect' })
+          .json({ success: false, message: "Current password is incorrect" });
       }
 
-      user.password = newPassword
-      await user.save()
+      user.password = newPassword;
+      await user.save();
 
-      res.status(200).json({ success: true, message: 'Password updated successfully' })
+      res
+        .status(200)
+        .json({ success: true, message: "Password updated successfully" });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error changing password' })
+      res
+        .status(500)
+        .json({ success: false, message: "Error changing password" });
     }
   },
 
   changeEmail: async (req, res) => {
     try {
-      const { newEmail, password } = req.body
-      const user = await User.findById(req.user._id).select('+password')
+      const { newEmail, password } = req.body;
+      const user = await User.findById(req.user._id).select("+password");
 
       if (!(await bcrypt.compare(password, user.password))) {
-        return res.status(401).json({ success: false, message: 'Password is incorrect' })
+        return res
+          .status(401)
+          .json({ success: false, message: "Password is incorrect" });
       }
 
-      const existingUser = await User.findOne({ email: newEmail })
+      const existingUser = await User.findOne({ email: newEmail });
       if (existingUser) {
-        return res.status(400).json({ success: false, message: 'Email already in use' })
+        return res
+          .status(400)
+          .json({ success: false, message: "Email already in use" });
       }
 
-      const token = crypto.randomBytes(32).toString('hex')
-      user.pendingEmail = newEmail
-      user.emailVerificationToken = token
-      user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000
-      await user.save()
+      const token = crypto.randomBytes(32).toString("hex");
+      user.pendingEmail = newEmail;
+      user.emailVerificationToken = token;
+      user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+      await user.save();
 
-      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`
+      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
       await sendEmail({
         to: newEmail,
-        subject: 'Verify your new email',
+        subject: "Verify your new email",
         text: `Please click the following link to verify your new email: ${verificationUrl}`,
-      })
+      });
 
-      res
-        .status(200)
-        .json({ success: true, message: 'Verification email sent to new address' })
+      res.status(200).json({
+        success: true,
+        message: "Verification email sent to new address",
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error changing email' })
+      res.status(500).json({ success: false, message: "Error changing email" });
     }
   },
 
   updatePreferences: async (req, res) => {
     try {
-      const user = await User.findById(req.user._id)
-      user.preferences = { ...user.preferences, ...req.body }
-      await user.save()
+      const user = await User.findById(req.user._id);
+      user.preferences = { ...user.preferences, ...req.body };
+      await user.save();
 
-      res.status(200).json({ success: true, preferences: user.preferences })
+      res.status(200).json({ success: true, preferences: user.preferences });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error updating preferences' })
+      res
+        .status(500)
+        .json({ success: false, message: "Error updating preferences" });
     }
   },
 
   deleteAccount: async (req, res) => {
     try {
-      await User.findByIdAndDelete(req.user._id)
-      res.status(200).json({ success: true, message: 'Account deleted successfully' })
+      await User.findByIdAndDelete(req.user._id);
+      res
+        .status(200)
+        .json({ success: true, message: "Account deleted successfully" });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error deleting account' })
+      res
+        .status(500)
+        .json({ success: false, message: "Error deleting account" });
     }
   },
-}
+};

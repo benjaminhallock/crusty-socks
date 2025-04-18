@@ -1,21 +1,22 @@
-import { useState } from "react";
-
+import { useState, Fragment } from "react";
+import { Transition } from "@headlessui/react";
 import { login, register } from "../../services/api";
 
-// LoginForm component handles user authentication (login and registration)
 const LoginForm = ({ onLoginSuccess }) => {
-  // State to manage loading status during authentication
   const [isLoading, setIsLoading] = useState(false);
-  // State to store error messages
   const [error, setError] = useState("");
-  // State to toggle between login and registration modes
   const [isRegister, setIsRegister] = useState(false);
-  // State to store form data for email, password, and username
+  const [isShowing, setIsShowing] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     username: "",
   });
+
+  // Show transition on mount
+  useState(() => {
+    setIsShowing(true);
+  }, []);
 
   // Handle form submission for login or registration
   const handleSubmit = async (e) => {
@@ -60,11 +61,14 @@ const LoginForm = ({ onLoginSuccess }) => {
           formData.password
         );
       } else {
-        // Call login service for existing user authentication
+        // Passes a username or email to the login function
         res = await login(formData.email, formData.password);
       }
       if (res?.user && res?.token) {
-        console.log("Login successful, passing token to onLoginSuccess:", res.token);
+        console.log(
+          "Login successful, passing token to onLoginSuccess:",
+          res.token
+        );
         onLoginSuccess({
           user: res.user,
           token: res.token,
@@ -88,78 +92,152 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] p-8 rounded-lg shadow-xl">
-        <img className="mx-auto h-40 w-auto" src="/logo.svg" alt="Logo" />
-        <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
-          {isRegister ? "Create an account" : "Sign in"}
-        </h2>
-
-        {/* Display error message if any */}
-        {error && (
-          <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        {/* Form for login or registration */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            name="email"
-            required
-            className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-            placeholder="Email address"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, email: e.target.value }))
-            }
-          />
-
-          {isRegister && (
-            <input
-              type="text"
-              name="username"
-              required
-              className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-              placeholder="Username"
-              value={formData.username}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, username: e.target.value }))
-              }
+      <Transition
+        as={Fragment}
+        show={isShowing}
+        enter="transition-all duration-500"
+        enterFrom="opacity-0 translate-y-8"
+        enterTo="opacity-100 translate-y-0"
+        leave="transition-all duration-300"
+        leaveFrom="opacity-100"
+        leaveTo="opacity-0"
+      >
+        <div className="w-full max-w-md mx-auto">
+          <div className="text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 transform-gpu">
+            <img
+              className="mx-auto h-40 w-auto transform-gpu hover:scale-[1.02] transition-all duration-300"
+              src="/logo.svg"
+              alt="Logo"
             />
-          )}
+            <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
+              {isRegister ? "Create an account" : "Sign in"}
+            </h2>
 
-          <input
-            type="password"
-            name="password"
-            required
-            className="w-full px-3 py-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, password: e.target.value }))
-            }
-          />
+            <Transition
+              show={!!error}
+              enter="transition-opacity duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="transition-opacity duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+              className="mt-6"
+            >
+              <div className="bg-red-100/80 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg backdrop-blur-sm">
+                {error}
+              </div>
+            </Transition>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 px-4 rounded text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-          >
-            {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
-          </button>
+            <form onSubmit={handleSubmit} className="space-y-4 mt-8">
+              {isRegister ? (
+                <>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
+                      bg-white dark:bg-gray-900/50 
+                      text-gray-800 dark:text-gray-200
+                      placeholder-gray-400 dark:placeholder-gray-500
+                      focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400
+                      transition-all duration-200"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                  />
+                  <input
+                    type="text"
+                    name="username"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
+                      bg-white dark:bg-gray-900/50 
+                      text-gray-800 dark:text-gray-200
+                      placeholder-gray-400 dark:placeholder-gray-500
+                      focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400
+                      transition-all duration-200"
+                    placeholder="Username"
+                    value={formData.username}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        username: e.target.value,
+                      }))
+                    }
+                  />
+                </>
+              ) : (
+                <input
+                  type="text"
+                  name="emailOrUsername"
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
+                    bg-white dark:bg-gray-900/50 
+                    text-gray-800 dark:text-gray-200
+                    placeholder-gray-400 dark:placeholder-gray-500
+                    focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400
+                    transition-all duration-200"
+                  placeholder="Email or Username"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                />
+              )}
+              <input
+                type="password"
+                name="password"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
+                  bg-white dark:bg-gray-900/50 
+                  text-gray-800 dark:text-gray-200
+                  placeholder-gray-400 dark:placeholder-gray-500
+                  focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400
+                  transition-all duration-200"
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, password: e.target.value }))
+                }
+              />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-3 rounded-xl text-white transition-all duration-200 transform-gpu hover:scale-[1.02] ${
+                  isLoading
+                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 dark:from-purple-500 dark:to-indigo-500"
+                }`}
+              >
+                {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
+              </button>
 
-          <button
-            type="button"
-            onClick={toggleMode}
-            className="w-full text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
-          >
-            {isRegister
-              ? "Already have an account? Sign in"
-              : "Need an account? Register"}
-          </button>
-        </form>
-      </div>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-4 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
+                    {isRegister ? "Already registered?" : "Need an account?"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="w-full py-3 px-4 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-600/50 transition-all duration-200 transform-gpu hover:scale-[1.02]"
+              >
+                {isRegister ? "Sign in instead" : "Register instead"}
+              </button>
+            </form>
+          </div>
+        </div>
+      </Transition>
     </div>
   );
 };

@@ -1,10 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
-const tracks = [
-  '/audio/pixelPartyMainTheme1.mp3',
-  '/audio/testTrack2.mp3',
-  '/audio/testTrack3.mp3'
-];
+const tracks = ["/audio/pixelPartyMainTheme1.mp3"];
 
 const MusicPlayer = ({ isPlaying, isMuted }) => {
   const audioRef = useRef(null);
@@ -22,7 +18,7 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
     console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
-    audio.play().catch((error) => console.error('Autoplay prevented:', error));
+    audio.play().catch((error) => console.error("Autoplay prevented:", error));
   };
 
   useEffect(() => {
@@ -31,8 +27,8 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
 
     const handleTrackEnd = () => setTimeout(playRandomTrack, 3000);
 
-    audio.addEventListener('ended', handleTrackEnd);
-    return () => audio.removeEventListener('ended', handleTrackEnd);
+    audio.addEventListener("ended", handleTrackEnd);
+    return () => audio.removeEventListener("ended", handleTrackEnd);
   }, []);
 
   useEffect(() => {
@@ -46,9 +42,11 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
 
     if (isPlaying) {
       if (!audio.src) playRandomTrack();
-      else audio.play().catch((error) => console.error('Autoplay prevented:', error));
-    } 
-    else {
+      else
+        audio
+          .play()
+          .catch((error) => console.error("Autoplay prevented:", error));
+    } else {
       audio.pause();
     }
   }, [isPlaying]);

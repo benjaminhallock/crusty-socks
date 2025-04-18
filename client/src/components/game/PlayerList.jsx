@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-import ContextMenu from './ContextMenu'
-import ReportModal from './ReportModal'
-import { GAME_STATE } from '../../constants'
-import { socketManager } from '../../services/socketManager'
-
+import ContextMenu from "./menus/ContextMenu";
+import ReportModal from "./menus/ReportModal";
+import { GAME_STATE } from "../../constants";
+import { socketManager } from "../../services/socketManager";
+import { FaUser } from "react-icons/fa";
 const PlayerList = ({
   players,
   drawerUsername,
@@ -15,184 +15,261 @@ const PlayerList = ({
   isAdmin,
   onStartGame,
 }) => {
-  const navigate = useNavigate()
-  const [showPopup, setShowPopup] = useState(false)
-  const [contextMenu, setContextMenu] = useState(null)
-  const [reportModal, setReportModal] = useState(null)
-  const [chatLogs, setChatLogs] = useState([])
-  const [canvasState, setCanvasState] = useState(null)
+  const navigate = useNavigate();
+  const [showPopup, setShowPopup] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [reportModal, setReportModal] = useState(null);
+  const [chatLogs, setChatLogs] = useState([]);
+  const [canvasState, setCanvasState] = useState(null);
 
   // Set up chat history and canvas state for reports
   useEffect(() => {
     if (socketManager.isConnected()) {
       const unsubscribeChatHistory = socketManager.onChatHistory((messages) => {
         if (Array.isArray(messages)) {
-          setChatLogs(messages)
+          setChatLogs(messages);
         }
-      })
+      });
 
       const unsubscribeCanvas = socketManager.onCanvasUpdate((data) => {
         if (data?.canvasState?.data) {
-          setCanvasState(data.canvasState)
+          setCanvasState(data.canvasState);
         }
-      })
+      });
 
       // Request chat history when component mounts
-      socketManager.requestChatHistory(roomId, currentUsername)
+      socketManager.requestChatHistory(roomId, currentUsername);
 
       return () => {
-        unsubscribeChatHistory()
-        unsubscribeCanvas()
-      }
+        unsubscribeChatHistory();
+        unsubscribeCanvas();
+      };
     }
-  }, [roomId, currentUsername])
+  }, [roomId, currentUsername]);
 
   const handleInviteLink = () => {
-    navigator.clipboard.writeText(window.location.href)
-    setShowPopup(true)
-    setTimeout(() => setShowPopup(false), 2000)
-  }
+    navigator.clipboard.writeText(window.location.href);
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 2000);
+  };
 
   const handlePlayerClick = (e, player) => {
-    e.preventDefault()
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = rect.top; // Position menu at the top of the clicked element
+
     if (player.username === currentUsername) {
       return setContextMenu({
-        x: e.pageX,
-        y: e.pageY,
+        x,
+        y,
         options: [
           {
-            label: 'Leave Game',
-            onClick: () => socketManager.leaveLobby(roomId),
+            label: "Leave Game",
+            onClick: () => {
+              socketManager.leaveLobby(roomId, currentUsername);
+              navigate("/");
+            },
             isDestructive: true,
           },
         ],
-      })
+      });
     }
 
     setContextMenu({
-      x: e.pageX,
-      y: e.pageY,
+      x,
+      y,
       options: [
         {
-          label: 'View Profile',
-          onClick: () => window.open(`/user/${player.username}`, '_blank'),
+          label: "View Profile",
+          onClick: () => window.open(`/user/${player.username}`, "_blank"),
         },
         {
-          label: 'Report Player',
+          label: "Report Player",
           onClick: () => setReportModal(player.username),
         },
         {
-          label: 'Kick Player',
+          label: "Kick Player",
           onClick: () => socketManager.kickPlayer(roomId, player.username),
           isDestructive: true,
           hidden: !isAdmin,
         },
       ],
-    })
-  }
+    });
+  };
 
   const closeContextMenu = () => {
-    setContextMenu(null)
-  }
+    setContextMenu(null);
+  };
 
   const closeReportModal = () => {
-    setReportModal(null)
-  }
+    setReportModal(null);
+  };
 
   const getPlayerBackgroundClass = (player) => {
+    const baseClass = "border-2 ";
+
     if (gameState === GAME_STATE.DRAWING) {
       if (player.username === drawerUsername) {
-        return 'bg-emerald-200 dark:bg-emerald-800'
+        return (
+          baseClass +
+          "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700"
+        );
       }
       if (player.hasGuessedCorrect) {
-        return 'bg-green-200 dark:bg-green-800'
+        return (
+          baseClass +
+          "bg-green-50 dark:bg-green-900/40 border-green-300 dark:border-green-700"
+        );
       }
     }
     if (player.username === currentUsername) {
-      return 'bg-white/50 dark:bg-gray-800/50'
+      return (
+        baseClass +
+        "bg-white/80 dark:bg-gray-800/80 border-indigo-300 dark:border-indigo-600"
+      );
     }
-    return 'bg-gray-200/50 dark:bg-gray-600/50'
-  }
+    return (
+      baseClass +
+      "bg-gray-50/80 dark:bg-gray-800/60 border-gray-200 dark:border-gray-600"
+    );
+  };
+
+  const getPlayerStateIndicator = (player) => {
+    if (gameState === GAME_STATE.DRAWING) {
+      if (player.username === drawerUsername) {
+        return (
+          <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="animate-pulse">●</span> Drawing
+          </div>
+        );
+      }
+      if (player.hasGuessedCorrect) {
+        return (
+          <div className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+            <span>✓</span> Guessed
+          </div>
+        );
+      }
+      return (
+        <div className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <span>○</span> Guessing
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const getPlayerIcon = (player) => {
+    if (
+      drawerUsername === player.username &&
+      gameState !== GAME_STATE.WAITING
+    ) {
+      return (
+        <img src="/pencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
+      );
+    }
+
+    if (player.hasDrawn) {
+      return (
+        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+          <svg
+            className="h-4 w-4 text-gray-600 dark:text-gray-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+        <svg
+          className="h-5 w-5 text-gray-600 dark:text-gray-300"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+      </div>
+    );
+  };
 
   // Sort players: drawer first, then by score
   const sortedPlayers = [...players].sort((a, b) => {
-    if (a.username === drawerUsername) return -1
-    if (b.username === drawerUsername) return 1
-    return b.score - a.score
-  })
+    if (a.username === drawerUsername) return -1;
+    if (b.username === drawerUsername) return 1;
+    return b.score - a.score;
+  });
 
   return (
-    <div className='bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors'>
-      <div className='flex justify-between items-center mb-2'>
-        <h3 className='text-lg font-bold text-gray-800 dark:text-gray-200'>Players</h3>
-        <div className='relative'>
+    <div className="bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2 sm:gap-0">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+          <span className="hidden sm:inline">Players</span>
+          <FaUser className="sm:hidden" />
+        </h3>
+        <div className="relative flex w-full sm:w-auto gap-2">
           <button
-            className='bg-indigo-600 text-white px-2 py-1 rounded-md mr-2 hover:bg-indigo-700'
+            className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm sm:text-base min-h-[40px]"
             onClick={handleInviteLink}
           >
             Invite
           </button>
           <button
-            className='bg-green-600 text-white px-2 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
+            className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[40px]"
             onClick={onStartGame}
             disabled={gameState !== GAME_STATE.WAITING}
           >
             Start Game
           </button>
           {showPopup && (
-            <div className='absolute top-0 left-full ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50'>
+            <div className="absolute top-full sm:top-0 left-0 sm:left-full mt-2 sm:mt-0 sm:ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
               Link copied to clipboard!
             </div>
           )}
         </div>
       </div>
-      <ul className='space-y-1 overflow-y-auto'>
+      <ul className="space-y-1 overflow-y-auto">
         {sortedPlayers.map((player, index) => (
           <li
             key={`player-${player.username}-${index}`}
             onClick={(e) => handlePlayerClick(e, player)}
             onContextMenu={(e) => {
-              e.preventDefault()
-              handlePlayerClick(e, player)
+              e.preventDefault();
+              handlePlayerClick(e, player);
             }}
-            className={`flex items-center gap-2 p-2 rounded-md transition-colors duration-200 cursor-pointer relative
-              ${getPlayerBackgroundClass(player)}
-              ${player.hasDrawn ? 'opacity-75' : 'hover:opacity-90'}`}
+            className={`flex items-center gap-2 p-2 rounded-md transition-all duration-200 cursor-pointer relative
+          ${getPlayerBackgroundClass(player)}
+          ${player.hasDrawn ? "opacity-90" : "hover:opacity-95"}`}
           >
-            {drawerUsername === player.username && gameState !== GAME_STATE.WAITING ? (
-              <img
-                src='/pencil.gif'
-                alt='drawing'
-                className='w-8 h-8 rounded-full'
-              />
-            ) : !player.hasDrawn ? (
-              <div className='w-8 h-8 rounded-full bg-gray-000 dark:bg-grey-250 flex items-center justify-center'>
-                <svg
-                  className='h-5 w-5 text-gray-800 dark:text-gray-100'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M4 6h16M4 12h16M4 18h16'
-                  />
-                </svg>
+            {getPlayerIcon(player)}
+
+            <div className="flex flex-col w-full">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-800 dark:text-gray-200 font-medium text-sm">
+                  {player.username}
+                </span>
+                <span className="text-indigo-500 dark:text-indigo-400 font-bold text-sm drop-shadow-[0_0_3px_rgba(99,102,241,0.5)] transition-all">
+                  {player.score || player.roundScore || player.drawScore || 0}
+                </span>
               </div>
-            ) : null}
-            <span className='flex justify-between w-full text-gray-800 dark:text-gray-200 font-medium text-sm'>
-              <span className='flex items-center gap-2'>
-                {player.username}
-                {player.hasGuessedCorrect && player.username !== drawerUsername && (
-                  <span className='text-xs text-green-600 dark:text-green-400'>
-                    Guessed!
-                  </span>
-                )}
-              </span>
-              <span>{player.score}</span>
-            </span>
+              {getPlayerStateIndicator(player)}
+            </div>
           </li>
         ))}
       </ul>
@@ -215,7 +292,7 @@ const PlayerList = ({
         />
       )}
     </div>
-  )
-}
+  );
+};
 
-export default PlayerList
+export default PlayerList;

@@ -3,13 +3,61 @@ import mongoose from "mongoose";
 import { GAME_STATE } from "../constants.js";
 import Chat from "./chat.js"; // Importing the Chat model
 import User from "./user.js"; // Importing the User model
+const playerSchema = new mongoose.Schema({
+  username: String,
+  userId: mongoose.Schema.Types.ObjectId,
+  socketId: String,
+  connected: {
+    type: Boolean,
+    default: true,
+  },
+  score: {
+    type: Number,
+    default: 0,
+  },
+  hasGuessedCorrect: {
+    type: Boolean,
+    default: false,
+  },
+  hasDrawn: {
+    type: Boolean,
+    default: false,
+  },
+  guessTime: {
+    type: Number,
+    default: 0,
+  },
+  drawScore: {
+    type: Number,
+    default: 0,
+  },
+  roundScore: {
+    type: Number,
+    default: 0,
+  },
+});
+
 const lobbySchema = new mongoose.Schema(
   {
     roomId: {
       type: String,
       required: true,
       unique: true,
-      index: true, // Indexed for quick lobby lookups
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Reference to User model
+      required: true,
+    },
+    finished: {
+      type: Boolean,
+      default: false,
+    },
+    gridSize: {
+      type: Number,
+      default: 16,
+      max: 20,
+      min: 1,
     },
     playerLimit: {
       type: Number,
@@ -18,45 +66,7 @@ const lobbySchema = new mongoose.Schema(
       min: 2,
       required: true,
     },
-    players: [
-      {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User", // Reference to User model
-        },
-        username: String,
-        score: {
-          type: Number,
-          default: 0,
-        },
-        hasGuessedCorrect: {
-          type: Boolean,
-          default: false,
-        },
-        hasDrawn: {
-          type: Boolean,
-          default: false,
-        },
-        guessTime: {
-          type: Number,
-          default: 0,
-        },
-        drawPoints: {
-          type: Number,
-          default: 0,
-        },
-        roundScore: {
-          type: Number,
-          default: 0,
-        },
-      },
-    ],
-    messages: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Chat",
-      },
-    ],
+    players: [playerSchema],
     currentRound: {
       type: Number,
       default: 1,
@@ -97,6 +107,10 @@ const lobbySchema = new mongoose.Schema(
       default: GAME_STATE.WAITING,
       set: (v) => v || GAME_STATE.WAITING, // Fallback for undefined states
     },
+    lobbyCanvas: {
+      data: String,
+      lastUpdate: Date,
+    },
     canvasState: {
       data: String,
       lastUpdate: Date,
@@ -134,20 +148,39 @@ const lobbySchema = new mongoose.Schema(
   }
 );
 
+lobbySchema.pre("save", async function (next) {
+  if (this.isNew) {
+    // Check if the user exists in the database
+    const user = await User.findById(this.userId);
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      return next(error);
+    }
+    // Check if the user is banned
+    if (user.isBanned) {
+      const error = new Error("User is banned");
+      error.statusCode = 403;
+      return next(error);
+    }
+  }
+  next();
+});
+
+lobbySchema.pre("remove", async function (next) {
+  // any cleanup logic before removing the lobby
+  next();
+});
+
+lobbySchema.statics.findById = function (id) {
+  return this.findOne({ _id: id }).populate("players.userId");
+};
+
 lobbySchema.methods.findPlayerByUsername = function (username) {
   return this.players.find((p) => p.username === username);
 };
 lobbySchema.methods.findPlayerById = function (userId) {
   return this.players.find((p) => p.userId.toString() === userId.toString());
-};
-
-lobbySchema.methods.addMessage = function ({ username, message, timestamp }) {
-  this.messages.push({
-    user: username,
-    message,
-    timestamp: new Date(timestamp),
-  });
-  return this.save();
 };
 
 lobbySchema.methods.addKickedUser = function (username) {
@@ -162,16 +195,6 @@ lobbySchema.methods.isUserKicked = function (username) {
   return this.kickedUsers.some((kicked) => kicked.username === username);
 };
 
-lobbySchema.statics.findByRoomId = async function (roomId) {
-  if (!roomId) throw new Error("Room ID is required");
-  const lobby = await this.findOne({ roomId })
-    .populate("messages")
-    .populate("players.userId", "username email profileImage");
-  lobby._id = lobby._id.toString();
-  if (!lobby) throw new Error("Lobby not found");
-  return lobby;
-};
-
 lobbySchema.methods.removePlayer = async function (username) {
   const updatedLobby = await this.constructor.findOneAndUpdate(
     { _id: this._id },
@@ -179,6 +202,12 @@ lobbySchema.methods.removePlayer = async function (username) {
     { new: true }
   );
   return updatedLobby;
+};
+
+// Add method to clean up disconnected players
+lobbySchema.methods.cleanupDisconnectedPlayers = async function () {
+  this.players = this.players.filter((player) => player.connected);
+  return this.save();
 };
 
 lobbySchema.index({ createdAt: -1 });

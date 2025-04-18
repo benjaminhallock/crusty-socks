@@ -1,60 +1,73 @@
-import { GAME_STATE, SOCKET_EVENTS as se, WORD_LIST } from './constants.js'
-import Chat from './models/chat.js'
-import Lobby from './models/lobby.js'
+import { log, trim } from "./constants.js";
+import {
+  GAME_STATE as gs,
+  SOCKET_EVENTS as se,
+  WORD_LIST,
+} from "./constants.js";
+import Chat from "./models/chat.js";
+import Lobby from "./models/lobby.js";
+import { Filter } from "bad-words";
 
 class GameManager {
   constructor(io) {
-    console.log('[GameManager] Initialized.')
-    this.io = io
-    this.activeConnections = new Map()
-    this.wordSelectionTimers = new Map()
-    this.saveLocks = new Map()
-    this.setupSocketListeners(io)
+    console.log("[GameManager] Initialized.");
+    this.io = io;
+    this.activeConnections = new Map();
+    this.lobbyTimers = new Map();
+    this.saveLocks = new Map();
+    this._canvasSaveTimers = new Map();
+    this.wordSelectionTimers = new Map();
+    this.setupSocketListeners(io);
   }
 
   // Socket Events Setup
   setupSocketListeners(io) {
-    io.on('connection', (socket) => {
-      socket.on(se.CONNECT_ACK, (userData, roomId) =>
-        this.handleConnectAck(socket, userData, roomId)
-      )
-      socket.on(se.CHAT_MESSAGE, (data) => this.handleChatMessage(socket, data))
-      socket.on(se.START_GAME, async (roomId) => {
-        console.log('START_GAME received for room:', roomId)
-        try {
-          await this.startNextDraw(this.io, roomId)
-        } catch (error) {
-          console.error('Error starting game:', error)
-          socket.emit('error', { message: 'Failed to start game' })
-        }
-      })
-      socket.on(se.SELECT_WORD, (data) => this.handleSelectWord(data))
+    io.on("connection", (socket) => {
+      socket.on(se.CONNECT_ACK, (userData, roomId) => {
+        this.handleConnectAck(socket, userData, roomId);
+      });
+
+      socket.on(se.CANVAS_UPDATE, ({ roomId, canvasState }) => {
+        if (!canvasState?.data) return console.warn("No canvas data provided");
+        this.handleCanvasUpdate(socket, { roomId, canvasState });
+      });
+      socket.on(se.CHAT_MESSAGE, (data) =>
+        this.handleChatMessage(socket, data)
+      );
+      socket.on(se.START_GAME, (roomId) => {
+        this.startNextDraw(this.io, roomId);
+      });
+      socket.on(se.SELECT_WORD, (data) => this.handleSelectWord(data));
       socket.on(se.CHECK_WORD_GUESS, (data) =>
         this.handleCheckWordGuess({
           socket,
           ...data,
         })
-      )
-      socket.on(se.LEAVE_LOBBY, () => this.handleDisconnect(socket))
+      );
+      socket.on(se.LEAVE_LOBBY, ({ roomId, username }) => {
+        this.handleDisconnect(socket, roomId, username);
+      });
+
+      socket.on(se.KICK_PLAYER, ({ roomId, username }) => {});
       socket.on(se.CANVAS_UPDATE, (data) => {
-        if (!data?.canvasState?.data) return
+        if (!data?.canvasState?.data) return;
 
-        const connection = this.activeConnections.get(socket.id)
-        if (!connection) return
+        const connection = this.activeConnections.get(socket.id);
+        if (!connection) return;
 
-        const { roomId } = connection
-        if (!roomId) return
+        const { roomId } = connection;
+        if (!roomId) return;
 
         // Emit to room immediately
         socket.to(roomId).volatile.emit(se.CANVAS_UPDATE, {
           canvasState: data.canvasState,
-        })
+        });
 
         // Debounced save
         if (this._canvasSaveTimer?.[roomId]) {
-          clearTimeout(this._canvasSaveTimer[roomId])
+          clearTimeout(this._canvasSaveTimer[roomId]);
         }
-        if (!this._canvasSaveTimer) this._canvasSaveTimer = {}
+        if (!this._canvasSaveTimer) this._canvasSaveTimer = {};
 
         this._canvasSaveTimer[roomId] = setTimeout(() => {
           Lobby.findOneAndUpdate(
@@ -63,695 +76,754 @@ class GameManager {
             { new: true }
           )
             .exec()
-            .catch(console.error)
-        }, 1000)
-      })
+            .catch(console.error);
+        }, 1000);
+      });
       socket.on(se.REQUEST_CHAT_HISTORY, (data) =>
         this.handleRequestChatHistory(socket, data)
-      )
-    })
+      );
+    });
   }
 
   // Socket Event Handlers
   async handleConnectAck(socket, userData, roomId) {
     if (!userData || !roomId) {
-      socket.emit('error', { message: 'Invalid connection data' })
-      return
+      console.error("Invalid user data or room ID");
+      socket.emit("error", { message: "Invalid connection data" });
+      return;
     }
 
-    await this.acquireSaveLock(roomId)
+    await this.acquireSaveLock(roomId);
+
     try {
-      const lobby = await Lobby.findOne({ roomId })
+      let lobby = await Lobby.findOne({ roomId });
       if (!lobby) {
-        socket.emit('error', { message: 'Lobby not found' })
-        return
+        socket.emit("error", { message: "Lobby not found" });
+        return;
       }
 
-      const existingConnection = Array.from(this.activeConnections.values()).find(
-        (conn) => conn.username === userData.username && conn.roomId === roomId
-      )
-
-      if (existingConnection) {
-        // User already in room, just update socket
-        this.activeConnections.set(socket.id, {
-          ...existingConnection,
-          socketId: socket.id,
-        })
+      // Check if player already exists and remove any stale entries
+      let existingPlayer = lobby.players.find(
+        (p) => p.username === userData.username
+      );
+      if (existingPlayer) {
+        // Update existing player connection
+        existingPlayer.connected = true;
+        existingPlayer.socketId = socket.id;
       } else {
-        // New connection
-        this.activeConnections.set(socket.id, {
-          userId: userData._id,
+        // Add new player if lobby isn't full
+        if (lobby.players.length >= lobby.playerLimit) {
+          socket.emit("error", { message: "Lobby is full" });
+          return;
+        }
+
+        lobby.players.push({
           username: userData.username,
-          roomId: roomId,
-          lobbyObjectId: lobby._id,
-        })
-
-        if (!lobby.findPlayerByUsername(userData.username)) {
-          if (lobby.players.length >= lobby.playerLimit) {
-            socket.emit('error', { message: 'Lobby is full' })
-            this.releaseSaveLock(roomId)
-            return
-          }
-
-          lobby.players.push({
-            username: userData.username,
-            userId: userData._id,
-            score: 0,
-            hasDrawn: false,
-            hasGuessedCorrect: false,
-          })
-          await lobby.save()
-
-          // Only send join message for new players
-          const joinMessage = await Chat.create({
-            lobbyObjectId: lobby._id,
-            username: 'Server',
-            message: `${userData.username} has joined the lobby.`,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-          })
-
-          this.io.to(roomId).emit(se.CHAT_MESSAGE, {
-            _id: joinMessage._id,
-            username: 'Server',
-            message: `${userData.username} has joined the lobby.`,
-            timestamp: joinMessage.timestamp,
-            isSystemMessage: true,
-          })
-        }
+          userId: userData._id,
+          socketId: socket.id,
+          connected: true,
+          score: 0,
+          hasDrawn: false,
+          hasGuessedCorrect: false,
+          drawScore: 0,
+          roundScore: 0,
+        });
       }
 
-      await socket.join(roomId)
+      // Save changes and get fresh lobby data
+      await lobby.save();
 
-      // Send game state update with current canvas
-      const updatedLobby = await Lobby.findOne({ roomId })
-      if (updatedLobby?.canvasState?.data) {
-        socket.emit(se.CANVAS_UPDATE, {
-          canvasState: updatedLobby.canvasState,
-        })
-      }
+      // Fetch fresh lobby state to ensure consistency
+      lobby = await Lobby.findOne({ roomId });
 
-      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby: updatedLobby })
+      // Set up socket data and join room
+      socket.userData = userData;
+      socket.roomId = roomId;
+      socket.username = userData.username;
+      await socket.join(roomId);
 
-      // Send chat history
-      const messages = await Chat.find({
-        lobbyObjectId: lobby._id,
-        $or: [
-          { visibleTo: null },
-          { visibleTo: { $exists: false } },
-          { visibleTo: userData.username },
-        ],
-      })
-        .sort({ timestamp: -1 })
-        .limit(50)
-        .sort({ timestamp: 1 })
+      // Store connection info
+      this.activeConnections.set(socket.id, {
+        userId: userData._id,
+        username: userData.username,
+        roomId: roomId,
+        _id: lobby._id,
+      });
 
-      socket.emit(se.CHAT_HISTORY, messages)
-    } catch (error) {
-      console.error('Error in handleConnectAck:', error)
-      socket.emit('error', { message: error.message || 'Failed to connect' })
-    } finally {
-      this.releaseSaveLock(roomId)
-    }
-  }
+      // Emit updates in correct order
+      socket.emit(se.GAME_STATE_UPDATE, { lobby });
+      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
 
-  async handleChatMessage(socket, { lobbyObjectId, message, username }) {
-    try {
-      console.log('Server received chat message:', {
-        lobbyObjectId,
-        username,
-        messageLength: message?.length,
-      })
-
-      if (!lobbyObjectId || !message || !username) {
-        console.error('Missing required chat message data')
-        return
-      }
-
-      const connection = this.activeConnections.get(socket.id)
-      if (!connection) {
-        console.log('No active connection found for socket:', socket.id)
-        return
-      }
-
-      const lobby = await Lobby.findById(lobbyObjectId)
-      if (!lobby) {
-        console.log('Lobby not found:', lobbyObjectId)
-        return
-      }
-
-      const trimmedMessage = message.trim()
-      if (!trimmedMessage) return
-
-      const isDrawer =
-        lobby.gameState === GAME_STATE.DRAWING && username === lobby.currentDrawer
-
-      // Check for word guess during drawing phase first
-      if (lobby.gameState === GAME_STATE.DRAWING && !isDrawer) {
-        const isCorrectGuess =
-          lobby.currentWord.toLowerCase().trim() === trimmedMessage.toLowerCase().trim()
-        if (isCorrectGuess) {
-          // Handle the guess through the existing guess handler
-          await this.handleCheckWordGuess({
-            socket,
-            roomId: lobby.roomId,
-            guess: trimmedMessage,
-            username,
-          })
-          return // Don't broadcast the message if it's a guess
-        }
-
-        // Store failed guess but make it visible only to the guesser
-        const failedGuessChat = await Chat.create({
-          lobbyObjectId,
-          username,
-          message: trimmedMessage,
-          timestamp: Date.now(),
-          isGuessMessage: false,
-          visibleTo: username,
-        })
-
-        // Send the failed guess only to the user who made it
-        socket.emit(se.CHAT_MESSAGE, {
-          _id: failedGuessChat._id,
-          username,
-          message: trimmedMessage,
-          timestamp: failedGuessChat.timestamp,
-        })
-        return // Don't broadcast failed guesses
-      }
-
-      // Block drawer from sharing word variations
-      if (isDrawer) {
-        const cleanWord = lobby.currentWord.toLowerCase().replace(/\s+/g, '')
-        const cleanMessage = trimmedMessage.toLowerCase().replace(/\s+/g, '')
-        if (cleanMessage.includes(cleanWord)) {
-          const warning = await Chat.create({
-            lobbyObjectId,
-            username: 'Server',
-            message: 'You cannot share the word while drawing!',
-            timestamp: Date.now(),
-            isSystemMessage: true,
-            visibleTo: username,
-          })
-
-          socket.emit(se.CHAT_MESSAGE, {
-            _id: warning._id,
-            username: warning.username,
-            message: warning.message,
-            timestamp: warning.timestamp,
-            isSystemMessage: true,
-          })
-          return
-        }
-      }
-
-      // If we get here, it's a regular chat message that should be broadcast
-      const savedChat = await Chat.create({
-        lobbyObjectId,
-        userId: connection.userId,
-        username,
-        message: trimmedMessage,
+      // Notify room of new player
+      this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+        _id: lobby._id,
+        username: "Server",
+        message: `${userData.username} has joined the lobby.`,
         timestamp: Date.now(),
-        isSystemMessage: false,
-      })
+        isSystemMessage: true,
+      });
 
-      const messageData = {
-        _id: savedChat._id,
-        username,
-        message: trimmedMessage,
-        timestamp: savedChat.timestamp,
-        isSystemMessage: false,
-      }
-
-      this.io.to(lobby.roomId).emit(se.CHAT_MESSAGE, messageData)
+      // Request chat history
+      socket.emit(se.REQUEST_CHAT_HISTORY, { lobbyObjectId: lobby._id });
     } catch (error) {
-      console.error('Error in handleChatMessage:', error)
+      console.error("Error in handleConnectAck:", error);
+      socket.emit("error", { message: "Failed to join lobby" });
+    } finally {
+      this.releaseSaveLock(roomId);
     }
   }
 
   async handleSelectWord({ roomId, word }) {
+    if (!word || !roomId) {
+      console.error("Invalid word or room ID");
+      return;
+    }
+    await this.acquireSaveLock(roomId);
     try {
-      await this.acquireSaveLock(roomId)
-      const lobby = await Lobby.findOne({ roomId })
-      if (!lobby) return
+      const lobby = await Lobby.findOneAndUpdate(
+        { roomId },
+        {
+          $set: {
+            currentWord: word,
+            gameState: gs.DRAWING,
+            startTime: Date.now(),
+          },
+        },
+        { new: true } // Returns the updated document
+      );
 
-      Object.assign(lobby, {
-        currentWord: word,
-        gameState: GAME_STATE.DRAWING,
-        startTime: Date.now(),
-      })
-      await lobby.save()
-      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-      await this.startRoundTimer(this.io, roomId, lobby)
+      if (!lobby) {
+        console.error("Lobby not found");
+        this.releaseSaveLock(roomId);
+        return;
+      }
+
+      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+      await this.startDrawTimer(this.io, roomId, lobby);
     } catch (error) {
-      console.error('Error selecting word:', error)
+      console.error("Error selecting word:", error);
+      this.releaseSaveLock(roomId);
     } finally {
-      this.releaseSaveLock(roomId)
+      this.releaseSaveLock(roomId);
+    }
+  }
+  async handleChatMessage(
+    socket,
+    { roomId, lobbyObjectId, message, username }
+  ) {
+    if (!message || !lobbyObjectId) {
+      console.error("Invalid message or lobby ID");
+      return;
+    }
+
+    message = message.trim();
+    const filter = new Filter();
+    if (filter.isProfane(message))
+      return socket.emit("error", {
+        message: "Profanity is not allowed",
+      });
+    if (message.length > 200) {
+      return socket.emit("error", {
+        message: "Message cannot exceed 200 characters",
+      });
+    }
+    try {
+      const lobby = await Lobby.findById(lobbyObjectId);
+
+      // Handle restart command at game end
+      if (
+        lobby.gameState === gs.FINISHED &&
+        message.trim().toLowerCase() === "/restart"
+      ) {
+        const isAdmin = lobby.players.find(
+          (p) => p.username === username
+        )?.isAdmin;
+        if (isAdmin) {
+          // Reset lobby state for new game
+          lobby.gameState = gs.WAITING;
+          lobby.currentRound = 1;
+          lobby.players.forEach((p) => {
+            p.score = 0;
+            p.hasDrawn = false;
+            p.hasGuessedCorrect = false;
+            p.drawScore = 0;
+            p.roundScore = 0;
+          });
+          lobby.usedWords = [];
+          lobby.currentWord = "";
+          lobby.currentDrawer = "";
+
+          await lobby.save();
+          this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+          this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+            username: "System",
+            message: "Game has been restarted! Type /start to begin.",
+            timestamp: Date.now(),
+            isSystemMessage: true,
+          });
+          return;
+        }
+      }
+
+      // Allow chat during FINISHED state
+      if (lobby.gameState === gs.DRAWING && lobby.currentDrawer === username) {
+        socket.emit(se.CHAT_MESSAGE, {
+          username: "Server",
+          message: "You cannot chat while drawing!",
+          timestamp: Date.now(),
+          isSystemMessage: true,
+        });
+        return;
+      }
+
+      // Check if message contains the correct word
+      if (
+        lobby.gameState === gs.DRAWING &&
+        trim(message) === trim(lobby.currentWord)
+      ) {
+        await this.handleCheckWordGuess({
+          socket,
+          roomId,
+          guess: message,
+          username,
+        });
+        return;
+      }
+
+      // Save chat message
+      const savedChat = await Chat.create({
+        lobbyObjectId,
+        username,
+        userId: socket.userData?._id,
+        message: message.trim(),
+        timestamp: Date.now(),
+        isSystemMessage: false,
+      });
+
+      // Emit message to room immediately for better responsiveness
+      this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+        _id: savedChat._id,
+        username,
+        message: message.trim(),
+        timestamp: Date.now(),
+        isSystemMessage: false,
+      });
+
+      // Update chat history
+      const chatHistory = await Chat.find({ lobbyObjectId })
+        .sort({ timestamp: -1 })
+        .limit(100)
+        .select("_id username message timestamp isSystemMessage isGuessMessage")
+        .lean();
+
+      if (chatHistory?.length > 0) {
+        this.io.to(roomId).emit(se.CHAT_HISTORY, chatHistory.reverse());
+      }
+    } catch (error) {
+      console.error("Error handling chat message:", error);
+      socket.emit(se.CHAT_MESSAGE, {
+        username: "Server",
+        message: "Failed to send message.",
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
     }
   }
 
   async handleCheckWordGuess({ socket, roomId, guess, username }) {
     try {
-      const lobby = await Lobby.findOne({ roomId })
-      if (!lobby || lobby.gameState !== GAME_STATE.DRAWING) return
+      const lobby = await Lobby.findOne({ roomId });
+      if (!lobby || lobby.gameState !== gs.DRAWING) return;
 
-      // Clean both the guess and current word for exact comparison
-      const cleanedGuess = guess.toLowerCase().trim().replace(/\s+/g, '')
-      const cleanedWord = lobby.currentWord.toLowerCase().trim().replace(/\s+/g, '')
+      const player = lobby.players.find((p) => p.username === username);
+      if (!player || player.hasGuessedCorrect) return;
 
-      // Only allow exact matches, not partial ones
-      const isCorrect = cleanedGuess === cleanedWord
+      const msg = trim(guess);
+      const answer = trim(lobby.currentWord);
+      const isCorrectGuess = msg.toLowerCase() === answer.toLowerCase();
 
-      if (isCorrect) {
-        const player = lobby.players.find((p) => p.username === username)
-        if (player && !player.hasGuessedCorrect) {
-          // Calculate points based on remaining players
-          const correctGuessers = lobby.players.filter((p) => p.hasGuessedCorrect).length
-          const remainingPlayers = lobby.players.length - correctGuessers - 1
-          const points = Math.max(10, remainingPlayers * 10)
-
-          player.score += points
-          player.drawPoints = points
-          player.guessTime = Date.now()
-          player.hasGuessedCorrect = true
-
-          // Award points to drawer for successful guess (fixed)
-          const drawer = lobby.players.find((p) => p.username === lobby.currentDrawer)
-          if (drawer) {
-            const drawerPoints = 20 // Fixed 20 points per correct guess
-            drawer.drawPoints = (drawer.drawPoints || 0) + drawerPoints
-            drawer.score += drawerPoints
-          }
-
-          await lobby.save()
-
-          // Create a "correct guess" message
-          const guessChat = await Chat.create({
-            lobbyObjectId: lobby._id,
-            username: 'Server',
-            message: `${username} guessed the word correctly!`,
-            timestamp: Date.now(),
-            isSystemMessage: true,
-            isGuessMessage: true,
-          })
-
-          // Send the correct guess message to everyone
-          this.io.to(roomId).emit(se.CHAT_MESSAGE, {
-            _id: guessChat._id,
-            username: 'Server',
-            message: `${username} guessed the word correctly!`,
-            timestamp: guessChat.timestamp,
-            isSystemMessage: true,
-            isGuessMessage: true,
-          })
-
-          // Check if all players have guessed
-          const allPlayersHaveGuessed = lobby.players.every(
-            (p) => p.hasGuessedCorrect || p.username === lobby.currentDrawer
-          )
-
-          if (allPlayersHaveGuessed) {
-            // End round early if everyone guessed
-            await this.endRound(this.io, roomId, lobby)
-          }
-        }
-      } else {
-        // Store failed guess in database but make it visible only to the user who made the guess
-        const failedGuessChat = await Chat.create({
-          lobbyObjectId: lobby._id,
+      if (!isCorrectGuess) {
+        this.io.to(roomId).emit(se.CHAT_MESSAGE, {
           username,
           message: guess,
           timestamp: Date.now(),
-          isGuessMessage: false,
-          visibleTo: username,
-        })
+          isSystemMessage: true,
+          isGuessMessage: true,
+          isCorrect: false,
+        });
+        socket.emit(se.SOUND, { sound: "incorrect" });
+      } else {
+        // Calculate guesser points based on order
+        const correctGuessers = lobby.players.filter(
+          (p) => p.hasGuessedCorrect
+        ).length;
+        const remainingPlayers = lobby.players.length - correctGuessers - 1;
+        const points = Math.max(10, remainingPlayers * 10);
 
-        // Send the failed guess only to the user who made it
-        socket.emit(se.CHAT_MESSAGE, {
-          _id: failedGuessChat._id,
-          username,
-          message: guess,
-          timestamp: failedGuessChat.timestamp,
-        })
-      }
-    } catch (error) {
-      console.error('Error checking word guess:', error)
-    }
-  }
+        // Update guesser score
+        player.drawScore = points;
+        player.hasGuessedCorrect = true;
+        player.guessTime = Date.now();
 
-  async handleDisconnect(socket) {
-    const connection = this.activeConnections.get(socket.id)
-    if (!connection) return
+        // Update drawer score (10 points per correct guess)
+        const drawer = lobby.players.find(
+          (p) => p.username === lobby.currentDrawer
+        );
+        if (drawer) {
+          drawer.drawScore += 10;
+          // Bonus if everyone guesses
+          if (correctGuessers + 1 === lobby.players.length - 1) {
+            drawer.drawScore += 20;
+          }
+        }
 
-    const { roomId, username } = connection
-    console.log('disconnecting user:', username, 'in room:', roomId)
+        await lobby.save();
 
-    try {
-      const lobby = await Lobby.findOne({ roomId })
-      if (lobby && lobby.findPlayerByUsername(username)) {
-        const updatedLobby = await lobby.removePlayer(username)
-        if (updatedLobby) {
-          this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby: updatedLobby })
+        // Emit updates
+        this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+          username: "System",
+          message: `${username} guessed correctly! (+${points} points)`,
+          timestamp: Date.now(),
+          isSystemMessage: true,
+          isGuessMessage: true,
+          isCorrect: true,
+        });
+        this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+
+        // Check if everyone has guessed
+        if (
+          lobby.players.every(
+            (p) => p.hasGuessedCorrect || p.username === lobby.currentDrawer
+          )
+        ) {
+          await this.endDraw(this.io, roomId, lobby);
         }
       }
     } catch (error) {
-      console.error('Error during disconnect:', error)
+      console.error("Error in handleCheckWordGuess:", error);
+    }
+  }
+
+  async handleDisconnect(socket, roomId, username) {
+    if (!socket || !roomId || !username) return;
+
+    await this.acquireSaveLock(roomId);
+
+    try {
+      const lobby = await Lobby.findOne({ roomId });
+      if (!lobby) return;
+
+      // Mark player as disconnected but don't remove immediately
+      const playerIndex = lobby.players.findIndex(
+        (p) => p.username === username
+      );
+      if (playerIndex !== -1) {
+        lobby.players[playerIndex].connected = false;
+        lobby.players[playerIndex].socketId = null;
+        await lobby.save();
+      }
+
+      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+      /*
+		this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+        username: "Server",
+        message: `${username} has disconnected.`,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
+	  */
+
+      // Clean up connection tracking
+      this.activeConnections.delete(socket.id);
+
+      // Remove disconnected players after a delay (optional)
+      setTimeout(async () => {
+        const currentLobby = await Lobby.findOne({ roomId });
+        if (!currentLobby) return;
+
+        const player = currentLobby.players.find(
+          (p) => p.username === username
+        );
+        if (player && !player.connected) {
+          currentLobby.players = currentLobby.players.filter(
+            (p) => p.username !== username
+          );
+          await currentLobby.save();
+          this.io
+            .to(roomId)
+            .emit(se.GAME_STATE_UPDATE, { lobby: currentLobby });
+        }
+      }, 60000); // Remove after 1 minute if still disconnected
+    } catch (error) {
+      console.error("Error in handleDisconnect:", error);
     } finally {
-      this.activeConnections.delete(socket.id)
+      this.releaseSaveLock(roomId);
     }
   }
 
   // Game flow methods
   async startNextDraw(io, roomId) {
-    await this.acquireSaveLock(roomId)
+    await this.acquireSaveLock(roomId);
     try {
-      const lobby = await Lobby.findOne({ roomId })
-      if (!lobby) return console.error('Lobby not found')
-      if (!lobby.players.length) return console.error('No players in lobby to start game')
-
-      // Reset canvas state when starting new draw
-      lobby.canvasState = {
-        data: null,
-        timestamp: Date.now(),
+      // Clear any existing timers
+      if (this.lobbyTimers.has(roomId)) {
+        clearTimeout(this.lobbyTimers.get(roomId));
+        this.lobbyTimers.delete(roomId);
       }
 
-      const availablePlayers = lobby.players.filter((p) => !p.hasDrawn)
-      if (!availablePlayers.length) {
-        // Everyone has drawn, so we need to start next round or end game
-        return this.handleRoundEnd(io, roomId, lobby)
-      } else {
-        if (lobby.currentWord) {
-          lobby.usedWords.push(lobby.currentWord)
-        }
-        await lobby.save()
+      const lobby = await Lobby.findOne({ roomId });
+      if (!lobby) {
+        console.error("Lobby not found");
+        return;
       }
-      const index = Math.floor(Math.random() * availablePlayers.length)
-      const drawer = availablePlayers[index]
-      const words = await this.generateWordChoices(lobby)
+
+      // Reset player states and clear canvas
+      lobby.players.forEach((p) => {
+        p.hasGuessedCorrect = false;
+        p.drawScore = 0;
+      });
+
+      lobby.canvasState = null;
+      lobby.currentDrawer = null;
+      lobby.usedWords = lobby.usedWords || [];
+      lobby.usedWords.push(lobby.currentWord);
+      lobby.currentWord = null;
+
+      const availablePlayers = lobby.players.filter((p) => !p.hasDrawn);
+      if (!availablePlayers.length)
+        throw new Error("No available players to draw");
+      const index = Math.floor(Math.random() * availablePlayers.length);
+      const drawer = availablePlayers[index];
+      const words = this.findWordsForCategory(lobby);
+
+      // Update lobby state in a single operation
       Object.assign(lobby, {
+        gameState: lobby.selectWord === 1 ? gs.DRAWING : gs.PICKING_WORD,
+        currentWord: lobby.selectWord === 1 ? words[0] : words.join(", "),
         currentDrawer: drawer.username,
-        gameState: words.length === 1 ? GAME_STATE.DRAWING : GAME_STATE.PICKING_WORD,
         canvasState: null,
-        currentWord: words.length === 1 ? words[0] : words.join(', '),
         startTime: Date.now(),
-      })
-      lobby.players.find((p) => p.username === drawer.username).hasDrawn = true
+      });
 
-      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-      await lobby.save()
+      // Mark the drawer as having drawn
+      const playerIndex = lobby.players.findIndex(
+        (p) => p.username === drawer.username
+      );
+      if (playerIndex !== -1) {
+        lobby.players[playerIndex].hasDrawn = true;
+      }
+      // Save all changes in one operation
+      await lobby.save().catch((err) => {
+        console.error("Error saving lobby:", err);
+      });
+      // Emit state update
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+      io.to(roomId).emit(se.CHAT_MESSAGE, {
+        username: "Server",
+        message: "It's " + drawer.username + "'s turn to draw!",
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
 
-      console.log(
-        'Current drawer:',
-        lobby.currentDrawer,
-        'selecting word:',
-        lobby.currentWord
-      )
-      if (lobby.gameState === GAME_STATE.DRAWING) {
-        await this.startRoundTimer(io, roomId, lobby)
+      // Start appropriate timer based on game state
+      if (lobby.gameState === gs.DRAWING) {
+        await this.startDrawTimer(io, roomId, lobby);
       } else {
-        await this.setupWordSelectionTimeout(io, roomId, words)
+        await this.setupWordSelectionTimeout(io, roomId, words);
       }
     } catch (error) {
-      console.error('Error starting game:', error)
+      console.error("Error in startNextDraw:", error);
     } finally {
-      this.releaseSaveLock(roomId)
+      this.releaseSaveLock(roomId);
+    }
+  }
+
+  async startDrawTimer(io, roomId, lobby) {
+    try {
+      lobby = await Lobby.findOne({ roomId });
+      if (!lobby) {
+        console.error("Lobby not found");
+        return;
+      }
+
+      const elapsed = Date.now() - lobby.startTime;
+      const roundDuration = lobby.roundTime * 1000;
+      const timeLeft = Math.max(
+        0,
+        Math.round((roundDuration - elapsed) / 1000)
+      );
+      console.warn(`[GM] ${roomId} ending draw in: ${timeLeft} seconds`); // Fixed template string
+
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+
+      const lobbyTimer = setTimeout(async () => {
+        try {
+          const currentLobby = await Lobby.findOne({ roomId });
+          if (currentLobby && currentLobby.gameState === gs.DRAWING) {
+            await this.endDraw(io, roomId, currentLobby);
+          } else {
+            console.error(
+              `[GM] ${roomId} - Timer expired but game state is not DRAWING`
+            );
+          }
+        } catch (error) {
+          console.error("Error in timer callback:", error);
+        }
+      }, timeLeft * 1000);
+      this.lobbyTimers.set(roomId, lobbyTimer);
+    } catch (error) {
+      console.error("Error starting round timer:", error);
+    }
+  }
+
+  async endDraw(io, roomId, lobby) {
+    await this.acquireSaveLock(roomId);
+    try {
+      lobby = await Lobby.findById(lobby._id);
+      if (!lobby || lobby.gameState !== gs.DRAWING) return;
+
+      if (this.lobbyTimers.has(roomId)) {
+        clearTimeout(this.lobbyTimers.get(roomId));
+        this.lobbyTimers.delete(roomId);
+      }
+
+      // Update state to DRAW_END and start timer
+      lobby.gameState = gs.DRAW_END;
+      lobby.startTime = Date.now();
+      await lobby.save();
+
+      // Emit updates
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+      io.to(roomId).emit(se.CHAT_MESSAGE, {
+        username: "System",
+        message: `Round ended! The word was: ${lobby.currentWord}`,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
+
+      const drawEndTimer = setTimeout(async () => {
+        const allPlayersHaveDrawn = lobby.players.every((p) => p.hasDrawn);
+        if (allPlayersHaveDrawn) {
+          await this.handleRoundEnd(io, roomId, lobby);
+        } else {
+          await this.startNextDraw(io, roomId);
+        }
+      }, 8000); // 8 seconds for DrawEndModal
+
+      this.lobbyTimers.set(roomId, drawEndTimer);
+    } catch (error) {
+      console.error("Error in endDraw:", error);
+    } finally {
+      this.releaseSaveLock(roomId);
     }
   }
 
   async handleRoundEnd(io, roomId, lobby) {
+    await this.acquireSaveLock(roomId);
     try {
-      // First check if we've completed all rounds
-      const currentRound = lobby.currentRound || 1
+      if (this.lobbyTimers.has(roomId)) {
+        clearTimeout(this.lobbyTimers.get(roomId));
+        this.lobbyTimers.delete(roomId);
+      }
 
-      if (currentRound >= lobby.maxRounds) {
-        // Game has ended after all rounds are complete
-        lobby.gameState = GAME_STATE.FINISHED
-        lobby.players.sort((a, b) => b.score - a.score)
-        await lobby.save()
+      lobby = await Lobby.findById(lobby._id);
+      if (!lobby || lobby.gameState !== gs.DRAW_END) return;
 
-        io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
+      // Update scores and reset states
+      lobby.players.forEach((p) => {
+        p.hasDrawn = false;
+        p.hasGuessedCorrect = false;
+        p.score += p.roundScore + p.drawScore; // Add both scores to total
+        p.roundScore = 0;
+        p.drawScore = 0;
+      });
 
-        // Emit a game complete message
+      if (lobby.currentRound < lobby.maxRounds) {
+        Object.assign(lobby, {
+          gameState: gs.ROUND_END,
+          currentRound: lobby.currentRound + 1,
+          startTime: Date.now(), // Add start time for round end state
+        });
+
+        await lobby.save();
+        io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+
+        const roundEndTimer = setTimeout(async () => {
+          try {
+            const updatedLobby = await Lobby.findById(lobby._id);
+            if (updatedLobby?.gameState === gs.ROUND_END) {
+              await this.startNextDraw(io, roomId);
+            }
+          } catch (error) {
+            console.error("Error in round end timer:", error);
+            // Force state transition if there's an error
+            await this.startNextDraw(io, roomId);
+          }
+        }, 5000); // 5 seconds for RoundSummaryModal
+
+        this.lobbyTimers.set(roomId, roundEndTimer);
+      } else {
+        // Game over - Update user stats
+        const winner = lobby.players.reduce((prev, curr) =>
+          prev.score > curr.score ? prev : curr
+        );
+
+        // Update all players' stats
+        for (const player of lobby.players) {
+          await User.findOneAndUpdate(
+            { username: player.username },
+            {
+              $inc: {
+                "gameStats.gamesPlayed": 1,
+                "gameStats.totalScore": player.score, // Add total game score
+              },
+              $set: {
+                "profile.lastActive": Date.now(),
+              },
+              ...(player.username === winner.username && {
+                $inc: { "gameStats.gamesWon": 1 },
+              }),
+            }
+          );
+        }
+
+        // Set game state to finished but keep chat active
+        Object.assign(lobby, {
+          gameState: gs.FINISHED,
+          players: [...lobby.players].sort((a, b) => b.score - a.score),
+          finished: true,
+          canChat: true,
+        });
+
+        await lobby.save();
+        io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
         io.to(roomId).emit(se.CHAT_MESSAGE, {
-          username: 'Server',
-          message: 'Game has ended! Thanks for playing!',
+          username: "System",
+          message: `Game Over! ${winner.username} wins with ${winner.score} points! Type /restart to play again.`,
           timestamp: Date.now(),
           isSystemMessage: true,
-        })
-
-        return
-      }
-
-      // If we still have more rounds, go to ROUND_END state
-      lobby.gameState = GAME_STATE.ROUND_END
-      lobby.currentRound = currentRound + 1
-
-      await lobby.save()
-      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-
-      // Show round summary for a few seconds
-      await new Promise((resolve) => setTimeout(resolve, 8000))
-
-      // Reset for the next round
-      lobby.players.forEach((p) => {
-        p.hasDrawn = false
-        p.hasGuessedCorrect = false
-        p.drawPoints = 0
-        p.roundPoints = 0
-      })
-
-      // Return to waiting state before starting next player's turn
-      lobby.gameState = GAME_STATE.WAITING
-      await lobby.save()
-      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-
-      // Start the next draw after a short delay
-      setTimeout(() => this.startNextDraw(io, roomId), 2000)
-    } catch (error) {
-      console.error('Error handling round end:', error)
-    }
-  }
-
-  async startRoundTimer(io, roomId, lobby) {
-    if (!lobby) return
-
-    const startTime = Date.now()
-    const roundDuration = lobby.roundTime * 1000 // convert seconds to milliseconds
-
-    lobby.startTime = startTime
-    await lobby.save()
-
-    // Emit initial time update
-    io.to(roomId).emit(se.GAME_STATE_UPDATE, {
-      lobby: {
-        ...lobby.toObject(),
-        timeLeft: lobby.roundTime,
-      },
-    })
-
-    // Set up timer interval
-    const timer = setInterval(async () => {
-      try {
-        const currentLobby = await Lobby.findOne({ roomId })
-        if (
-          !currentLobby ||
-          ![GAME_STATE.DRAWING, GAME_STATE.PICKING_WORD].includes(currentLobby.gameState)
-        ) {
-          clearInterval(timer)
-          return
-        }
-
-        const elapsed = Date.now() - startTime
-        const timeLeft = Math.max(0, Math.round((roundDuration - elapsed) / 1000))
-
-        // Send time updates every second
-        io.to(roomId).emit(se.GAME_STATE_UPDATE, {
-          lobby: {
-            ...currentLobby.toObject(),
-            timeLeft,
-          },
-        })
-
-        if (timeLeft <= 0) {
-          clearInterval(timer)
-          await this.endRound(io, roomId, currentLobby)
-        }
-      } catch (error) {
-        console.error('Error in round timer:', error)
-        clearInterval(timer)
-      }
-    }, 1000)
-
-    return timer
-  }
-
-  async endRound(io, roomId, lobby) {
-    try {
-      if (![GAME_STATE.DRAWING, GAME_STATE.DRAW_END].includes(lobby.gameState)) {
-        return
-      }
-
-      // Set to DRAW_END to show round end modal
-      lobby.gameState = GAME_STATE.DRAW_END
-      lobby.canvasState = null
-
-      // Calculate and save round points
-      lobby.players.forEach((p) => {
-        p.roundPoints = (p.roundPoints || 0) + (p.drawPoints || 0)
-      })
-
-      await lobby.save()
-      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
-
-      // Announce the end of the round
-      io.to(roomId).emit(se.CHAT_MESSAGE, {
-        username: 'Server',
-        message: `Round ended! The word was: ${lobby.currentWord}`,
-        timestamp: Date.now(),
-        isSystemMessage: true,
-      })
-
-      // Wait for round end modal to display
-      await new Promise((resolve) => setTimeout(resolve, 5000))
-
-      // Check if all players have drawn
-      const updatedLobby = await Lobby.findOne({ roomId })
-      if (!updatedLobby || updatedLobby.gameState === GAME_STATE.FINISHED) {
-        return
-      }
-
-      // Reset player state for next drawer
-      updatedLobby.players.forEach((p) => {
-        p.drawPoints = 0
-        p.hasGuessedCorrect = false
-      })
-
-      // Check if everyone has drawn in this round
-      const allPlayersHaveDrawn = updatedLobby.players.every((p) => p.hasDrawn)
-
-      if (allPlayersHaveDrawn) {
-        // If all players have drawn, move to round summary
-        await this.handleRoundEnd(io, roomId, updatedLobby)
-      } else {
-        // If there are still players who need to draw, move to next drawer
-        await this.startNextDraw(io, roomId)
+        });
       }
     } catch (error) {
-      console.error('Error ending round:', error)
+      console.error("Error in handleRoundEnd:", error);
+    } finally {
+      this.releaseSaveLock(roomId);
     }
   }
 
   async setupWordSelectionTimeout(io, roomId, words) {
-    if (this.wordSelectionTimers.has(roomId)) {
-      clearTimeout(this.wordSelectionTimers.get(roomId))
+    if (!words.length || !roomId) {
+      console.error("No words available or invalid room ID");
+      return;
     }
     const timer = setTimeout(async () => {
       try {
-        const lobby = await Lobby.findOne({ roomId })
-        if (!lobby) return console.error('Lobby not found')
-        if (lobby?.gameState === GAME_STATE.PICKING_WORD) {
+        const lobby = await Lobby.findOne({ roomId });
+        if (!lobby) return console.error("Lobby not found");
+        if (lobby?.gameState === gs.PICKING_WORD) {
           // If the game is still in the word selection phase, grab a random word
-          const randomWord = words[Math.floor(Math.random() * words.length)]
+          const randomWord = words[Math.floor(Math.random() * words.length)];
           Object.assign(lobby, {
             currentWord: randomWord,
-            gameState: GAME_STATE.DRAWING,
+            gameState: gs.DRAWING,
             startTime: Date.now(),
-          })
-          await lobby.save()
-          io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby })
+          });
+          await lobby.save();
+          io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
           io.to(roomId).emit(se.CHAT_MESSAGE, {
-            username: 'Server',
-            message: 'Word selection timed out... randomly selecting a word.',
+            username: "Server",
+            message: "Word selection timed out... randomly selecting a word.",
             timestamp: Date.now(),
-          })
-          await this.startRoundTimer(io, roomId, lobby)
+          });
+          await this.startDrawTimer(io, roomId, lobby);
         }
       } catch (error) {
-        console.error('Error in word selection timeout:', error)
+        console.error("Error in word selection timeout:", error);
       } finally {
-        this.wordSelectionTimers.delete(roomId)
+        console.log("Word selection timer cleared");
+        this.wordSelectionTimers.delete(roomId);
       }
-    }, 15000)
-    this.wordSelectionTimers.set(roomId, timer)
+    }, 15000); // 15 seconds for word selection
+
+    this.wordSelectionTimers.set(roomId, timer);
   }
-  // Utility methods
-  async generateWordChoices(lobby) {
-    // Initialize usedWords array if it doesn't exist
-    if (!lobby.usedWords) {
-      lobby.usedWords = []
-    }
-
-    let availableWords = []
-
-    // If category is 'random' or 'all', use words from all categories
-    if (lobby.selectCategory === 'random' || lobby.selectCategory === 'all') {
-      // Combine all categories
+  // Utility methods - filters out already used words
+  findWordsForCategory(lobby) {
+    let availableWords = [];
+    if (lobby.selectCategory === "random") {
       for (const category in WORD_LIST) {
-        availableWords = [...availableWords, ...WORD_LIST[category]]
+        availableWords = [...availableWords, ...WORD_LIST[category]];
       }
     } else {
-      // Use the specified category if it exists, otherwise use all words
-      availableWords = WORD_LIST[lobby.selectCategory] || Object.values(WORD_LIST).flat()
-    }
+      const categoryExists = Object.keys(WORD_LIST).includes(
+        lobby.selectCategory
+      );
+      if (!categoryExists) {
+        console.warn(
+          `Category "${lobby.selectCategory}" not found. Using all words instead.`
+        );
+        availableWords = Object.values(WORD_LIST).flat();
+      }
 
+      availableWords = WORD_LIST[lobby.selectCategory];
+    }
     // Filter out already used words
-    const unusedWords = availableWords.filter((word) => !lobby.usedWords.includes(word))
+    const unusedWords = availableWords.filter(
+      (word) => !lobby.usedWords.includes(word)
+    );
 
     // If we've used too many words, reset the graveyard
     if (unusedWords.length < lobby.selectWord) {
-      console.log('Word pool depleted, resetting used words list')
-      lobby.usedWords = []
-      availableWords = unusedWords.concat(lobby.usedWords)
+      console.log("Word pool depleted, resetting used words list");
+      lobby.usedWords = [];
+      availableWords = unusedWords.concat(lobby.usedWords);
     } else {
-      availableWords = unusedWords
+      availableWords = unusedWords;
     }
 
-    const selectedWords = []
-    if (lobby.selectWord === 1) {
-      const randomIndex = Math.floor(Math.random() * availableWords.length)
-      const randomWord = availableWords[randomIndex]
-      selectedWords.push(randomWord)
-      lobby.usedWords.push(randomWord)
+    const selectedWords = [];
+    if (lobby.selectWord < 1) {
+      // there is no word selection
+      const randomIndex = Math.floor(Math.random() * availableWords.length);
+      const randomWord = availableWords[randomIndex];
+      selectedWords.push(randomWord);
+      lobby.usedWords.push(randomWord);
     } else {
       // Make sure we get the requested number of unique words
-      while (selectedWords.length < lobby.selectWord && availableWords.length > 0) {
-        const randomIndex = Math.floor(Math.random() * availableWords.length)
-        const randomWord = availableWords[randomIndex]
+      while (
+        selectedWords.length < lobby.selectWord &&
+        availableWords.length > 0
+      ) {
+        const randomIndex = Math.floor(Math.random() * availableWords.length);
+        const randomWord = availableWords[randomIndex];
 
         if (!selectedWords.includes(randomWord)) {
-          selectedWords.push(randomWord)
-          lobby.usedWords.push(randomWord)
+          selectedWords.push(randomWord);
+          lobby.usedWords.push(randomWord);
 
           // Remove the word from the available pool to prevent duplicates
-          availableWords.splice(randomIndex, 1)
+          availableWords.splice(randomIndex, 1);
         }
       }
     }
-    return selectedWords
-  }
-  async acquireSaveLock(roomId) {
-    while (this.saveLocks.get(roomId)) {
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    }
-    this.saveLocks.set(roomId, true)
+    return selectedWords;
   }
 
-  async releaseSaveLock(roomId) {
-    this.saveLocks.delete(roomId)
+  async acquireSaveLock(roomId) {
+    while (this.saveLocks.get(roomId)) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    this.saveLocks.set(roomId, true);
+  }
+
+  releaseSaveLock(roomId) {
+    this.saveLocks.delete(roomId);
   }
 
   async handleRequestChatHistory(socket, { lobbyObjectId }) {
     try {
-      console.log('Chat history requested for lobby:', lobbyObjectId)
-      if (!lobbyObjectId) return
-
-      const connection = this.activeConnections.get(socket.id)
-      if (!connection) {
-        console.log('No active connection found for socket:', socket.id)
-        return
-      }
-
+      if (!lobbyObjectId || !this.activeConnections.get(socket.id)) return;
+      const connection = this.activeConnections.get(socket.id);
       const messages = await Chat.find({
         lobbyObjectId,
         $or: [
@@ -762,16 +834,93 @@ class GameManager {
       })
         .sort({ timestamp: -1 })
         .limit(100)
-        .select('_id username message timestamp isSystemMessage isGuessMessage')
-        .lean()
+        .select("_id username message timestamp isSystemMessage isGuessMessage")
+        .lean();
 
-      console.log('Sending chat history, count:', messages.length)
-      socket.emit(se.CHAT_HISTORY, messages.reverse())
+      if (!messages.length) socket.emit(se.CHAT_HISTORY, []);
+      else socket.emit(se.CHAT_HISTORY, messages.reverse());
     } catch (error) {
-      console.error('Error fetching chat history:', error)
+      console.error("Error fetching chat history:", error);
+    }
+  }
+  async handleKickPlayer(socket, { roomId, username }) {
+    try {
+      const lobby = await Lobby.findOne({ roomId });
+      if (!lobby) {
+        console.error("Lobby not found");
+        return;
+      }
+      const player = lobby.players.find((p) => p.username === username);
+      if (!player) {
+        console.error("Player not found in lobby");
+        return;
+      }
+      // Remove the player from the lobby
+      lobby.players = lobby.players.filter((p) => p.username !== username);
+      lobby.kickedUsers.push(player._id);
+      await lobby.save();
+      socket.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+    } catch (error) {
+      console.error("Error handling kick player:", error);
+      socket.emit(se.ERROR, { message: "Failed to kick player." });
+    }
+  }
+
+  async handleCanvasUpdate(socket, { roomId, canvasState }) {
+    if (!canvasState?.data) return console.warn("No canvas data provided");
+
+    const connection = this.activeConnections.get(socket.id);
+    if (!connection) return console.warn("No active connection for socket");
+
+    // Don't send the update back to the sender
+    socket.to(roomId).volatile.emit(se.CANVAS_UPDATE, {
+      canvasState: {
+        data: canvasState.data,
+        timestamp: canvasState.timestamp,
+      },
+    });
+
+    // Debounced save with cleanup
+    if (!this._canvasSaveTimers) this._canvasSaveTimers = new Map();
+
+    const existingTimer = this._canvasSaveTimers.get(roomId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const saveTimer = setTimeout(async () => {
+      try {
+        await Lobby.findOneAndUpdate(
+          { roomId },
+          {
+            canvasState: {
+              data: canvasState.data,
+              timestamp: Date.now(),
+            },
+          },
+          { new: true }
+        );
+        this._canvasSaveTimers.delete(roomId);
+      } catch (err) {
+        console.error("Error saving canvas state:", err);
+      }
+    }, 2000); // Increased debounce to 2 seconds
+
+    this._canvasSaveTimers.set(roomId, saveTimer);
+  }
+
+  _cleanupCanvasTimers(roomId) {
+    if (this._canvasSaveTimers?.has(roomId)) {
+      clearTimeout(this._canvasSaveTimers.get(roomId));
+      this._canvasSaveTimers.delete(roomId);
     }
   }
 }
+
+let instance = null;
 export const initializeSocketEvents = (io) => {
-  return new GameManager(io)
-}
+  if (!instance) {
+    instance = new GameManager(io);
+  }
+  return instance;
+};

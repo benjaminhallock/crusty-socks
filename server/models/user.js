@@ -1,5 +1,5 @@
-import bcrypt from 'bcryptjs'
-import mongoose from 'mongoose'
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
@@ -11,7 +11,10 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
       maxlength: 20,
       lowercase: true,
-      match: [/^[a-zA-Z0-9]+$/, 'Username can only contain letters and numbers'],
+      match: [
+        /^[a-zA-Z0-9]+$/,
+        "Username can only contain letters and numbers",
+      ],
     },
     email: {
       type: String,
@@ -25,7 +28,10 @@ const userSchema = new mongoose.Schema(
       required: true,
       select: false,
       minlength: 6,
-      match: [/^[a-zA-Z0-9]+$/, 'Password can only contain letters and numbers'],
+      match: [
+        /^[a-zA-Z0-9]+$/,
+        "Password can only contain letters and numbers",
+      ],
     },
     isAdmin: {
       type: Boolean,
@@ -37,10 +43,6 @@ const userSchema = new mongoose.Schema(
     },
     gameStats: {
       totalScore: {
-        type: Number,
-        default: 0,
-      },
-      currentRoundPoints: {
         type: Number,
         default: 0,
       },
@@ -94,34 +96,48 @@ const userSchema = new mongoose.Schema(
     },
     toJSON: {
       transform: (_, ret) => {
-        delete ret.password
-        return ret
+        delete ret.password;
+        return ret;
       },
     },
   }
-)
+);
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password') && !this.isNew) return next()
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password") && !this.isNew) return next();
   try {
-    this.password = await bcrypt.hash(this.password, 10)
-    next()
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
   } catch (error) {
-    next(error)
+    next(error);
   }
-})
+});
 
 userSchema.statics.findByUsername = async function (username) {
-  return this.findOne({ username })
-}
+  return this.findOne({ username }).catch((err) => {
+    console.error("Error finding user by username:", err);
+    return null;
+  });
+};
 
 userSchema.statics.findByCredentials = async function (email, password) {
-  const user = await this.findOne({ email }).select('+password')
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return null
-  }
-  return user
-}
+  // email can be username or email
+  const user = await this.findOne({
+    $or: [{ email: email }, { username: email }],
+  }).select("+password");
 
-const User = mongoose.model('User', userSchema)
-export default User
+  if (!user) {
+    console.log("No user found");
+    return null;
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    console.log("Password incorrect");
+    return null;
+  }
+  return user;
+};
+
+const User = mongoose.model("User", userSchema);
+export default User;

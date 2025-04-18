@@ -103,7 +103,7 @@ const UserProfile = ({ currentUser }) => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden border-4 border-yellow-400">
-        <div className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 dark:bg-gradient-to-r from-pink-600 via-purple-600 p-6">
+        <div className="bg-gradient-to-r from-yellow-400 via-purple-600 to-indigo-900 dark:bg-gradient-to-r from-pink-600 via-purple-600 p-6">
           <div className="container px-6 pb-5">
             <div className="flex items-center">
               <div className="rounded-full bg-white dark:bg-gray-700 p-2 mr-4 shadow-lg border-4 border-yellow-300">

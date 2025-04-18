@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 
-const tracks = ["/audio/pixelPartyMainTheme1.mp3"];
+const tracks = 
+["/audio/pixelPartyMainTheme1.mp3",
+  "/audio/drawASubmarine2.mp3",
+  "/audio/testTrack3.mp3"
+];
 
 const MusicPlayer = ({ isPlaying, isMuted }) => {
   const audioRef = useRef(null);

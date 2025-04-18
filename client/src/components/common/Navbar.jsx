@@ -18,18 +18,13 @@ import Button from "./ui/Button";
 import MusicPlayer from "./MusicPlayer";
 
 const Navbar = ({ isLoggedIn, onLogout, user }) => {
-  // Initialize all hooks at the top level
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
-  const [isDark, setIsDark] = useState(() => {
-    // Initialize dark mode from localStorage
-    return localStorage.theme === "dark";
-  });
+  const [isDark, setIsDark] = useState(() => localStorage.theme === "dark");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  // Toggle between light and dark themes
   const toggleTheme = () => {
     const newDarkMode = !isDark;
     setIsDark(newDarkMode);
@@ -42,15 +37,15 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     }
   };
 
-  // Toggle mute state
   const toggleAudio = () => {
     if (!isPlaying) {
       setIsPlaying(true); // Start playing music
+      setIsMuted(false); // Ensure music starts unmuted
+    } else {
+      setIsMuted((prev) => !prev); // Toggle mute/unmute
     }
-    setIsMuted((prev) => !prev); // Toggle mute/unmute
   };
 
-  // Close dropdown menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -64,7 +59,6 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     };
   }, []);
 
-  // Check auth status
   useEffect(() => {
     if (!isLoggedIn && !localStorage.getItem("token")) {
       navigate("/");
@@ -204,7 +198,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
             <Button
               onClick={toggleAudio}
-              className="text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group"
+              className={`text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group ${
+                isPlaying && !isMuted ? "ring-2 ring-indigo-500" : ""
+              }`}
             >
               {isPlaying && !isMuted ? (
                 <FaVolumeMute className="h-4 w-4 text-gray-800 dark:text-white/90 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-200" />

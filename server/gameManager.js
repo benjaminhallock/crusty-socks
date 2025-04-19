@@ -386,6 +386,7 @@ class GameManager {
       const isCorrectGuess = msg.toLowerCase() === answer.toLowerCase();
 
       if (!isCorrectGuess) {
+        // Send incorrect guess to all players but only play sound for the guesser
         this.io.to(roomId).emit(se.CHAT_MESSAGE, {
           username,
           message: guess,
@@ -396,6 +397,7 @@ class GameManager {
         });
         socket.emit(se.SOUND, { sound: "incorrect" });
       } else {
+        // Play correct sound for everyone on correct guess
         // Calculate guesser points based on order
         const correctGuessers = lobby.players.filter(
           (p) => p.hasGuessedCorrect
@@ -437,6 +439,8 @@ class GameManager {
           isCorrect: true,
         });
         this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+        // Play correct sound for everyone
+        this.io.to(roomId).emit(se.SOUND, { sound: "correct" });
 
         // Check if everyone has guessed
         if (

@@ -28,6 +28,18 @@ const GameRoom = ({ user }) => {
   const activeHandleRef = useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isShowing, setIsShowing] = useState(false);
+  const correctSound = useRef(new Audio("/audio/sfx/correct.mp3"));
+  const incorrectSound = useRef(new Audio("/audio/sfx/incorrect.mp3"));
+
+  const playSound = useCallback((soundType) => {
+    if (soundType === "correct") {
+      correctSound.current.currentTime = 0;
+      correctSound.current.play().catch(console.error);
+    } else if (soundType === "incorrect") {
+      incorrectSound.current.currentTime = 0;
+      incorrectSound.current.play().catch(console.error);
+    }
+  }, []);
 
   // Handle window resize
   useEffect(() => {
@@ -219,9 +231,16 @@ const GameRoom = ({ user }) => {
         }
       });
 
+      const unsubscribeSound = socketManager.onSoundNotification((data) => {
+        if (isMounted.current && data.sound) {
+          playSound(data.sound);
+        }
+      });
+
       return () => {
         unsubscribeStatus();
         unsubscribeGameState();
+        unsubscribeSound();
       };
     } catch (error) {
       console.error("Socket connection error:", error);
@@ -237,7 +256,9 @@ const GameRoom = ({ user }) => {
       const lobbyData = await fetchLobbyData();
       if (!lobbyData) return;
 
-      const playerExists = lobbyData.players.some(p => p.username === user.username);
+      const playerExists = lobbyData.players.some(
+        (p) => p.username === user.username
+      );
       if (!playerExists || !socketManager.isConnected()) {
         console.log("[GameRoom] Restoring player connection...");
         await setupSocketConnection();

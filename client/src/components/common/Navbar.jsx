@@ -19,7 +19,6 @@ import MusicPlayer from "./MusicPlayer";
 import { Menu, Transition } from "@headlessui/react";
 
 const Navbar = ({ isLoggedIn, onLogout, user }) => {
-  // Initialize all hooks at the top level
   const navigate = useNavigate();
   // Existing hooks remain the same but will be used with HeadlessUI components
 
@@ -43,8 +42,8 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const [isMuted, setIsMuted] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  // Toggle between light and dark themes
   const toggleTheme = () => {
     const newDarkMode = !isDark;
     setIsDark(newDarkMode);
@@ -57,12 +56,13 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     }
   };
 
-  // Toggle mute state
   const toggleAudio = () => {
     if (!isPlaying) {
       setIsPlaying(true); // Start playing music
+      setIsMuted(false); // Ensure music starts unmuted
+    } else {
+      setIsMuted((prev) => !prev); // Toggle mute/unmute
     }
-    setIsMuted((prev) => !prev); // Toggle mute/unmute
   };
 
   // Check auth status
@@ -234,7 +234,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
             <Button
               onClick={toggleAudio}
-              className="text-sm flex items-center gap-2 px-2 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
+              className={`text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group ${
+                isPlaying && !isMuted ? "ring-2 ring-indigo-500" : ""
+              }`}
             >
               {isPlaying && !isMuted ? (
                 <FaVolumeMute className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />

@@ -489,7 +489,11 @@ const PixelCanvas = ({
 
       <div className="relative w-full h-full flex flex-col gap-4">
         {/* Canvas Container */}
-        <div className="relative flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 flex">
+        <div className={`relative flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden transition-all duration-300 ${
+            gameState === GAME_STATE.DRAWING
+              ? "shadow-[0_0_20px_2px_rgba(168,85,247,0.15)] dark:shadow-[0_0_20px_2px_rgba(168,85,247,0.1)]"
+              : ""
+          }`}>
           <canvas
             ref={canvasRef}
             style={{
@@ -497,11 +501,15 @@ const PixelCanvas = ({
               height: "100%",
               display: "block",
               imageRendering: "pixelated",
+              margin: 0,
+              padding: 0,
             }}
-            className={`rounded-xl shadow-md transition-all duration-300 ${
-              canDraw()
-                ? "ring-2 ring-indigo-500 dark:ring-indigo-400 cursor-crosshair hover:ring-4"
-                : "ring-1 ring-gray-200 dark:ring-gray-700"
+            className={`transition-all duration-300 ${
+              gameState === GAME_STATE.DRAWING
+                ? "ring-2 ring-purple-500/30 dark:ring-purple-400/30 cursor-crosshair"
+                : canDraw()
+                ? "ring-1 ring-indigo-500/25 dark:ring-indigo-400/25 cursor-crosshair hover:ring-2"
+                : "ring-1 ring-gray-200/50 dark:ring-gray-600/50"
             }`}
             onMouseDown={handleDrawStart}
             onMouseMove={handleDrawMove}

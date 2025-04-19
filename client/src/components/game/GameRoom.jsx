@@ -6,11 +6,11 @@ import ChatBox from "./ChatBox";
 import HiddenWord from "./HiddenWord";
 import PlayerList from "./PlayerList";
 import PixelCanvas from "./PixelCanvas";
-import GameSettings from "./menus/GameSettings.jsx";
 import DrawEndModal from "./menus/DrawEndModal.jsx";
+import RoundSummaryModal from "./menus/RoundSummaryModal.jsx";
+import Modal from "../common/ui/Modal";
 import { GAME_STATE } from "../../constants";
 import { fetchLobby } from "../../services/api";
-import RoundSummaryModal from "./menus/RoundSummaryModal.jsx";
 import { socketManager } from "../../services/socketManager.js";
 import LoadingSpinner from "../common/ui/LoadingSpinner.jsx";
 import SocketStatusIcon from "../common/ui/SocketStatusIcon.jsx";
@@ -229,26 +229,26 @@ const GameRoom = ({ user }) => {
     }
   };
 
-  // Add reconnection effect
+  // Enhanced reconnection effect with presence verification
   useEffect(() => {
     if (!isMounted.current || !lobbyId) return;
 
-    const handleReconnection = async () => {
-      if (!isConnected.current && socketStatus === "disconnected") {
-        try {
-          await setupSocketConnection();
-          const lobbyData = await fetchLobbyData();
-          if (lobbyData) {
-            setLobby((prev) => ({ ...prev, ...lobbyData }));
-          }
-        } catch (error) {
-          console.error("Reconnection failed:", error);
-        }
+    const verifyPresence = async () => {
+      const lobbyData = await fetchLobbyData();
+      if (!lobbyData) return;
+
+      const playerExists = lobbyData.players.some(p => p.username === user.username);
+      if (!playerExists || !socketManager.isConnected()) {
+        console.log("[GameRoom] Restoring player connection...");
+        await setupSocketConnection();
       }
     };
 
-    handleReconnection();
-  }, [socketStatus, lobbyId]);
+    verifyPresence();
+    const presenceInterval = setInterval(verifyPresence, 5000);
+
+    return () => clearInterval(presenceInterval);
+  }, [socketStatus, lobbyId, user.username]);
 
   // Navigation warning
   useBeforeUnload(
@@ -302,6 +302,7 @@ const GameRoom = ({ user }) => {
           </div>
         )}
         <div className="h-full w-full flex flex-col gap-4 rounded-lg bg-white/90 dark:bg-gray-700/90 p-4 shadow-lg">
+          {/* Status and HiddenWord sections */}
           <div className="flex items-center w-full">
             <SocketStatusIcon status={socketStatus} />
           </div>
@@ -314,61 +315,40 @@ const GameRoom = ({ user }) => {
               }}
             />
           </div>
-          <div className="flex-1 flex flex-col lg:flex-row w-full relative">
-            {lobby.gameState === GAME_STATE.PICKING_WORD &&
-              lobby.currentDrawer !== user.username && (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                  <p className="text-3xl font-bold mb-6 bg-gradient-to-r from-indigo-500/80 via-purple-500/80 to-blue-500/80 text-white px-8 py-4 rounded-lg shadow-lg text-center">
-                    Waiting for {lobby.currentDrawer} to pick a word...
-                  </p>
+          <div className="flex-1 flex flex-col lg:flex-row w-full relative gap-4">
+            {/* Left sidebar - PlayerList and GameSettings */}
+            <div className="w-full lg:w-[250px]">
+              <div className="flex flex-col gap-4">
+                <PlayerList
+                  players={lobby.players}
+                  drawerUsername={lobby.currentDrawer}
+                  roomId={roomId}
+                  lobbyId={lobbyId}
+                  gameState={lobby.gameState}
+                  currentUsername={user.username}
+                  isAdmin={user.isAdmin}
+                  onStartGame={() => socketManager.startGame(roomId)}
+                  lobby={lobby}
+                />
+              </div>
+            </div>
+
+            {/* Center - Canvas */}
+            <div className="flex-1 flex flex-col gap-4 min-w-0 relative">
+              {lobby.gameState !== GAME_STATE.FINISHED && (
+                <div className="w-full h-full min-h-[400px]">
+                  <PixelCanvas
+                    isDrawer={lobby.currentDrawer === user.username}
+                    drawerUsername={lobby.currentDrawer}
+                    gridSize={lobby.gridSize}
+                    lobbyId={lobby._id}
+                    roomId={roomId}
+                    gameState={lobby.gameState}
+                    canvasState={lobby.canvasState}
+                  />
                 </div>
               )}
-            {/* Left Sidebar */}
-            <div
-              className="w-full lg:w-auto lg:flex flex-col gap-4 overflow-x-hidden transition-all duration-200 ease-in-out"
-              style={{
-                width: isMobile ? "100%" : `${leftSidebarWidth}px`,
-                minWidth: isMobile ? "auto" : "200px",
-                maxWidth: isMobile ? "none" : "400px",
-              }}
-            >
-              <PlayerList
-                players={lobby.players}
-                drawerUsername={lobby.currentDrawer}
-                roomId={roomId}
-                lobbyId={lobbyId}
-                gameState={lobby.gameState}
-                currentUsername={user.username}
-                isAdmin={user.isAdmin}
-                onStartGame={() => socketManager.startGame(roomId)}
-              />
-              <GameSettings lobby={lobby} />
-            </div>
-
-            {/* Left Resize Handle */}
-            <div
-              className="hidden lg:flex w-1 hover:w-2 mx-2 cursor-col-resize group transition-all"
-              onMouseDown={(e) => {
-                isDraggingRef.current = true;
-                activeHandleRef.current = "left";
-                document.body.style.cursor = "col-resize";
-                e.preventDefault();
-              }}
-            >
-              <div className="w-full h-full bg-gray-200 dark:bg-gray-600 group-hover:bg-indigo-400 dark:group-hover:bg-indigo-500 transition-colors" />
-            </div>
-
-            <div className="flex-1 flex flex-col gap-4 min-w-0">
-              <PixelCanvas
-                isDrawer={lobby.currentDrawer === user.username}
-                drawerUsername={lobby.currentDrawer}
-                gridSize={lobby.gridSize}
-                lobbyId={lobby._id}
-                roomId={roomId}
-                gameState={lobby.gameState}
-                canvasState={lobby.canvasState}
-              />
-
+              {/* Game over message */}
               {lobby.gameState === GAME_STATE.FINISHED && (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg shadow-lg text-center">
@@ -378,27 +358,8 @@ const GameRoom = ({ user }) => {
               )}
             </div>
 
-            {/* Right Resize Handle */}
-            <div
-              className="hidden lg:flex w-1 hover:w-2 mx-2 cursor-col-resize group transition-all"
-              onMouseDown={(e) => {
-                isDraggingRef.current = true;
-                activeHandleRef.current = "right";
-                document.body.style.cursor = "col-resize";
-                e.preventDefault();
-              }}
-            >
-              <div className="w-full h-full bg-gray-200 dark:bg-gray-600 group-hover:bg-indigo-400 dark:group-hover:bg-indigo-500 transition-colors" />
-            </div>
-
-            <div
-              className="w-full lg:w-auto lg:flex flex-col gap-4 overflow-x-hidden transition-all duration-200 ease-in-out"
-              style={{
-                width: isMobile ? "100%" : `${rightSidebarWidth}px`,
-                minWidth: isMobile ? "auto" : "250px",
-                maxWidth: isMobile ? "none" : "500px",
-              }}
-            >
+            {/* Right sidebar - ChatBox */}
+            <div className="w-full lg:w-[300px]">
               {lobbyId && (
                 <ChatBox
                   user={user}
@@ -414,13 +375,13 @@ const GameRoom = ({ user }) => {
           </div>
         </div>
 
+        {/* Game state modals */}
         {lobby.gameState === GAME_STATE.DRAW_END && (
           <DrawEndModal
             lobby={lobby}
             word={lobby.currentWord}
             drawer={lobby.currentDrawer}
             players={lobby.players}
-            cooldownTime={8}
             onClose={() => {}} // Server controls state
           />
         )}
@@ -433,7 +394,30 @@ const GameRoom = ({ user }) => {
             onClose={() => {}} // Server controls state
             roundNumber={lobby.currentRound}
             maxRounds={lobby.maxRounds}
+            gameState={lobby.gameState}
           />
+        )}
+
+        {lobby.gameState === GAME_STATE.FINISHED && (
+          <Modal
+            isOpen={true}
+            onClose={() => navigate("/")}
+            title="Game Over!"
+            size="md"
+            position="center"
+          >
+            <div className="text-center">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Thanks for playing!
+              </p>
+              <button
+                onClick={() => navigate("/")}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+              >
+                Return to Lobby
+              </button>
+            </div>
+          </Modal>
         )}
       </div>
     </Transition>

@@ -1,55 +1,67 @@
-import js from '@eslint/js'
-import react from 'eslint-plugin-react'
-import reactHooks from 'eslint-plugin-react-hooks'
-import perfectionist from 'eslint-plugin-perfectionist'
+import js from "@eslint/js";
+import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import perfectionist from "eslint-plugin-perfectionist";
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ["dist", "node_modules", "coverage", ".vite"] },
+  js.configs.recommended,
+  react.configs.recommended,
+  reactHooks.configs.recommended,
   {
-    files: ['**/*.{js,jsx}'],
+    files: ["**/*.{js,jsx}"],
     languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
+      ecmaVersion: "latest",
+      sourceType: "module",
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
       globals: {
         // Browser globals
-        document: 'readonly',
-        navigator: 'readonly',
-        window: 'readonly',
-        console: 'readonly',
-        fetch: 'readonly',
-        alert: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        // ES2021 globals
-        AggregateError: 'readonly',
-        FinalizationRegistry: 'readonly',
-        WeakRef: 'readonly',
-      },
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    settings: {
-      react: { version: 'detect' },
-      perfectionist: {
-        type: 'line-length',
-        partitionByComment: true,
+        document: "readonly",
+        navigator: "readonly",
+        window: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        alert: "readonly",
+        localStorage: "readonly",
       },
     },
     plugins: {
       react,
-      'react-hooks': reactHooks,
+      "react-hooks": reactHooks,
       perfectionist,
     },
     rules: {
-      ...js.configs.recommended.rules,
-      ...react.configs.recommended.rules,
-      ...react.configs['jsx-runtime'].rules,
-      ...reactHooks.configs.recommended.rules,
-      'react/prop-types': 'off',
-      'perfectionist/sort-imports': 'error',
-      'react/jsx-uses-react': 'off',
-      'react/react-in-jsx-scope': 'off',
+      "react/prop-types": "warn",
+      "react/jsx-uses-react": "error",
+      "react/jsx-uses-vars": "error",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "perfectionist/sort-imports": [
+        "error",
+        {
+          type: "natural",
+          order: "asc",
+          groups: [
+            "react",
+            "router",
+            "external",
+            "internal-type",
+            "internal",
+            "hooks",
+            "components",
+            "style",
+            "unknown",
+          ],
+        },
+      ],
     },
   },
-]
+];

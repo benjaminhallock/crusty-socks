@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   FaUser,
   FaSignOutAlt,
@@ -16,17 +16,32 @@ import {
 
 import Button from "./ui/Button";
 import MusicPlayer from "./MusicPlayer";
+import { Menu, Transition } from "@headlessui/react";
 
 const Navbar = ({ isLoggedIn, onLogout, user }) => {
   // Initialize all hooks at the top level
   const navigate = useNavigate();
-  const dropdownRef = useRef(null);
+  // Existing hooks remain the same but will be used with HeadlessUI components
+
   const [isDark, setIsDark] = useState(() => {
-    // Initialize dark mode from localStorage
-    return localStorage.theme === "dark";
+    const storedTheme = localStorage.getItem("theme");
+    const systemPrefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    const theme = storedTheme || (systemPrefersDark ? "dark" : "light");
+
+    // Apply theme on initial load
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+
+    return theme === "dark";
   });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+
   const [isMuted, setIsMuted] = useState(false);
 
   // Toggle between light and dark themes
@@ -50,20 +65,6 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     setIsMuted((prev) => !prev); // Toggle mute/unmute
   };
 
-  // Close dropdown menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   // Check auth status
   useEffect(() => {
     if (!isLoggedIn && !localStorage.getItem("token")) {
@@ -72,14 +73,18 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
   }, [isLoggedIn, navigate]);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50">
-      <div className="bg-gradient-to-r from-purple-800/70 via-purple-600/70 to-purple-900/70 dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900/90 backdrop-blur-lg shadow-2xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex justify-between items-center">
+    <nav className="fixed top-0 left-0 right-0 z-50 my-auto mx-auto w-full bg-blur-sm dark:bg-gray-900/50 shadow-lg">
+      <div className="bg-gradient-to-r from-purple-500/70 to-indigo-500/70 dark:from-purple-900/50 dark:via-indigo-700/50 dark:to-indigo-900/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-3 py-1.5 flex justify-between items-center">
           <button
             onClick={() => navigate("/")}
-            className="relative group h-8 transform hover:scale-105 transition-all duration-300 ease-out hover:brightness-110"
+            className="relative group h-7 transform hover:scale-105 transition-all duration-300 ease-out hover:brightness-110"
           >
-            <img src="/logo.svg" alt="Logo" className="h-8 drop-shadow-lg" />
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="h-8 drop-shadow-lg relative z-10"
+            ></img>
             <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </button>
 
@@ -88,9 +93,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               <>
                 <Button
                   onClick={() => navigate("/leaderboard")}
-                  className="text-sm flex items-center gap-2.5 bg-purple-500/20 hover:bg-purple-500/30 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 backdrop-blur-sm text-purple-900 dark:text-purple-300 transition-all duration-300 shadow-md hover:shadow-lg border border-purple-200/20 hover:-translate-y-0.5"
+                  className="text-sm flex items-center gap-2 px-2.5 py-1.5 bg-purple-100 hover:bg-purple-200 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 backdrop-blur-sm text-purple-700 dark:text-purple-300 transition-all duration-200 shadow-sm hover:shadow border border-purple-200 dark:border-purple-200/10"
                 >
-                  <FaTrophy className="h-4 w-4 text-purple-700 dark:text-purple-400" />
+                  <FaTrophy className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                   <span className="hidden sm:inline font-medium">
                     Leaderboard
                   </span>
@@ -98,7 +103,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
                 <Button
                   onClick={() => navigate(`/user/${user?.username}`)}
-                  className="text-sm flex items-center gap-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 backdrop-blur-sm text-indigo-900 dark:text-indigo-300 transition-all duration-300 shadow-md hover:shadow-lg border border-indigo-200/20 hover:-translate-y-0.4"
+                  className="text-sm flex items-center gap-2 px-2.5 py-1.5 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 backdrop-blur-sm text-indigo-700 dark:text-indigo-300 transition-all duration-200 shadow-sm hover:shadow border border-indigo-200 dark:border-indigo-200/10"
                 >
                   <FaUser className="h-4 w-4 text-indigo-800 dark:text-indigo-400" />
                   <span className="hidden sm:inline font-medium">
@@ -106,80 +111,105 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                   </span>
                 </Button>
 
-                <div className="relative" ref={dropdownRef}>
-                  <Button
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105"
-                  >
-                    <FaCaretDown
-                      className={`h-4 w-4 text-gray-800 dark:text-white transition-transform duration-300 ${
-                        showDropdown ? "rotate-180" : ""
-                      }`}
-                    />
-                  </Button>
-
-                  {showDropdown && (
-                    <div className="absolute right-0 mt-2 w-48 rounded-xl overflow-hidden shadow-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg ring-1 ring-black/5 dark:ring-white/10 divide-y divide-gray-100/20 dark:divide-gray-700/30 z-50 transform origin-top-right transition-all duration-200 animate-fadeIn">
-                      <button
-                        onClick={() => {
-                          navigate("/account");
-                          setShowDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-all duration-200 flex items-center gap-3 group"
+                <Menu as="div" className="relative">
+                  {({ open }) => (
+                    <>
+                      <Menu.Button
+                        as={Button}
+                        className="text-sm flex items-center gap-2 px-2 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
                       >
-                        <FaCog className="h-4 w-4 text-indigo-500 dark:text-indigo-400 group-hover:rotate-90 transition-transform duration-300" />
-                        <span className="group-hover:translate-x-0.5 transition-transform duration-150">
-                          Account Settings
-                        </span>
-                      </button>
+                        <FaCaretDown
+                          className={`h-3.5 w-3.5 text-gray-700 dark:text-white transition-transform duration-200 ${
+                            open ? "rotate-180" : ""
+                          }`}
+                        />
+                      </Menu.Button>
 
-                      {user?.isAdmin && (
-                        <button
-                          onClick={() => {
-                            navigate("/admin");
-                            setShowDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-all duration-200 flex items-center gap-3 group"
-                        >
-                          <FaUserShield className="h-4 w-4 text-indigo-500 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-200" />
-                          <span className="group-hover:translate-x-0.5 transition-transform duration-150">
-                            Admin Panel
-                          </span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          toggleTheme();
-                          setShowDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-all duration-200 flex items-center gap-3 group"
+                      <Transition
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
                       >
-                        {isDark ? (
-                          <FaSun className="h-4 w-4 text-amber-500 group-hover:rotate-90 transition-transform duration-300" />
-                        ) : (
-                          <FaMoon className="h-4 w-4 text-indigo-500 group-hover:rotate-90 transition-transform duration-300" />
-                        )}
-                        <span className="group-hover:translate-x-0.5 transition-transform duration-150">
-                          {isDark ? "Light" : "Dark"} Mode
-                        </span>
-                      </button>
+                        <Menu.Items className="absolute right-0 mt-1 w-48 rounded-lg overflow-hidden shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 divide-y divide-gray-100 dark:divide-gray-700 z-50 focus:outline-none">
+                          <div className="px-1 py-1">
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => navigate("/account")}
+                                  className={`${
+                                    active
+                                      ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                      : ""
+                                  } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                >
+                                  <FaCog className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                                  Account Settings
+                                </button>
+                              )}
+                            </Menu.Item>
 
-                      <button
-                        onClick={() => {
-                          onLogout();
-                          setShowDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200 flex items-center gap-3 group border-t border-red-100/20 dark:border-red-500/20"
-                      >
-                        <FaSignOutAlt className="h-4 w-4 text-red-500 dark:text-red-400 group-hover:-translate-x-0.5 transition-transform duration-200" />
-                        <span className="group-hover:translate-x-0.5 transition-transform duration-150">
-                          Logout
-                        </span>
-                      </button>
-                    </div>
+                            {user?.isAdmin && (
+                              <Menu.Item>
+                                {({ active }) => (
+                                  <button
+                                    onClick={() => navigate("/admin")}
+                                    className={`${
+                                      active
+                                        ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                        : ""
+                                    } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                  >
+                                    <FaUserShield className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                                    Admin Panel
+                                  </button>
+                                )}
+                              </Menu.Item>
+                            )}
+
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => toggleTheme()}
+                                  className={`${
+                                    active
+                                      ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                      : ""
+                                  } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                >
+                                  {isDark ? (
+                                    <FaSun className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                                  ) : (
+                                    <FaMoon className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                                  )}
+                                  {isDark ? "Light" : "Dark"} Mode
+                                </button>
+                              )}
+                            </Menu.Item>
+
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => onLogout()}
+                                  className={`${
+                                    active
+                                      ? "bg-red-100 dark:bg-red-500/10"
+                                      : ""
+                                  } w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-3 border-t border-red-100/20 dark:border-red-500/20`}
+                                >
+                                  <FaSignOutAlt className="h-4 w-4 text-red-500 dark:text-red-400" />
+                                  Logout
+                                </button>
+                              )}
+                            </Menu.Item>
+                          </div>
+                        </Menu.Items>
+                      </Transition>
+                    </>
                   )}
-                </div>
+                </Menu>
               </>
             ) : (
               <>
@@ -204,28 +234,26 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
             <Button
               onClick={toggleAudio}
-              className="text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group"
+              className="text-sm flex items-center gap-2 px-2 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
             >
               {isPlaying && !isMuted ? (
-                <FaVolumeMute className="h-4 w-4 text-gray-800 dark:text-white/90 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-200" />
+                <FaVolumeMute className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
               ) : (
-                <FaMusic className="h-4 w-4 text-gray-800 dark:text-white/90 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-200" />
+                <FaMusic className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
               )}
-              <div className="absolute inset-0 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Button>
 
             {!isLoggedIn && (
               <Button
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
-                className="text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group"
+                className="group text-sm flex items-center gap-2 px-2 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
               >
                 {isDark ? (
-                  <FaSun className="h-4 w-4 text-amber-600 dark:text-amber-300 group-hover:text-amber-700 dark:group-hover:text-amber-200 group-hover:rotate-45 transition-all duration-300" />
+                  <FaSun className="h-4 w-4 text-amber-500 dark:text-amber-400 group-hover:text-amber-600 dark:group-hover:text-amber-300 group-hover:rotate-90 transition-all duration-300" />
                 ) : (
-                  <FaMoon className="h-4 w-4 text-indigo-700 dark:text-indigo-300 group-hover:text-indigo-800 dark:group-hover:text-indigo-200 group-hover:-rotate-45 transition-all duration-300" />
+                  <FaMoon className="h-4 w-4 text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 group-hover:rotate-[-90deg] transition-all duration-300" />
                 )}
-                <div className="absolute inset-0 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </Button>
             )}
           </div>

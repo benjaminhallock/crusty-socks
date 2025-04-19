@@ -1,6 +1,7 @@
-import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
+import request from 'supertest';
+
 import Chat from '../models/chat';
 import Lobby from '../models/lobby';
 import app from '../server';

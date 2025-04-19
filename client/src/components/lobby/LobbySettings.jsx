@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef, Fragment } from "react";
 import { Transition } from "@headlessui/react";
+import Button from "../common/ui/Button";
 
 import { createLobby } from "../../services/api";
 
@@ -67,21 +68,21 @@ const LobbySettings = ({ user }) => {
     },
     {
       id: "selectWord",
-      label: "Words",
+      label: "Word-count",
       min: 1,
       max: 5,
       value: gameState.selectWord,
     },
     {
       id: "roundTime",
-      label: "Time (s)",
+      label: "Time-to-draw (seconds)",
       min: 30,
       max: 180,
       value: gameState.roundTime,
     },
     {
       id: "gridSize",
-      label: "Grid Size",
+      label: "Grid Size (less is more)",
       min: 1,
       max: 20,
       value: gameState.gridSize,
@@ -234,17 +235,15 @@ const LobbySettings = ({ user }) => {
               </div>
             </Transition>
 
-            <button
+            <Button
               onClick={handleCreateLobby}
               disabled={loading}
-              className={`w-full mt-6 py-3 text-white rounded-xl transition-all duration-200 transform-gpu hover:scale-[1.02] ${
-                loading
-                  ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                  : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 dark:from-purple-500 dark:to-indigo-500"
-              }`}
+              variant="primary"
+              className="mt-8 w-full transform-gpu hover:scale-[1.02] transition-transform duration-200"
+              size="lg"
             >
               {loading ? "Creating..." : "Create Lobby"}
-            </button>
+            </Button>
           </div>
         </div>
       </Transition>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-
+import { Transition } from "@headlessui/react";
 import LoadingSpinner from "../common/ui/LoadingSpinner";
 import {
   getAllUsers,
@@ -27,9 +27,76 @@ const Admin = () => {
   const [editFormData, setEditFormData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeView, setActiveView] = useState("overview");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(50);
+
+  // Enable returning to the first page when changing views or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeView, searchTerm]);
+
+  // Pagination utils
+  const paginateData = (items) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return items.slice(startIndex, endIndex);
+  };
+
+  const totalPages = (items) => Math.ceil(items.length / itemsPerPage);
+
+  // Pagination controls component
+  const PaginationControls = ({ totalItems }) => {
+    const pages = totalPages(totalItems);
+    if (pages <= 1) return null;
+
+    return (
+      <div className="flex justify-between items-center px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, totalItems.length)} of{" "}
+          {totalItems.length} entries
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <div className="flex items-center gap-2">
+            {[...Array(pages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`w-8 h-8 rounded ${
+                  currentPage === i + 1
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, pages))}
+            disabled={currentPage === pages}
+            className="px-3 py-1 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const [usersResponse, lobbiesResponse, reportsResponse] =
           await Promise.all([getAllUsers(), getAllLobbies(), getAllReports()]);
@@ -117,12 +184,14 @@ const Admin = () => {
 
       switch (type) {
         case "user":
-          result = await updateUser(id, editFormData);
+          // Ensure we're passing the correct userId
+          const userId = editFormData._id || id;
+          result = await updateUser(userId, editFormData);
           if (result.success) {
             setData((prev) => ({
               ...prev,
               users: prev.users.map((user) =>
-                user._id === id ? result.user : user
+                user._id === userId ? result.user : user
               ),
             }));
           } else {
@@ -202,15 +271,17 @@ const Admin = () => {
       });
     }
 
-    return filtered.sort((a, b) => {
-      const aValue = a[sortConfig.field];
-      const bValue = b[sortConfig.field];
+    return paginateData(
+      filtered.sort((a, b) => {
+        const aValue = a[sortConfig.field];
+        const bValue = b[sortConfig.field];
 
-      if (sortConfig.direction === "asc") {
-        return aValue > bValue ? 1 : -1;
-      }
-      return aValue < bValue ? -1 : 1;
-    });
+        if (sortConfig.direction === "asc") {
+          return aValue > bValue ? 1 : -1;
+        }
+        return aValue < bValue ? -1 : 1;
+      })
+    );
   };
 
   const renderEditForm = () => {
@@ -643,57 +714,83 @@ const Admin = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid gap-6">
-          {/* Header Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Admin Dashboard
-            </h1>
-            {error && (
-              <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded relative mb-4">
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Stats Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: "Total Users", value: data.users.length },
-              { label: "Total Lobbies", value: data.lobbies.length },
-              { label: "Total Reports", value: data.reports.length },
-              {
-                label: "Active Lobbies",
-                value: data.lobbies.filter((lobby) => lobby.isActive).length,
-              },
-            ].map((stat, index) => (
-              <div
-                key={index}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow"
-              >
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {stat.label}
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  {stat.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Active Games Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+  const renderContent = () => {
+    switch (activeView) {
+      case "users":
+        return (
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Active Games
+                Users
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filterAndSortData(data.users, "users").map((user) => (
+                    <tr
+                      key={user._id}
+                      className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {user.username}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            user.isAdmin
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          {user.isAdmin ? "Admin" : "User"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleEditClick(user, "user")}
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case "lobbies":
+        return (
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                Active Lobbies
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                   <tr>
                     <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Room ID
@@ -721,8 +818,8 @@ const Admin = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {data.lobbies.map((lobby) => (
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filterAndSortData(data.lobbies, "lobbies").map((lobby) => (
                     <tr
                       key={lobby._id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -784,17 +881,18 @@ const Admin = () => {
               </table>
             </div>
           </div>
-
-          {/* Reports Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        );
+      case "reports":
+        return (
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Recent Reports
+                Reports
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                   <tr>
                     <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Reported User
@@ -816,7 +914,7 @@ const Admin = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filterAndSortData(data.reports, "reports").map((report) => (
                     <tr
                       key={report._id}
@@ -881,12 +979,284 @@ const Admin = () => {
               </table>
             </div>
           </div>
+        );
+      default:
+        return (
+          <>
+            {/* Overview content */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  Active Games
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50/50 dark:bg-gray-900/50">
+                    <tr>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Room ID
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Players
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Game State
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Round Time
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Reveal %
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Current Round
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {data.lobbies.map((lobby) => (
+                      <tr
+                        key={lobby._id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                          {lobby.roomId}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                          {lobby.players?.length || 0}/{lobby.playerLimit || 8}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              lobby.gameState === gs.WAITING
+                                ? "bg-gray-500 text-white"
+                                : lobby.gameState === gs.PICKING_WORD
+                                ? "bg-blue-500 text-white"
+                                : lobby.gameState === gs.DRAWING
+                                ? "bg-green-500 text-white"
+                                : lobby.gameState === gs.DRAW_END
+                                ? "bg-yellow-500 text-white"
+                                : lobby.gameState === gs.ROUND_END
+                                ? "bg-purple-500 text-white"
+                                : lobby.gameState === gs.FINISHED
+                                ? "bg-red-500 text-white"
+                                : "bg-gray-500 text-white"
+                            }`}
+                          >
+                            {lobby.gameState
+                              ? lobby.gameState.replace("_", " ")
+                              : "WAITING"}
+                          </span>
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300 capitalize">
+                          {lobby.selectCategory || "random"}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                          {lobby.roundTime || 60}s
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                          {lobby.revealCharacters || 35}%
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
+                          {lobby.currentRound || 1}/{lobby.maxRounds || 3}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditClick(lobby, "lobby")}
+                              className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs md:text-sm"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <PaginationControls totalItems={data.lobbies} />
+          </>
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-900/10 dark:via-purple-900/10 dark:to-pink-900/10">
+        <div className="text-center">
+          <LoadingSpinner size="large" />
+          <p className="mt-4 text-gray-600 dark:text-gray-400 animate-pulse">
+            Loading admin dashboard...
+          </p>
         </div>
       </div>
+    );
+  }
 
-      {/* Edit Modal */}
-      {renderEditForm()}
-    </div>
+  return (
+    <Transition
+      show={true}
+      appear={true}
+      enter="transition-all duration-300"
+      enterFrom="opacity-0 translate-y-6"
+      enterTo="opacity-100 translate-y-0"
+      leave="transition-all duration-300"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <div className="min-h-screen bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-900/10 dark:via-purple-900/10 dark:to-pink-900/10 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Admin Dashboard
+              </h1>
+              {activeView !== "overview" && (
+                <button
+                  onClick={() => setActiveView("overview")}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  ← Back to Overview
+                </button>
+              )}
+            </div>
+            {error && (
+              <div className="mt-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded relative">
+                {error}
+              </div>
+            )}
+            {successMessage && (
+              <div className="mt-4 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-300 px-4 py-3 rounded relative">
+                {successMessage}
+              </div>
+            )}
+          </div>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Total Users",
+                value: data.users.length,
+                view: "users",
+                icon: (
+                  <svg
+                    className="w-6 h-6 text-indigo-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Total Lobbies",
+                value: data.lobbies.length,
+                view: "lobbies",
+                icon: (
+                  <svg
+                    className="w-6 h-6 text-purple-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Total Reports",
+                value: data.reports.length,
+                view: "reports",
+                icon: (
+                  <svg
+                    className="w-6 h-6 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Active Lobbies",
+                value: data.lobbies.filter((lobby) => lobby.isActive).length,
+                view: "lobbies",
+                icon: (
+                  <svg
+                    className="w-6 h-6 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                ),
+              },
+            ].map((stat, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveView(stat.view)}
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 group"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
+                      {stat.label}
+                    </p>
+                    <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+                      {stat.value}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-full p-3 group-hover:bg-gray-100 dark:group-hover:bg-gray-600 transition-colors">
+                    {stat.icon}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Main Content */}
+          {renderContent()}
+        </div>
+
+        {/* Edit Modal */}
+        {renderEditForm()}
+      </div>
+    </Transition>
   );
 };
 

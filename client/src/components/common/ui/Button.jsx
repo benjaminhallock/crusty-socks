@@ -3,14 +3,14 @@ import { cn } from "../../../utils/tailwind-utils";
 
 const buttonVariants = cva(
   // Base styles applied to all buttons
-  "rounded-lg transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95",
+  "rounded-md font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md",
   {
     variants: {
       variant: {
         primary:
-          "bg-purple-500 hover:bg-purple-400 text-white focus:ring-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500",
+          "bg-purple-600 hover:bg-purple-500 text-white focus:ring-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500 hover:shadow-lg hover:shadow-purple-500/50",
         secondary:
-          "bg-purple-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white",
+          "bg-purple-300 hover:bg-purple-400 text-white focus:ring-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white",
         outline:
           "border-2 border-purple-500 text-purple-500 hover:bg-purple-50 focus:ring-purple-500 dark:border-purple-400 dark:text-purple-400 dark:hover:bg-purple-950",
         ghost:

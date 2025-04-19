@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from "react";
 
 import { GAME_STATE, GAME_CONSTANTS } from "../../constants";
 
+import Button from "../common/ui/Button";
 const HiddenWord = ({ lobby, user, onWordPick }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [wordChoices, setWordChoices] = useState([]);
   const [selectedWords, setSelectedWords] = useState([]);
   const timerRef = useRef(null);
-  const lastStartTimeRef = useRef(null);
+  const lastTickRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
   const WORD_SELECTION_TIME = GAME_CONSTANTS.WORD_SELECTION_TIME || 30; // Default to 30 seconds if not defined
   const [currentRound, setCurrentRound] = useState(lobby.currentRound || 1);
 
@@ -20,11 +23,49 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
     }
   }, [isDrawing, lobby.currentRound]);
 
-  // Timer logic
+  const updateTimer = (timestamp) => {
+    if (!lastTickRef.current) {
+      lastTickRef.current = timestamp;
+    }
+
+    const elapsed = timestamp - lastTickRef.current;
+    if (elapsed >= 1000) {
+      // Update every second
+      const currentTime = Date.now();
+      let newTimeLeft = 0;
+
+      if (lobby.gameState === GAME_STATE.DRAWING && lobby.startTime) {
+        const startTime = new Date(lobby.startTime).getTime();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+        newTimeLeft = Math.max(0, lobby.roundTime - elapsedSeconds);
+      } else if (
+        lobby.gameState === GAME_STATE.PICKING_WORD &&
+        lobby.startTime
+      ) {
+        const startTime = new Date(lobby.startTime).getTime();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+        newTimeLeft = Math.max(0, WORD_SELECTION_TIME - elapsedSeconds);
+      }
+
+      setTimeLeft(newTimeLeft);
+      lastTickRef.current = timestamp;
+    }
+
+    if (timeLeft > 0) {
+      animationFrameRef.current = requestAnimationFrame(updateTimer);
+    }
+  };
+
+  // Timer effect
   useEffect(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
 
     // Skip timer setup for non-active states
@@ -36,8 +77,8 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
     }
 
     // Calculate initial time left
-    let initialTimeLeft = 0;
     const currentTime = Date.now();
+    let initialTimeLeft = 0;
 
     if (lobby.gameState === GAME_STATE.DRAWING && lobby.startTime) {
       const startTime = new Date(lobby.startTime).getTime();
@@ -49,31 +90,20 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
       initialTimeLeft = Math.max(0, WORD_SELECTION_TIME - elapsedSeconds);
     }
 
-    // Update the time left
     setTimeLeft(initialTimeLeft);
+    lastTickRef.current = null;
 
-    // Start the timer if time is remaining
     if (initialTimeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          const newTime = Math.max(0, prev - 1);
-          if (newTime <= 0) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          return newTime;
-        });
-      }, 1000);
+      animationFrameRef.current = requestAnimationFrame(updateTimer);
     }
 
-    // Cleanup on unmount
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [lobby.gameState, lobby.startTime, lobby.timeLeft, lobby.roundTime]);
+  }, [lobby.gameState, lobby.startTime, lobby.roundTime]);
 
   // Word selection logic
   useEffect(() => {
@@ -103,12 +133,28 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
   // Calculate width based on the correct time limit for each state
   const getTimerWidth = () => {
     if (lobby.gameState === GAME_STATE.DRAWING) {
-      return Math.max(0, (timeLeft / lobby.roundTime) * 100);
+      // Smoother animation by using decimal points
+      const percentage = (timeLeft / lobby.roundTime) * 100;
+      return Math.max(0, Math.min(100, percentage)).toFixed(1);
     } else if (lobby.gameState === GAME_STATE.PICKING_WORD) {
-      // Use WORD_SELECTION_TIME constant for picking phase
-      return Math.max(0, (timeLeft / WORD_SELECTION_TIME) * 100);
+      const percentage = (timeLeft / WORD_SELECTION_TIME) * 100;
+      return Math.max(0, Math.min(100, percentage)).toFixed(1);
     }
     return 100;
+  };
+
+  // Get timer bar color based on time remaining
+  const getTimerColor = () => {
+    if (lobby.gameState !== GAME_STATE.DRAWING) {
+      return "bg-indigo-400";
+    }
+    if (timeLeft <= 10) {
+      return "bg-red-400 animate-pulse";
+    }
+    if (timeLeft <= 30) {
+      return "bg-amber-400";
+    }
+    return "bg-emerald-400";
   };
 
   // Calculate the current reveal percentage based on time elapsed
@@ -220,7 +266,9 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
     }
     if (lobby.gameState === GAME_STATE.PICKING_WORD) {
       return `${roundDisplay}${
-        isDrawing ? "Choose your word!" : "Waiting for word selection..."
+        isDrawing
+          ? "Choose your word!"
+          : `Waiting for word ${lobby.currentDrawer} to choose...`
       }`;
     }
     if (lobby.gameState === GAME_STATE.DRAWING) {
@@ -239,11 +287,11 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-3 px-4 md:py-4 md:px-6 bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-700/95 dark:to-gray-800/95 rounded-xl shadow-xl transition-all duration-300">
-      {/* Word Display */}
-      <div className="flex flex-col items-center gap-2 md:gap-3 mb-3 md:mb-4">
+    <div className="flex flex-col items-center justify-center py-2 px-4 bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-700/95 dark:to-gray-800/95 rounded-lg shadow-md">
+      {/* Word Display and Status Section */}
+      <div className="flex flex-col items-center gap-1 w-full">
         <div className="relative">
-          <div className="text-2xl md:text-3xl font-mono tracking-[0.5em] text-gray-800 dark:text-gray-200 min-h-[1.5em] text-center py-1">
+          <div className="text-2xl font-mono tracking-[0.5em] text-gray-800 dark:text-gray-200 min-h-[1.25em] text-center">
             <span
               className={
                 timeLeft < 10
@@ -255,66 +303,53 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
             </span>
           </div>
           {lobby.gameState === GAME_STATE.DRAWING && (
-            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-1/4 h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1/4 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-40" />
           )}
         </div>
 
-        <div
-          className={`text-lg font-medium px-6 py-2.5 rounded transition-all duration-300
-          ${
-            lobby.gameState === GAME_STATE.WAITING
-              ? "bg-gray-100 dark:bg-gray-600/50"
-              : lobby.gameState === GAME_STATE.DRAWING
-              ? "bg-indigo-100/0 dark:bg-indigo-900/0"
-              : lobby.gameState === GAME_STATE.FINISHED
-              ? "bg-blue-100 dark:bg-blue-900/50"
-              : "bg-gray-100 dark:bg-gray-600/50"
-          }`}
-        >
-          <span className="text-gray-700 dark:text-gray-200">
-            {getStatusText()}
-          </span>
-        </div>
-      </div>
-
-      {/* Timer Bar */}
-      <div className="w-full max-w-xl mb-4">
-        <div className="relative w-full h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+        {/* Compact Timer Bar */}
+        <div className="w-full max-w-xl mt-2">
           <div
-            className={`absolute h-full transition-all duration-1000 ease-linear rounded-full
-              ${
-                timeLeft < 10
-                  ? "bg-red-500 animate-pulse"
-                  : timeLeft < 30
-                  ? "bg-yellow-500"
-                  : "bg-emerald-500"
-              }`}
-            style={{
-              width: `${getTimerWidth()}%`,
-            }}
-          />
+            className="relative h-2 bg-gray-200 dark:bg-gray-600 overflow-hidden"
+            style={{ imageRendering: "pixelated" }}
+          >
+            <div
+              className={`absolute h-full ${getTimerColor()}`}
+              style={{
+                width: `${getTimerWidth()}%`,
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.1) 50%, transparent 50%, transparent 100%)",
+                backgroundSize: "4px 100%",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Compact Status Text */}
+        <div className="text-sm font-medium mt-1 text-gray-600 dark:text-gray-300">
+          {/* {lobby.gameState && lobby.gameState !== GAME_STATE.WAITING
+            ? `Game state: ${lobby.gameState
+                .replace(/_/g, " ")
+                .toLowerCase()}  |    `
+            : ""} */}
+          {getStatusText()}
         </div>
       </div>
 
-      {/* Word Selection Buttons */}
+      {/* Word Selection Buttons - Single Row */}
       {lobby.gameState === GAME_STATE.PICKING_WORD && isDrawing && (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-2xl">
+        <div className="mt-3 flex flex-row justify-center gap-2 w-full max-w-2xl">
           {wordChoices
             .slice(0, lobby.selectWord || 3)
             .map((wordOption, index) => (
-              <button
+              <Button
+                variant="secondary"
                 key={index}
                 onClick={() => onWordPick(wordOption)}
-                className="group relative px-6 py-3 bg-gradient-to-br from-blue-500 to-blue-600 
-                text-white font-medium rounded-lg shadow-lg overflow-hidden
-                hover:from-blue-600 hover:to-blue-700 
-                transform hover:scale-105 
-                transition-all duration-200 
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                size="md"
               >
-                <div className="relative z-10">{wordOption}</div>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
-              </button>
+                {wordOption}
+              </Button>
             ))}
         </div>
       )}

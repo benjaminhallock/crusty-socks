@@ -10,7 +10,7 @@ import {
 } from "react-icons/fa";
 import { socketManager } from "../../services/socketManager";
 import { GAME_CONSTANTS, GAME_STATE } from "../../constants";
-``
+``;
 const PixelCanvas = ({
   isDrawer,
   drawerUsername,
@@ -425,140 +425,78 @@ const PixelCanvas = ({
 
   return (
     <div className="relative flex flex-col items-center w-full h-full bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-800/95 dark:to-gray-900/95 rounded-xl shadow-lg p-4 space-y-3 transition-all duration-300">
-      {gameState === GAME_STATE.WAITING && showWaitingMessage && (
-        <div
-          className="absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full animate-float cursor-pointer"
-          onClick={() => setShowWaitingMessage(false)}
-        >
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-            <span className="absolute -top-1 -right-1 bg-gray-200 dark:bg-gray-700 rounded-full w-5 h-5 flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600">
-              ×
-            </span>
-            <p className="text-lg font-medium text-gray-800 dark:text-gray-200">
-              Draw together while waiting for the game to start
-            </p>
-          </div>
-        </div>
-      )}
-      {!isDrawer && gameState === GAME_STATE.DRAWING && showDrawerMessage && (
-        <div
-          className="absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full animate-float cursor-pointer z-10"
-          onClick={() => setShowDrawerMessage(false)}
-        >
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-            <p className="text-lg font-medium text-gray-800 dark:text-gray-200">
-              <span className="text-indigo-600 dark:text-indigo-400">
-                {drawerUsername ? drawerUsername : "Unknown User"}
-              </span>{" "}
-              is drawing...
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="relative w-full h-full flex flex-col gap-4">
-        {/* Drawing Tools */}
-        {canDraw() && (
-          <div className="flex items-center justify-center gap-3 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-            {/* Color Picker */}
-            <div className="relative group flex items-center">
-              <input
-                type="color"
-                value={currentColor}
-                onChange={(e) => setCurrentColor(e.target.value)}
-                className="w-10 h-10 cursor-pointer appearance-none bg-transparent"
-                style={{
-                  WebkitAppearance: "none",
-                  MozAppearance: "none",
-                }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0 rounded-lg border-2 border-gray-200 dark:border-gray-600 
-                  group-hover:border-indigo-500 dark:group-hover:border-indigo-400 transition-all duration-200"
-                style={{ backgroundColor: currentColor }}
-              />
-            </div>
-
-            {/* Tool Separator */}
-            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
-
-            {/* Drawing Tools */}
-            <div className="flex items-center gap-2">
-              <ToolButton
-                active={currentTool === "brush"}
-                onClick={() => setCurrentTool("brush")}
-                title="Brush Tool"
-              >
-                <FaPaintBrush className="w-4 h-4" />
-              </ToolButton>
-              <ToolButton
-                active={currentTool === "fill"}
-                onClick={() => setCurrentTool("fill")}
-                title="Fill Tool"
-              >
-                <FaFill className="w-4 h-4" />
-              </ToolButton>
-              <ToolButton
-                active={currentTool === "eraser"}
-                onClick={() => setCurrentTool("eraser")}
-                title="Eraser Tool"
-              >
-                <FaEraser className="w-4 h-4" />
-              </ToolButton>
-            </div>
-
-            {/* Tool Separator */}
-            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
-
-            {/* History Tools */}
-            <div className="flex items-center gap-2">
-              <ToolButton
-                onClick={undo}
-                disabled={history.length <= 1}
-                title="Undo"
-              >
-                <FaUndo className="w-4 h-4" />
-              </ToolButton>
-              <ToolButton
-                onClick={redo}
-                disabled={redoStates.length === 0}
-                title="Redo"
-              >
-                <FaRedo className="w-4 h-4" />
-              </ToolButton>
-            </div>
-
-            {/* Tool Separator */}
-            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
-
-            {/* Canvas Actions */}
-            <div className="flex items-center gap-2">
-              <ToolButton
-                onClick={clearCanvas}
-                title="Clear Canvas"
-                className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-              >
-                <FaTrash className="w-4 h-4" />
-              </ToolButton>
-              <ToolButton onClick={saveToPng} title="Save as PNG">
-                <FaDownload className="w-4 h-4" />
-              </ToolButton>
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {gameState === GAME_STATE.WAITING && showWaitingMessage && (
+          <div
+            className="animate-in slide-in-from-right fade-in duration-300"
+            onClick={() => setShowWaitingMessage(false)}
+          >
+            <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm transform transition hover:scale-[1.02]">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  Draw together while waiting for the game to start
+                </p>
+                <button
+                  onClick={() => setShowWaitingMessage(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        <div className="relative flex-1 flex items-center justify-center">
+        {!isDrawer && gameState === GAME_STATE.DRAWING && showDrawerMessage && (
+          <div
+            className="animate-in slide-in-from-right fade-in duration-300"
+            onClick={() => setShowDrawerMessage(false)}
+          >
+            <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm transform transition hover:scale-[1.02]">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  <span className="text-indigo-600 dark:text-indigo-400">
+                    {drawerUsername ? drawerUsername : "Unknown User"}
+                  </span>{" "}
+                  is drawing...
+                </p>
+                <button
+                  onClick={() => setShowDrawerMessage(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="relative w-full h-full flex flex-col gap-4">
+        {/* Canvas Container */}
+        <div className="relative flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 flex">
           <canvas
             ref={canvasRef}
             style={{
-              imageRendering: "pixelated",
-              maxWidth: "100%",
-              maxHeight: "100%",
-              width: "auto",
+              width: "100%",
               height: "100%",
-              aspectRatio: "4/3",
-              touchAction: "none",
               display: "block",
+              imageRendering: "pixelated",
             }}
             className={`rounded-xl shadow-md transition-all duration-300 ${
               canDraw()
@@ -581,6 +519,75 @@ const PixelCanvas = ({
               e.preventDefault();
               handleDrawEnd();
             }}
+          />
+        </div>
+
+        {/* Drawing Tools */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          <ToolButton
+            onClick={() => setCurrentTool("brush")}
+            active={currentTool === "brush"}
+            disabled={!canDraw()}
+            title="Brush Tool (B)"
+          >
+            <FaPaintBrush />
+          </ToolButton>
+          <ToolButton
+            onClick={() => setCurrentTool("fill")}
+            active={currentTool === "fill"}
+            disabled={!canDraw()}
+            title="Fill Tool (F)"
+          >
+            <FaFill />
+          </ToolButton>
+          <ToolButton
+            onClick={() => setCurrentTool("eraser")}
+            active={currentTool === "eraser"}
+            disabled={!canDraw()}
+            title="Eraser (E)"
+          >
+            <FaEraser />
+          </ToolButton>
+
+          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-2" />
+
+          <ToolButton
+            onClick={undo}
+            disabled={!canDraw() || history.length <= 1}
+            title="Undo (Ctrl+Z)"
+          >
+            <FaUndo />
+          </ToolButton>
+          <ToolButton
+            onClick={redo}
+            disabled={!canDraw() || redoStates.length === 0}
+            title="Redo (Ctrl+Y)"
+          >
+            <FaRedo />
+          </ToolButton>
+
+          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-2" />
+
+          <ToolButton onClick={saveToPng} title="Save as PNG">
+            <FaDownload />
+          </ToolButton>
+          <ToolButton
+            onClick={clearCanvas}
+            disabled={!canDraw()}
+            title="Clear Canvas"
+            className="text-red-500 dark:text-red-400"
+          >
+            <FaTrash />
+          </ToolButton>
+
+          <input
+            type="color"
+            value={currentColor}
+            onChange={(e) => setCurrentColor(e.target.value)}
+            disabled={!canDraw()}
+            className={`w-10 h-10 rounded-lg cursor-pointer ${
+              !canDraw() && "opacity-50 cursor-not-allowed"
+            }`}
           />
         </div>
       </div>

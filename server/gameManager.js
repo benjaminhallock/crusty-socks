@@ -1,3 +1,5 @@
+import { Filter } from "bad-words";
+
 import { log, trim } from "./constants.js";
 import {
   GAME_STATE as gs,
@@ -6,7 +8,24 @@ import {
 } from "./constants.js";
 import Chat from "./models/chat.js";
 import Lobby from "./models/lobby.js";
-import { Filter } from "bad-words";
+
+async function withRetry(operation, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (
+        attempt === maxRetries ||
+        (!error.message.includes("MongoServerSelectionError") &&
+          !error.message.includes("ECONNRESET"))
+      ) {
+        throw error;
+      }
+      console.log(`Retrying operation attempt ${attempt}/${maxRetries}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+}
 
 class GameManager {
   constructor(io) {
@@ -137,9 +156,12 @@ class GameManager {
       lobby = await Lobby.findOne({ roomId });
 
       // Set up socket data and join room
-      socket.userData = userData;
-      socket.roomId = roomId;
-      socket.username = userData.username;
+      const updates = {
+        userData,
+        roomId,
+        username: userData.username,
+      };
+      Object.assign(socket, updates);
       await socket.join(roomId);
 
       // Store connection info
@@ -336,7 +358,28 @@ class GameManager {
       if (!lobby || lobby.gameState !== gs.DRAWING) return;
 
       const player = lobby.players.find((p) => p.username === username);
-      if (!player || player.hasGuessedCorrect) return;
+      if (!player) {
+        console.error("Player not found in lobby");
+        return;
+      }
+      if (player.hasGuessedCorrect) {
+        socket.emit(se.CHAT_MESSAGE, {
+          username: "Server",
+          message: "You have already guessed correctly!",
+          timestamp: Date.now(),
+          isSystemMessage: true,
+        });
+        return; //TODO: emit to winners only chat aka regular chat
+      }
+      if (lobby.currentDrawer === username) {
+        socket.emit(se.CHAT_MESSAGE, {
+          username: "Server",
+          message: "You are drawing *shhh*!",
+          timestamp: Date.now(),
+          isSystemMessage: true,
+        });
+        return;
+      }
 
       const msg = trim(guess);
       const answer = trim(lobby.currentWord);
@@ -347,7 +390,7 @@ class GameManager {
           username,
           message: guess,
           timestamp: Date.now(),
-          isSystemMessage: true,
+          isSystemMessage: false,
           isGuessMessage: true,
           isCorrect: false,
         });
@@ -360,8 +403,9 @@ class GameManager {
         const remainingPlayers = lobby.players.length - correctGuessers - 1;
         const points = Math.max(10, remainingPlayers * 10);
 
-        // Update guesser score
-        player.drawScore = points;
+        // Update guesser scores
+        player.drawScore += points;
+        player.roundScore += points;
         player.hasGuessedCorrect = true;
         player.guessTime = Date.now();
 
@@ -370,10 +414,14 @@ class GameManager {
           (p) => p.username === lobby.currentDrawer
         );
         if (drawer) {
-          drawer.drawScore += 10;
+          const drawerPoints = 10;
+          drawer.drawScore += drawerPoints;
+          drawer.roundScore = drawer.roundScore + drawerPoints;
           // Bonus if everyone guesses
-          if (correctGuessers + 1 === lobby.players.length - 1) {
-            drawer.drawScore += 20;
+          if (correctGuessers + 1 === lobby.players.length) {
+            const bonusPoints = 20;
+            drawer.drawScore += bonusPoints;
+            drawer.roundScore += bonusPoints;
           }
         }
 
@@ -481,6 +529,7 @@ class GameManager {
       lobby.players.forEach((p) => {
         p.hasGuessedCorrect = false;
         p.drawScore = 0;
+        // Don't reset roundScore as it accumulates across all draws in a round
       });
 
       lobby.canvasState = null;
@@ -490,8 +539,9 @@ class GameManager {
       lobby.currentWord = null;
 
       const availablePlayers = lobby.players.filter((p) => !p.hasDrawn);
-      if (!availablePlayers.length)
-        throw new Error("No available players to draw");
+      if (!availablePlayers.length) {
+        throw new Error("No available players to draw in room " + roomId);
+      }
       const index = Math.floor(Math.random() * availablePlayers.length);
       const drawer = availablePlayers[index];
       const words = this.findWordsForCategory(lobby);
@@ -540,7 +590,7 @@ class GameManager {
 
   async startDrawTimer(io, roomId, lobby) {
     try {
-      lobby = await Lobby.findOne({ roomId });
+      lobby = await withRetry(() => Lobby.findOne({ roomId }));
       if (!lobby) {
         console.error("Lobby not found");
         return;
@@ -552,13 +602,13 @@ class GameManager {
         0,
         Math.round((roundDuration - elapsed) / 1000)
       );
-      console.warn(`[GM] ${roomId} ending draw in: ${timeLeft} seconds`); // Fixed template string
+      console.warn(`[GM] ${roomId} ending draw in: ${timeLeft} seconds`);
 
       io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
 
       const lobbyTimer = setTimeout(async () => {
         try {
-          const currentLobby = await Lobby.findOne({ roomId });
+          const currentLobby = await withRetry(() => Lobby.findOne({ roomId }));
           if (currentLobby && currentLobby.gameState === gs.DRAWING) {
             await this.endDraw(io, roomId, currentLobby);
           } else {
@@ -568,6 +618,8 @@ class GameManager {
           }
         } catch (error) {
           console.error("Error in timer callback:", error);
+          // Force state transition on error
+          await this.endDraw(io, roomId, lobby);
         }
       }, timeLeft * 1000);
       this.lobbyTimers.set(roomId, lobbyTimer);
@@ -579,8 +631,16 @@ class GameManager {
   async endDraw(io, roomId, lobby) {
     await this.acquireSaveLock(roomId);
     try {
-      lobby = await Lobby.findById(lobby._id);
-      if (!lobby || lobby.gameState !== gs.DRAWING) return;
+      lobby = await withRetry(async () => {
+        const result = await Lobby.findById(lobby._id);
+        if (!result || result.gameState !== gs.DRAWING) return null;
+        return result;
+      });
+
+      if (!lobby) {
+        console.error("Could not find valid lobby for endDraw");
+        return;
+      }
 
       if (this.lobbyTimers.has(roomId)) {
         clearTimeout(this.lobbyTimers.get(roomId));
@@ -590,7 +650,7 @@ class GameManager {
       // Update state to DRAW_END and start timer
       lobby.gameState = gs.DRAW_END;
       lobby.startTime = Date.now();
-      await lobby.save();
+      await withRetry(() => lobby.save());
 
       // Emit updates
       io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
@@ -602,13 +662,26 @@ class GameManager {
       });
 
       const drawEndTimer = setTimeout(async () => {
-        const allPlayersHaveDrawn = lobby.players.every((p) => p.hasDrawn);
-        if (allPlayersHaveDrawn) {
-          await this.handleRoundEnd(io, roomId, lobby);
-        } else {
+        try {
+          const currentLobby = await withRetry(() => Lobby.findById(lobby._id));
+          if (!currentLobby) {
+            console.error("Lobby not found in drawEndTimer");
+            return;
+          }
+          const allPlayersHaveDrawn = currentLobby.players.every(
+            (p) => p.hasDrawn
+          );
+          if (allPlayersHaveDrawn) {
+            await this.handleRoundEnd(io, roomId, currentLobby);
+          } else {
+            await this.startNextDraw(io, roomId);
+          }
+        } catch (error) {
+          console.error("Error in drawEndTimer:", error);
+          // Force state transition on error
           await this.startNextDraw(io, roomId);
         }
-      }, 8000); // 8 seconds for DrawEndModal
+      }, 6000); // 6 seconds for DrawEndModal
 
       this.lobbyTimers.set(roomId, drawEndTimer);
     } catch (error) {
@@ -621,94 +694,116 @@ class GameManager {
   async handleRoundEnd(io, roomId, lobby) {
     await this.acquireSaveLock(roomId);
     try {
+      lobby = await withRetry(async () => {
+        const updatedLobby = await Lobby.findById(lobby._id);
+        if (!updatedLobby) return null;
+        return updatedLobby;
+      });
+
+      if (!lobby) {
+        console.error("Could not find valid lobby for handleRoundEnd");
+        return;
+      }
+
       if (this.lobbyTimers.has(roomId)) {
         clearTimeout(this.lobbyTimers.get(roomId));
         this.lobbyTimers.delete(roomId);
       }
 
-      lobby = await Lobby.findById(lobby._id);
-      if (!lobby || lobby.gameState !== gs.DRAW_END) return;
-
       // Update scores and reset states
       lobby.players.forEach((p) => {
-        p.hasDrawn = false;
-        p.hasGuessedCorrect = false;
-        p.score += p.roundScore + p.drawScore; // Add both scores to total
-        p.roundScore = 0;
-        p.drawScore = 0;
+        if (p.hasDrawn) {
+          p.hasDrawn = false; // Reset hasDrawn for next round
+          p.hasGuessedCorrect = false;
+          p.roundPoints += p.drawScore; // Add draw score to round points
+
+          // Only add the scores to total after showing the round summary
+          p.score += p.roundScore; // Add current draw score first
+          p.drawScore = 0; // Reset draw score only
+        }
       });
+      lobby.gameState = gs.ROUND_END;
+      lobby.currentRound = (lobby.currentRound || 0) + 1;
+      lobby.startTime = Date.now(); // Add start time for round end state
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+      await withRetry(() => lobby.save());
 
-      if (lobby.currentRound < lobby.maxRounds) {
-        Object.assign(lobby, {
-          gameState: gs.ROUND_END,
-          currentRound: lobby.currentRound + 1,
-          startTime: Date.now(), // Add start time for round end state
-        });
+      const roundEndTimer = setTimeout(async () => {
+        try {
+          const currentLobby = await withRetry(() => Lobby.findById(lobby._id));
+          if (!currentLobby) {
+            console.error("Lobby not found in roundEndTimer");
+            return;
+          }
 
-        await lobby.save();
-        io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
-
-        const roundEndTimer = setTimeout(async () => {
-          try {
-            const updatedLobby = await Lobby.findById(lobby._id);
-            if (updatedLobby?.gameState === gs.ROUND_END) {
-              await this.startNextDraw(io, roomId);
-            }
-          } catch (error) {
-            console.error("Error in round end timer:", error);
-            // Force state transition if there's an error
+          if (currentLobby.currentRound > currentLobby.maxRounds) {
+            await this.handleGameOver(io, roomId, currentLobby);
+          } else {
             await this.startNextDraw(io, roomId);
           }
-        }, 5000); // 5 seconds for RoundSummaryModal
-
-        this.lobbyTimers.set(roomId, roundEndTimer);
-      } else {
-        // Game over - Update user stats
-        const winner = lobby.players.reduce((prev, curr) =>
-          prev.score > curr.score ? prev : curr
-        );
-
-        // Update all players' stats
-        for (const player of lobby.players) {
-          await User.findOneAndUpdate(
-            { username: player.username },
-            {
-              $inc: {
-                "gameStats.gamesPlayed": 1,
-                "gameStats.totalScore": player.score, // Add total game score
-              },
-              $set: {
-                "profile.lastActive": Date.now(),
-              },
-              ...(player.username === winner.username && {
-                $inc: { "gameStats.gamesWon": 1 },
-              }),
-            }
-          );
+        } catch (error) {
+          console.error("Error in round end timer:", error);
+          // Force state transition on error
+          await this.startNextDraw(io, roomId);
         }
+      }, 6000); // 6 seconds for RoundSummaryModal (5s display + 1s transition)
 
-        // Set game state to finished but keep chat active
-        Object.assign(lobby, {
-          gameState: gs.FINISHED,
-          players: [...lobby.players].sort((a, b) => b.score - a.score),
-          finished: true,
-          canChat: true,
-        });
-
-        await lobby.save();
-        io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
-        io.to(roomId).emit(se.CHAT_MESSAGE, {
-          username: "System",
-          message: `Game Over! ${winner.username} wins with ${winner.score} points! Type /restart to play again.`,
-          timestamp: Date.now(),
-          isSystemMessage: true,
-        });
-      }
+      this.lobbyTimers.set(roomId, roundEndTimer);
     } catch (error) {
       console.error("Error in handleRoundEnd:", error);
     } finally {
       this.releaseSaveLock(roomId);
     }
+  }
+
+  async handleGameOver(io, roomId, lobby) {
+    // Sort players by score to determine winner
+    lobby = await withRetry(() => Lobby.findById(lobby._id));
+    const sortedPlayers = [...lobby.players].sort((a, b) => b.score - a.score);
+    const winner = sortedPlayers[0];
+
+    // Make sure there's only one winner (no ties count as wins)
+    const isUndisputedWinner =
+      sortedPlayers.length > 1 && winner.score > sortedPlayers[1].score;
+
+    // Update all players' stats
+    for (const player of lobby.players) {
+      const updateQuery = {
+        $inc: {
+          "gameStats.gamesPlayed": 1,
+          "gameStats.totalScore": player.score || 0,
+        },
+        $set: {
+          "profile.lastActive": Date.now(),
+        },
+      };
+
+      // Only increment gamesWon if they are the undisputed winner
+      if (player.username === winner.username && isUndisputedWinner) {
+        updateQuery.$inc["gameStats.gamesWon"] = 1;
+      }
+
+      await User.findOneAndUpdate({ username: player.username }, updateQuery, {
+        new: true,
+      });
+    }
+
+    // Set game state to finished but keep chat active
+    Object.assign(lobby, {
+      gameState: gs.FINISHED,
+      players: [...lobby.players].sort((a, b) => b.score - a.score),
+      finished: true,
+      canChat: true,
+    });
+
+    await lobby.save();
+    io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+    io.to(roomId).emit(se.CHAT_MESSAGE, {
+      username: "System",
+      message: `Game Over! ${winner.username} wins with ${winner.score} points! Type /restart to play again.`,
+      timestamp: Date.now(),
+      isSystemMessage: true,
+    });
   }
 
   async setupWordSelectionTimeout(io, roomId, words) {
@@ -718,8 +813,11 @@ class GameManager {
     }
     const timer = setTimeout(async () => {
       try {
-        const lobby = await Lobby.findOne({ roomId });
-        if (!lobby) return console.error("Lobby not found");
+        const lobby = await withRetry(() => Lobby.findOne({ roomId }));
+        if (!lobby) {
+          console.error("Lobby not found");
+          return;
+        }
         if (lobby?.gameState === gs.PICKING_WORD) {
           // If the game is still in the word selection phase, grab a random word
           const randomWord = words[Math.floor(Math.random() * words.length)];
@@ -728,7 +826,7 @@ class GameManager {
             gameState: gs.DRAWING,
             startTime: Date.now(),
           });
-          await lobby.save();
+          await withRetry(() => lobby.save());
           io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
           io.to(roomId).emit(se.CHAT_MESSAGE, {
             username: "Server",

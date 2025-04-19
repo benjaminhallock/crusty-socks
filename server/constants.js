@@ -38,6 +38,7 @@ export const API_ENDPOINTS = {
   GET_ALL_USERS: "/api/user/all",
   GET_USER_PROFILE: (username) => `/api/user/${username}`,
   UPDATE_USER_PROFILE: (username) => `/api/user/update/${username}`,
+  UPDATE_USER: (userId) => `/api/user/${userId}`,
   LEADERBOARD: "/api/user/top",
 
   // Lobby routes

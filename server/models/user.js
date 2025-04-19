@@ -127,13 +127,13 @@ userSchema.statics.findByCredentials = async function (email, password) {
   }).select("+password");
 
   if (!user) {
-    console.log("No user found");
+    console.info("No user found");
     return null;
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    console.log("Password incorrect");
+    console.warn("Password incorrect");
     return null;
   }
   return user;

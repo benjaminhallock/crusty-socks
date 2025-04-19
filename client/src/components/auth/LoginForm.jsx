@@ -105,8 +105,8 @@ const LoginForm = ({ onLoginSuccess }) => {
         <div className="w-full max-w-md mx-auto">
           <div className="text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 transform-gpu">
             <img
-              className="mx-auto h-40 w-auto transform-gpu hover:scale-[1.02] transition-all duration-300"
-              src="/logo.svg"
+              className="mx-auto h-40 w-auto transform-gpu hover:scale-[1.02] transition-all duration-300 mb-10"
+              src="/logo.png"
               alt="Logo"
             />
             <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
@@ -232,7 +232,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 onClick={toggleMode}
                 className="w-full py-3 px-4 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-600/50 transition-all duration-200 transform-gpu hover:scale-[1.02]"
               >
-                {isRegister ? "Sign in instead" : "Register instead"}
+                {isRegister ? "Sign in" : "Register"}
               </button>
             </form>
           </div>

@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Dialog, Transition } from "@headlessui/react";
+import { Fragment } from "react";
+import { FaUser, FaCopy, FaCog, FaPlay } from "react-icons/fa";
 
 import ContextMenu from "./menus/ContextMenu";
 import ReportModal from "./menus/ReportModal";
 import { GAME_STATE } from "../../constants";
 import { socketManager } from "../../services/socketManager";
-import { FaUser } from "react-icons/fa";
+import Button from "../common/ui/Button";
+import GameSettings from "./GameSettings";
 const PlayerList = ({
   players,
   drawerUsername,
@@ -14,6 +18,7 @@ const PlayerList = ({
   currentUsername,
   isAdmin,
   onStartGame,
+  lobby,
 }) => {
   const navigate = useNavigate();
   const [showPopup, setShowPopup] = useState(false);
@@ -21,8 +26,8 @@ const PlayerList = ({
   const [reportModal, setReportModal] = useState(null);
   const [chatLogs, setChatLogs] = useState([]);
   const [canvasState, setCanvasState] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Set up chat history and canvas state for reports
   useEffect(() => {
     if (socketManager.isConnected()) {
       const unsubscribeChatHistory = socketManager.onChatHistory((messages) => {
@@ -37,7 +42,6 @@ const PlayerList = ({
         }
       });
 
-      // Request chat history when component mounts
       socketManager.requestChatHistory(roomId, currentUsername);
 
       return () => {
@@ -57,10 +61,10 @@ const PlayerList = ({
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
-    const y = rect.top; // Position menu at the top of the clicked element
+    const y = rect.top;
 
     if (player.username === currentUsername) {
-      return setContextMenu({
+      setContextMenu({
         x,
         y,
         options: [
@@ -74,6 +78,7 @@ const PlayerList = ({
           },
         ],
       });
+      return;
     }
 
     setContextMenu({
@@ -96,43 +101,6 @@ const PlayerList = ({
         },
       ],
     });
-  };
-
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
-
-  const closeReportModal = () => {
-    setReportModal(null);
-  };
-
-  const getPlayerBackgroundClass = (player) => {
-    const baseClass = "border-2 ";
-
-    if (gameState === GAME_STATE.DRAWING) {
-      if (player.username === drawerUsername) {
-        return (
-          baseClass +
-          "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700"
-        );
-      }
-      if (player.hasGuessedCorrect) {
-        return (
-          baseClass +
-          "bg-green-50 dark:bg-green-900/40 border-green-300 dark:border-green-700"
-        );
-      }
-    }
-    if (player.username === currentUsername) {
-      return (
-        baseClass +
-        "bg-white/80 dark:bg-gray-800/80 border-indigo-300 dark:border-indigo-600"
-      );
-    }
-    return (
-      baseClass +
-      "bg-gray-50/80 dark:bg-gray-800/60 border-gray-200 dark:border-gray-600"
-    );
   };
 
   const getPlayerStateIndicator = (player) => {
@@ -160,91 +128,82 @@ const PlayerList = ({
     return null;
   };
 
-  const getPlayerIcon = (player) => {
-    if (
-      drawerUsername === player.username &&
-      gameState !== GAME_STATE.WAITING
-    ) {
-      return (
-        <img src="/pencil.gif" alt="drawing" className="w-8 h-8 rounded-full" />
-      );
-    }
-
-    if (player.hasDrawn) {
-      return (
-        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-          <svg
-            className="h-4 w-4 text-gray-600 dark:text-gray-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-        <svg
-          className="h-5 w-5 text-gray-600 dark:text-gray-300"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      </div>
-    );
+  const categoryMap = {
+    random: "Random 🎲",
+    animals: "Animals 🐘",
+    food: "Food 🍕",
+    objects: "Objects 📱",
+    vehicles: "Vehicles 🚗",
+    sports: "Sports ⚽",
+    "video games": "Video Games 🎮",
   };
 
-  // Sort players: drawer first, then by score
   const sortedPlayers = [...players].sort((a, b) => {
-    if (a.username === drawerUsername) return -1;
-    if (b.username === drawerUsername) return 1;
-    return b.score - a.score;
+    if (gameState === GAME_STATE.DRAWING) {
+      if (a.username === drawerUsername) return -1;
+      if (b.username === drawerUsername) return 1;
+    }
+    if (a.score !== b.score) return b.score - a.score;
+    if ((b.roundScore || 0) !== (a.roundScore || 0)) {
+      return (b.roundScore || 0) - (a.roundScore || 0);
+    }
+    return (b.drawScore || 0) - (a.drawScore || 0);
   });
 
   return (
-    <div className="bg-gray-100 dark:bg-gray-700 p-2 shadow-lg relative flex-1 flex flex-col transition-colors">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2 sm:gap-0">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-          <span className="hidden sm:inline">Players</span>
-          <FaUser className="sm:hidden" />
+    <div className="w-full bg-white/95 dark:bg-gray-800/95 p-2 shadow-sm rounded-lg relative flex flex-col transition-colors border border-gray-200/50 dark:border-gray-700/50">
+      <div className="flex justify-between items-center mb-2 px-1">
+        <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+          <GameSettings lobby={lobby} />
+          <FaUser className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+          <span className="tracking-wide uppercase">
+            {players.length === 1 ? "1" : `${players.length}`}
+          </span>
         </h3>
-        <div className="relative flex w-full sm:w-auto gap-2">
-          <button
-            className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm sm:text-base min-h-[40px]"
+
+        <div className="flex gap-1">
+          {gameState === GAME_STATE.WAITING &&
+            lobby.userId === currentUsername && (
+              <Button
+                onClick={() => setShowSettings(true)}
+                title="Game Settings"
+                variant="secondary"
+                size="sm"
+                className="flex items-center justify-center w-6 h-6"
+              >
+                <FaCog className="w-3 h-3" />
+              </Button>
+            )}
+          <Button
             onClick={handleInviteLink}
+            title="Invite Players"
+            variant="secondary"
+            size="md"
+            className=""
           >
-            Invite
-          </button>
-          <button
-            className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-h-[40px]"
-            onClick={onStartGame}
-            disabled={gameState !== GAME_STATE.WAITING}
-          >
-            Start Game
-          </button>
-          {showPopup && (
-            <div className="absolute top-full sm:top-0 left-0 sm:left-full mt-2 sm:mt-0 sm:ml-4 bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50">
-              Link copied to clipboard!
-            </div>
+            <span className="sr-only">Copy Invite Link</span>
+            <FaCopy className="w-3 h-3" />
+            {showPopup && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/75 text-white text-[10px] px-2 py-0.5 rounded">
+                Copied!
+              </div>
+            )}
+          </Button>
+          {gameState === GAME_STATE.WAITING && (
+            <Button
+              onClick={onStartGame}
+              title="Start Game"
+              variant="primary"
+              size="sm"
+              className="flex items-center justify-center gap-1 px-2 py-1 text-sm"
+            >
+              <span>Start Game</span>
+            </Button>
           )}
         </div>
       </div>
-      <ul className="space-y-1 overflow-y-auto">
+
+      <ul className="space-y-1 overflow-y-auto max-h-[calc(100vh-20rem)]">
         {sortedPlayers.map((player, index) => (
           <li
             key={`player-${player.username}-${index}`}
@@ -253,38 +212,160 @@ const PlayerList = ({
               e.preventDefault();
               handlePlayerClick(e, player);
             }}
-            className={`flex items-center gap-2 p-2 rounded-md transition-all duration-200 cursor-pointer relative
-          ${getPlayerBackgroundClass(player)}
-          ${player.hasDrawn ? "opacity-90" : "hover:opacity-95"}`}
+            className={`flex items-center gap-2 p-1.5 rounded-md transition-all duration-200 cursor-pointer relative border
+              ${
+                player.username === currentUsername
+                  ? "bg-white/80 dark:bg-gray-800/80 border-indigo-300 dark:border-indigo-600"
+                  : player.username === drawerUsername &&
+                    gameState === GAME_STATE.DRAWING
+                  ? "bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
+                  : player.hasGuessedCorrect
+                  ? "bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-700"
+                  : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-200 dark:border-gray-600"
+              }`}
           >
-            {getPlayerIcon(player)}
+            <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+              {drawerUsername === player.username &&
+              gameState !== GAME_STATE.WAITING ? (
+                <img
+                  src="/pencil.gif"
+                  alt="drawing"
+                  className="w-7 h-7 rounded-full"
+                />
+              ) : (
+                <FaUser className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              )}
+            </div>
 
-            <div className="flex flex-col w-full">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-800 dark:text-gray-200 font-medium text-sm">
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-gray-800 dark:text-gray-200 font-medium text-xs truncate">
                   {player.username}
                 </span>
-                <span className="text-indigo-500 dark:text-indigo-400 font-bold text-sm drop-shadow-[0_0_3px_rgba(99,102,241,0.5)] transition-all">
+                <span className="text-indigo-500 dark:text-indigo-400 font-bold text-xs">
                   {player.score || player.roundScore || player.drawScore || 0}
                 </span>
               </div>
-              {getPlayerStateIndicator(player)}
+              {getPlayerStateIndicator(player) && (
+                <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                  {getPlayerStateIndicator(player)}
+                </div>
+              )}
             </div>
           </li>
         ))}
       </ul>
+
+      <Transition appear show={showSettings} as={Fragment}>
+        <Dialog
+          as="div"
+          className="relative z-50"
+          onClose={() => setShowSettings(false)}
+        >
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl transition-all">
+                  <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                    Game Settings
+                  </Dialog.Title>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Rounds
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {lobby?.maxRounds}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Time per Round
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {lobby.roundTime}s
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Word Choices
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {lobby.selectWord}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Hint Letters
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {lobby.revealCharacters}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Category
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {categoryMap[lobby.selectCategory] ||
+                          lobby.selectCategory}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <Button
+                      onClick={() => setShowSettings(false)}
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onClose={closeContextMenu}
+          onClose={() => setContextMenu(null)}
           options={contextMenu.options}
         />
       )}
+
       {reportModal && (
         <ReportModal
           reportedUser={reportModal}
-          onClose={closeReportModal}
+          onClose={() => setReportModal(null)}
           chatLogs={chatLogs}
           currentUsername={currentUsername}
           roomId={roomId}

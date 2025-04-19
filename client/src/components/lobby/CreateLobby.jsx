@@ -28,7 +28,7 @@ const CreateLobby = ({ user }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
+    <div className= "flex items-center justify-center min-h-[calc(100vh-5rem)]">
       <Transition
         as={Fragment}
         show={isShowing}

@@ -1,11 +1,12 @@
-import bcrypt from "bcrypt";
 import crypto from "crypto";
+
+import { Filter } from "bad-words";
+import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 
-import sendEmail from "../utils/sendEmail.js";
 import User from "../models/user.js";
-import { Filter } from "bad-words";
+import sendEmail from "../utils/sendEmail.js";
 dotenv.config("/config.env");
 
 const generateToken = (userId) =>
@@ -276,9 +277,66 @@ export const userController = {
     }
   },
 
+  updateProfileById: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { displayName, bio, avatarUrl } = req.body;
+
+      const filter = new Filter();
+      if (filter.isProfane(displayName) || filter.isProfane(bio)) {
+        return res.status(400).json({
+          success: false,
+          message: "Profile data contains inappropriate language",
+        });
+      }
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Initialize profile if it doesn't exist
+      if (!user.profile) {
+        user.profile = {};
+      }
+
+      // Update profile fields if provided
+      if (displayName) user.profile.displayName = displayName;
+      if (bio !== undefined) user.profile.bio = bio;
+      if (avatarUrl) user.profile.avatarUrl = avatarUrl;
+
+      user.profile.lastActive = new Date();
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        profile: {
+          username: user.username,
+          displayName: user.profile.displayName,
+          bio: user.profile.bio,
+          avatarUrl: user.profile.avatarUrl,
+          lastActive: user.profile.lastActive,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to update profile",
+        error: error.message,
+      });
+    }
+  },
   updateOwnProfile: async (req, res) => {
     try {
       const { username } = req.params;
+      //Check if we received a username or an id
+
       const { displayName, bio, avatarUrl } = req.body;
 
       const filter = new Filter();

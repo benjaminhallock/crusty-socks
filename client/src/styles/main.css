@@ -84,3 +84,42 @@
 .shoot-off-screen {
   animation: shootOffScreen 0.5s ease-out forwards;
 }
+
+/* Range Input Styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Thumb styling for Webkit (Chrome, Safari, Edge) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(168, 85, 247);
+  cursor: pointer;
+  border: none;
+  margin-top: -7px; /* centers the thumb on the track */
+}
+
+/* Thumb styling for Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(168, 85, 247);
+  cursor: pointer;
+  border: none;
+}
+
+/* Dark mode thumb styling */
+.dark input[type="range"]::-webkit-slider-thumb {
+  background: rgb(192, 132, 252);
+}
+
+.dark input[type="range"]::-moz-range-thumb {
+  background: rgb(192, 132, 252);
+}

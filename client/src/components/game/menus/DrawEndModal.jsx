@@ -104,7 +104,7 @@ const DrawEndModal = ({
                 </span>
                 {allPlayersGuessed && (
                   <span className="text-xs text-indigo-500 dark:text-indigo-400">
-                    (includes bonus!)
+                    {/* (includes bonus) there's no bonus points yet but you can give em like 20 points if everyone guesses correct */}
                   </span>
                 )}
               </div>

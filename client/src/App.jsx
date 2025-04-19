@@ -10,6 +10,7 @@ import {
 import { checkAuth } from "./services/api";
 import Admin from "./components/admin/Admin";
 import Navbar from "./components/common/Navbar";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 import GameRoom from "./components/game/GameRoom";
 import LoginForm from "./components/auth/LoginForm";
 import CreateLobby from "./components/lobby/CreateLobby";
@@ -137,7 +138,9 @@ function App() {
             : "rgba(255, 255, 255, 0.8)",
         }}
       />
-      <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
+      <ErrorBoundary>
+        <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
+      </ErrorBoundary>
       <main className=" mt-10 h-[calc(100vh-4rem)]">
         <Routes>
           <Route

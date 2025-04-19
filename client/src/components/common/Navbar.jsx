@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   FaUser,
   FaSignOutAlt,
@@ -20,29 +20,19 @@ import { Menu, Transition } from "@headlessui/react";
 
 const Navbar = ({ isLoggedIn, onLogout, user }) => {
   const navigate = useNavigate();
-  // Existing hooks remain the same but will be used with HeadlessUI components
-
   const [isDark, setIsDark] = useState(() => {
-    const storedTheme = localStorage.getItem("theme");
-    const systemPrefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    const theme = storedTheme || (systemPrefersDark ? "dark" : "light");
-
-    // Apply theme on initial load
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    localStorage.setItem("theme", theme);
-
-    return theme === "dark";
+    return localStorage.getItem("theme") === "dark";
   });
   const [isPlaying, setIsPlaying] = useState(false);
-
   const [isMuted, setIsMuted] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(() => {
+    return parseFloat(localStorage.getItem("musicVolume") || "0.5");
+  });
+  const [sfxVolume, setSfxVolume] = useState(() => {
+    return parseFloat(localStorage.getItem("sfxVolume") || "0.5");
+  });
   const [showDropdown, setShowDropdown] = useState(false);
+  const musicPlayerRef = useRef(null);
 
   const toggleTheme = () => {
     const newDarkMode = !isDark;
@@ -232,18 +222,87 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               </>
             )}
 
-            <Button
-              onClick={toggleAudio}
-              className={`text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group ${
-                isPlaying && !isMuted ? "ring-2 ring-indigo-500" : ""
-              }`}
-            >
-              {isPlaying && !isMuted ? (
-                <FaVolumeMute className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
-              ) : (
-                <FaMusic className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
+            <Menu as="div" className="relative">
+              {({ open }) => (
+                <>
+                  <Menu.Button
+                    as={Button}
+                    className={`text-sm flex items-center gap-2 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group ${
+                      isPlaying && !isMuted ? "ring-2 ring-indigo-500" : ""
+                    }`}
+                  >
+                    {isPlaying && !isMuted ? (
+                      <FaVolumeMute className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
+                    ) : (
+                      <FaMusic className="h-3.5 w-3.5 text-gray-700 dark:text-white/90 transition-colors duration-200" />
+                    )}
+                  </Menu.Button>
+
+                  <Transition
+                    show={open}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Menu.Items className="absolute right-0 mt-2 w-64 rounded-lg overflow-hidden shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 focus:outline-none z-50">
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Music Volume
+                            </label>
+                            <button
+                              onClick={toggleAudio}
+                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                            >
+                              {isPlaying ? "Pause" : "Play"}
+                            </button>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={musicVolume}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setMusicVolume(value);
+                              localStorage.setItem("musicVolume", value);
+                            }}
+                            className="w-full accent-indigo-600 dark:accent-indigo-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Sound Effects
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={sfxVolume}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setSfxVolume(value);
+                              localStorage.setItem("sfxVolume", value);
+                              if (musicPlayerRef.current) {
+                                musicPlayerRef.current.playTestSound();
+                              }
+                            }}
+                            className="w-full accent-indigo-600 dark:accent-indigo-400"
+                          />
+                        </div>
+                      </div>
+                    </Menu.Items>
+                  </Transition>
+                </>
               )}
-            </Button>
+            </Menu>
 
             {!isLoggedIn && (
               <Button
@@ -261,7 +320,14 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           </div>
         </div>
       </div>
-      <MusicPlayer isPlaying={isPlaying} isMuted={isMuted} />
+      <MusicPlayer
+        ref={musicPlayerRef}
+        id="musicPlayer"
+        isPlaying={isPlaying}
+        isMuted={isMuted}
+        musicVolume={musicVolume}
+        sfxVolume={sfxVolume}
+      />
     </nav>
   );
 };

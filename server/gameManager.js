@@ -8,6 +8,7 @@ import {
 } from "./constants.js";
 import Chat from "./models/chat.js";
 import Lobby from "./models/lobby.js";
+import User from "./models/user.js"; // Add missing import
 
 async function withRetry(operation, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -67,7 +68,10 @@ class GameManager {
         this.handleDisconnect(socket, roomId, username);
       });
 
-      socket.on(se.KICK_PLAYER, ({ roomId, username }) => {});
+      socket.on(se.KICK_PLAYER, ({ roomId, username }) => {
+        this.handleKickPlayer(socket, { roomId, username });
+      });
+
       socket.on(se.CANVAS_UPDATE, (data) => {
         if (!data?.canvasState?.data) return;
 
@@ -125,6 +129,7 @@ class GameManager {
       let existingPlayer = lobby.players.find(
         (p) => p.username === userData.username
       );
+
       if (existingPlayer) {
         // Update existing player connection
         existingPlayer.connected = true;
@@ -149,20 +154,11 @@ class GameManager {
         });
       }
 
-      // Save changes and get fresh lobby data
+      // Save changes
       await lobby.save();
 
-      // Fetch fresh lobby state to ensure consistency
-      lobby = await Lobby.findOne({ roomId });
-
       // Set up socket data and join room
-      const updates = {
-        userData,
-        roomId,
-        username: userData.username,
-      };
-      Object.assign(socket, updates);
-      await socket.join(roomId);
+      socket.join(roomId);
 
       // Store connection info
       this.activeConnections.set(socket.id, {
@@ -172,18 +168,22 @@ class GameManager {
         _id: lobby._id,
       });
 
-      // Emit updates in correct order
+      // First send the update to the joining player
       socket.emit(se.GAME_STATE_UPDATE, { lobby });
+
+      // Then broadcast to everyone including the new player
       this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
 
-      // Notify room of new player
-      this.io.to(roomId).emit(se.CHAT_MESSAGE, {
-        _id: lobby._id,
-        username: "Server",
-        message: `${userData.username} has joined the lobby.`,
-        timestamp: Date.now(),
-        isSystemMessage: true,
-      });
+      // Notify room of new player only if they weren't already in the lobby
+      if (!existingPlayer) {
+        this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+          _id: lobby._id,
+          username: "Server",
+          message: `${userData.username} has joined the lobby.`,
+          timestamp: Date.now(),
+          isSystemMessage: true,
+        });
+      }
 
       // Request chat history
       socket.emit(se.REQUEST_CHAT_HISTORY, { lobbyObjectId: lobby._id });
@@ -740,8 +740,9 @@ class GameManager {
             return;
           }
 
-          if (currentLobby.currentRound > currentLobby.maxRounds) {
-            await this.handleGameOver(io, roomId, currentLobby);
+          // Check if we should end the game before updating the round
+          if ((lobby.currentRound || 0) >= lobby.maxRounds) {
+            await this.handleGameOver(io, roomId, lobby);
           } else {
             await this.startNextDraw(io, roomId);
           }
@@ -761,53 +762,90 @@ class GameManager {
   }
 
   async handleGameOver(io, roomId, lobby) {
-    // Sort players by score to determine winner
-    lobby = await withRetry(() => Lobby.findById(lobby._id));
-    const sortedPlayers = [...lobby.players].sort((a, b) => b.score - a.score);
-    const winner = sortedPlayers[0];
+    try {
+      // Get fresh lobby data and sort players by score
+      lobby = await withRetry(() => Lobby.findById(lobby._id));
+      const sortedPlayers = [...lobby.players].sort(
+        (a, b) => b.score - a.score
+      );
 
-    // Make sure there's only one winner (no ties count as wins)
-    const isUndisputedWinner =
-      sortedPlayers.length > 1 && winner.score > sortedPlayers[1].score;
+      // Determine winners (handles ties)
+      const topScore = sortedPlayers[0].score;
+      const winners = sortedPlayers.filter((p) => p.score === topScore);
+      const isTie = winners.length > 1;
 
-    // Update all players' stats
-    for (const player of lobby.players) {
-      const updateQuery = {
-        $inc: {
-          "gameStats.gamesPlayed": 1,
-          "gameStats.totalScore": player.score || 0,
-        },
-        $set: {
-          "profile.lastActive": Date.now(),
-        },
-      };
+      // Set game state to finished immediately so UI updates
+      Object.assign(lobby, {
+        gameState: gs.FINISHED,
+        players: sortedPlayers, // Already sorted by score
+        finished: true,
+        canChat: true,
+      });
+      await lobby.save();
 
-      // Only increment gamesWon if they are the undisputed winner
-      if (player.username === winner.username && isUndisputedWinner) {
-        updateQuery.$inc["gameStats.gamesWon"] = 1;
-      }
+      // Emit game state update immediately for responsive UI
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
 
-      await User.findOneAndUpdate({ username: player.username }, updateQuery, {
-        new: true,
+      // Create end game message
+      const endMessage = isTie
+        ? `Game Over! It's a tie between ${winners
+            .map((w) => w.username)
+            .join(
+              " and "
+            )} with ${topScore} points! Type /restart to play again.`
+        : `Game Over! ${winners[0].username} wins with ${winners[0].score} points! Type /restart to play again.`;
+
+      io.to(roomId).emit(se.CHAT_MESSAGE, {
+        username: "System",
+        message: endMessage,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
+
+      // Update all players' stats asynchronously in the background
+      Promise.all(
+        lobby.players.map(async (player) => {
+          try {
+            const updateQuery = {
+              $inc: {
+                "gameStats.gamesPlayed": 1,
+                "gameStats.totalScore": player.score || 0,
+              },
+              $set: {
+                "profile.lastActive": Date.now(),
+              },
+            };
+
+            // In case of a tie, no one gets the win. If there's a clear winner, they get the win.
+            if (!isTie && winners[0].username === player.username) {
+              updateQuery.$inc["gameStats.gamesWon"] = 1;
+            }
+
+            await User.findOneAndUpdate(
+              { username: player.username },
+              updateQuery,
+              { new: true }
+            );
+          } catch (error) {
+            console.error(
+              `Failed to update stats for player ${player.username}:`,
+              error
+            );
+          }
+        })
+      ).catch((error) => {
+        console.error("Error updating player stats:", error);
+      });
+    } catch (error) {
+      console.error("Error in handleGameOver:", error);
+      // Still try to set game to finished state even if there's an error
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, {
+        ...lobby,
+        gameState: gs.FINISHED,
+        finished: true,
+        canChat: true,
       });
     }
-
-    // Set game state to finished but keep chat active
-    Object.assign(lobby, {
-      gameState: gs.FINISHED,
-      players: [...lobby.players].sort((a, b) => b.score - a.score),
-      finished: true,
-      canChat: true,
-    });
-
-    await lobby.save();
-    io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
-    io.to(roomId).emit(se.CHAT_MESSAGE, {
-      username: "System",
-      message: `Game Over! ${winner.username} wins with ${winner.score} points! Type /restart to play again.`,
-      timestamp: Date.now(),
-      isSystemMessage: true,
-    });
   }
 
   async setupWordSelectionTimeout(io, roomId, words) {
@@ -946,25 +984,84 @@ class GameManager {
     }
   }
   async handleKickPlayer(socket, { roomId, username }) {
+    if (!roomId || !username) {
+      console.error("Invalid kick request - missing roomId or username");
+      socket.emit("error", { message: "Invalid kick request" });
+      return;
+    }
+
+    await this.acquireSaveLock(roomId);
+
     try {
-      const lobby = await Lobby.findOne({ roomId });
+      const lobby = await withRetry(async () => {
+        return await Lobby.findOne({ roomId });
+      });
+
       if (!lobby) {
-        console.error("Lobby not found");
+        socket.emit("error", { message: "Lobby not found" });
         return;
       }
-      const player = lobby.players.find((p) => p.username === username);
-      if (!player) {
-        console.error("Player not found in lobby");
+
+      // Check if the kicker is an admin
+      const kicker = lobby.players.find((p) => p.socketId === socket.id);
+      if (!kicker?.isAdmin) {
+        socket.emit("error", {
+          message: "You don't have permission to kick players",
+        });
         return;
       }
-      // Remove the player from the lobby
+
+      // Find the player to kick
+      const playerToKick = lobby.players.find((p) => p.username === username);
+      if (!playerToKick) {
+        socket.emit("error", { message: "Player not found" });
+        return;
+      }
+
+      // Remove the player from the players array
       lobby.players = lobby.players.filter((p) => p.username !== username);
-      lobby.kickedUsers.push(player._id);
-      await lobby.save();
-      socket.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+
+      // Add to kicked users array to prevent rejoin
+      if (!lobby.kickedUsers) {
+        lobby.kickedUsers = [];
+      }
+      lobby.kickedUsers.push(username);
+
+      // Save the lobby changes
+      await withRetry(async () => {
+        await lobby.save();
+      });
+
+      // Notify the room of the kick
+      this.io.to(roomId).emit(se.CHAT_MESSAGE, {
+        username: "Server",
+        message: `${username} has been kicked from the game.`,
+        timestamp: Date.now(),
+        isSystemMessage: true,
+      });
+
+      // Emit updated game state to all clients
+      this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
+
+      // Force disconnect the kicked player's socket
+      const kickedSocket = [...this.io.sockets.sockets.values()].find(
+        (s) => s.id === playerToKick.socketId
+      );
+
+      if (kickedSocket) {
+        kickedSocket.emit("error", {
+          message: "You have been kicked from the game",
+        });
+        kickedSocket.disconnect(true);
+      }
+
+      // Clean up the connection tracking
+      this.activeConnections.delete(playerToKick.socketId);
     } catch (error) {
-      console.error("Error handling kick player:", error);
-      socket.emit(se.ERROR, { message: "Failed to kick player." });
+      console.error("Error kicking player:", error);
+      socket.emit("error", { message: "Failed to kick player" });
+    } finally {
+      this.releaseSaveLock(roomId);
     }
   }
 

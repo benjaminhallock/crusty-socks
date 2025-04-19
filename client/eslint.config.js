@@ -1,13 +1,13 @@
 import js from "@eslint/js";
-import react from "eslint-plugin-react";
-import reactHooks from "eslint-plugin-react-hooks";
-import perfectionist from "eslint-plugin-perfectionist";
+import reactPlugin from "eslint-plugin-react";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
+import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 
 export default [
-  { ignores: ["dist", "node_modules", "coverage", ".vite"] },
+  {
+    ignores: ["dist/**", "build/**", "coverage/**", "node_modules/**"],
+  },
   js.configs.recommended,
-  react.configs.recommended,
-  reactHooks.configs.recommended,
   {
     files: ["**/*.{js,jsx}"],
     languageOptions: {
@@ -19,49 +19,67 @@ export default [
         },
       },
       globals: {
+        process: "readonly",
+        __dirname: "readonly",
+        require: "readonly",
+        module: "readonly",
+        jest: "readonly",
+        describe: "readonly",
+        test: "readonly",
+        expect: "readonly",
+        beforeAll: "readonly",
+        afterAll: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
         // Browser globals
-        document: "readonly",
-        navigator: "readonly",
         window: "readonly",
-        console: "readonly",
-        fetch: "readonly",
-        alert: "readonly",
+        document: "readonly",
         localStorage: "readonly",
+        navigator: "readonly",
+        console: "readonly",
+        alert: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        performance: "readonly",
+        Image: "readonly",
+        URL: "readonly",
+        Audio: "readonly",
       },
     },
     plugins: {
-      react,
-      "react-hooks": reactHooks,
-      perfectionist,
+      react: reactPlugin,
+      "react-hooks": reactHooksPlugin,
+      "jsx-a11y": jsxA11yPlugin,
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
     },
     rules: {
+      "react/react-in-jsx-scope": "off",
       "react/prop-types": "warn",
-      "react/jsx-uses-react": "error",
-      "react/jsx-uses-vars": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
       "no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-      "perfectionist/sort-imports": [
-        "error",
         {
-          type: "natural",
-          order: "asc",
-          groups: [
-            "react",
-            "router",
-            "external",
-            "internal-type",
-            "internal",
-            "hooks",
-            "components",
-            "style",
-            "unknown",
-          ],
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
         },
       ],
+      "no-console": [
+        "warn",
+        {
+          allow: ["warn", "error", "info"],
+        },
+      ],
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-static-element-interactions": "warn",
     },
   },
 ];

@@ -26,3 +26,29 @@ logs
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Build and dist
+dist/
+build/
+coverage/
+
+# Debug files
+.debug/
+debug.log
+
+# Cache
+.npm
+.eslintcache
+.cache
+
+# Temp files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+
+# Package files
+package-lock.json
+yarn.lock
+*.tgz

@@ -10,7 +10,7 @@ import {
 } from "react-icons/fa";
 import { socketManager } from "../../services/socketManager";
 import { GAME_CONSTANTS, GAME_STATE } from "../../constants";
-``;
+
 const PixelCanvas = ({
   isDrawer,
   drawerUsername,
@@ -37,6 +37,13 @@ const PixelCanvas = ({
   const FORCE_UPDATE_DELAY = 200; // Increased batching window
   const DRAW_THROTTLE = 16; // ~60fps throttle for draw operations
 
+  // Calculate effective grid size with fallback to default
+  const effectiveGridSize = gridSize || GAME_CONSTANTS.CANVAS_GRID_SIZE;
+
+  // Calculate actual pixels in grid based on current grid size
+  const pixelsWide = Math.floor(CANVAS_WIDTH / effectiveGridSize);
+  const pixelsHigh = Math.floor(CANVAS_HEIGHT / effectiveGridSize);
+
   // Track drawn pixels for batching
   const drawnPixelsRef = useRef(new Map());
   const lastDrawTime = useRef(0);
@@ -59,14 +66,19 @@ const PixelCanvas = ({
           ? "#e5e5e5"
           : "#FFFFFF"
         : color;
-    const x = gridX * gridSize;
-    const y = gridY * gridSize;
-    ctx.fillRect(x, y, gridSize, gridSize);
+    const x = gridX * effectiveGridSize;
+    const y = gridY * effectiveGridSize;
+    ctx.fillRect(x, y, effectiveGridSize, effectiveGridSize);
     return true;
   };
 
   const getPixelColor = (ctx, x, y) => {
-    const imageData = ctx.getImageData(x * gridSize, y * gridSize, 1, 1).data;
+    const imageData = ctx.getImageData(
+      x * effectiveGridSize,
+      y * effectiveGridSize,
+      1,
+      1
+    ).data;
     // Convert to hex
     return `#${imageData[0].toString(16).padStart(2, "0")}${imageData[1]
       .toString(16)
@@ -98,8 +110,8 @@ const PixelCanvas = ({
     const y = (e.clientY - rect.top) * scaleY;
 
     return {
-      x: Math.floor(x / gridSize),
-      y: Math.floor(y / gridSize),
+      x: Math.floor(x / effectiveGridSize),
+      y: Math.floor(y / effectiveGridSize),
     };
   };
 
@@ -134,10 +146,6 @@ const PixelCanvas = ({
     }
     return false;
   };
-
-  // Calculate actual pixels in grid
-  const pixelsWide = Math.floor(CANVAS_WIDTH / gridSize);
-  const pixelsHigh = Math.floor(CANVAS_HEIGHT / gridSize);
 
   const handleDrawStart = (e) => {
     if (!canDraw()) return;
@@ -368,7 +376,7 @@ const PixelCanvas = ({
 
     const ctx = canvas.getContext("2d", {
       alpha: false,
-      desynchronized: true, // Enable desynchronized hint for better performance
+      desynchronized: true,
     });
     if (!ctx) return;
 
@@ -378,7 +386,7 @@ const PixelCanvas = ({
     drawCheckerPattern(ctx);
 
     setHistory([canvas.toDataURL()]);
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, gridSize]);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, effectiveGridSize]); // Added effectiveGridSize as dependency
 
   // Handle incoming canvas updates
   useEffect(() => {
@@ -424,7 +432,7 @@ const PixelCanvas = ({
   const [showDrawerMessage, setShowDrawerMessage] = useState(true);
 
   return (
-    <div className="relative flex flex-col items-center w-full h-full bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-800/95 dark:to-gray-900/95 rounded-xl shadow-lg p-4 space-y-3 transition-all duration-300">
+    <div className="relative flex flex-col items-center w-full h-full bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-800/95 dark:to-gray-900/95 rounded-xl shadow-lg p-4 pb-2 transition-all duration-300">
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {gameState === GAME_STATE.WAITING && showWaitingMessage && (
@@ -487,13 +495,15 @@ const PixelCanvas = ({
         )}
       </div>
 
-      <div className="relative w-full h-full flex flex-col gap-4">
+      <div className="relative w-full h-full flex flex-col gap-2">
         {/* Canvas Container */}
-        <div className={`relative flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden transition-all duration-300 ${
+        <div
+          className={`relative flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg overflow-hidden transition-all duration-300 p-0 ${
             gameState === GAME_STATE.DRAWING
               ? "shadow-[0_0_20px_2px_rgba(168,85,247,0.15)] dark:shadow-[0_0_20px_2px_rgba(168,85,247,0.1)]"
               : ""
-          }`}>
+          }`}
+        >
           <canvas
             ref={canvasRef}
             style={{

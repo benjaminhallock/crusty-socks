@@ -106,26 +106,24 @@ const GameRoom = ({ user }) => {
       },
     ],
     usedWords: [],
-    playerLimit: 0,
-    revealCharacters: 75 || 0,
+    playerLimit: 8,
+    revealCharacters: 0,
     currentRound: 1,
-    maxRounds: 1 || 10,
-    selectWord: 1 || 5,
+    maxRounds: 5,
+    selectWord: 3,
     selectCategory: "random",
     gameState: GAME_STATE.WAITING,
     currentWord: "",
     currentDrawer: "",
-    canvasState: null,
-    startTime: null,
-    words: [],
-    roundTime: 60,
-    timeLeft: 0,
-    kickedUsers: [],
-    roomId: roomId,
-    canvasData: {
+    canvasState: {
       data: "",
       lastUpdate: null,
     },
+    startTime: null,
+    words: [],
+    roundTime: 60,
+    kickedUsers: [],
+    roomId: roomId,
     finished: false,
   });
 
@@ -152,6 +150,9 @@ const GameRoom = ({ user }) => {
       }
 
       try {
+        // Set up navigation for socket manager
+        socketManager.setNavigate(navigate);
+
         // First set up socket connection
         await setupSocketConnection();
 
@@ -202,7 +203,6 @@ const GameRoom = ({ user }) => {
         return null;
       }
 
-      console.log("Lobby data fetched successfully:", lobby);
       return lobby;
     } catch (error) {
       console.error("Error fetching lobby data:", error);
@@ -225,9 +225,28 @@ const GameRoom = ({ user }) => {
       });
 
       const unsubscribeGameState = socketManager.onGameStateUpdate((data) => {
-        if (isMounted.current && data.lobby) {
-          //   console.log("[GameRoom][onGameStateUpdate] Updating lobby state");
-          setLobby((prev) => ({ ...prev, ...data.lobby }));
+        if (isMounted.current && data?.lobby) {
+          // Deep compare relevant fields before updating
+          setLobby((prevLobby) => {
+            if (!prevLobby) return data.lobby;
+
+            // Check if players array has changed
+            const playersChanged =
+              JSON.stringify(prevLobby.players) !==
+              JSON.stringify(data.lobby.players);
+
+            // If players haven't changed and no other important fields changed, keep current state
+            if (
+              !playersChanged &&
+              prevLobby.gameState === data.lobby.gameState &&
+              prevLobby.currentDrawer === data.lobby.currentDrawer &&
+              prevLobby.currentWord === data.lobby.currentWord
+            ) {
+              return prevLobby;
+            }
+
+            return { ...prevLobby, ...data.lobby };
+          });
         }
       });
 
@@ -356,7 +375,7 @@ const GameRoom = ({ user }) => {
 
             {/* Center - Canvas */}
             <div className="flex-1 flex flex-col gap-4 min-w-0 relative">
-              {lobby.gameState !== GAME_STATE.FINISHED && (
+              {lobby.gameState && (
                 <div className="w-full h-full min-h-[400px]">
                   <PixelCanvas
                     isDrawer={lobby.currentDrawer === user.username}
@@ -367,14 +386,6 @@ const GameRoom = ({ user }) => {
                     gameState={lobby.gameState}
                     canvasState={lobby.canvasState}
                   />
-                </div>
-              )}
-              {/* Game over message */}
-              {lobby.gameState === GAME_STATE.FINISHED && (
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-4xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg shadow-lg text-center">
-                    Game Over! Thanks for playing!
-                  </p>
                 </div>
               )}
             </div>
@@ -422,21 +433,56 @@ const GameRoom = ({ user }) => {
         {lobby.gameState === GAME_STATE.FINISHED && (
           <Modal
             isOpen={true}
-            onClose={() => navigate("/")}
-            title="Game Over!"
+            title="Game Complete!"
             size="md"
             position="center"
+            onClose={() => {}}
           >
             <div className="text-center">
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Thanks for playing!
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                  Final Scores
+                </h3>
+                <div className="space-y-2">
+                  {lobby.players
+                    .sort((a, b) => b.score - a.score)
+                    .map((player, index) => (
+                      <div
+                        key={player.username}
+                        className={`flex justify-between items-center px-4 py-2 rounded transform transition-all duration-200 hover:scale-[1.02] ${
+                          index === 0
+                            ? "bg-yellow-100 dark:bg-yellow-900"
+                            : "bg-gray-50 dark:bg-gray-800"
+                        }`}
+                      >
+                        <span className="font-medium">
+                          {index === 0 ? "👑 " : `#${index + 1} `}
+                          {player.username}
+                        </span>
+                        <span className="font-bold">{player.score} pts</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <p className="text-green-600 dark:text-green-400 font-medium mb-4 transform transition-all duration-500 hover:scale-[1.05]">
+                Game Complete! All scores have been saved to your profile!
               </p>
-              <button
-                onClick={() => navigate("/")}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
-              >
-                Return to Lobby
-              </button>
+              <div className="flex justify-center gap-4">
+                {user && (
+                  <button
+                    onClick={() => socketManager.startGame(roomId)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+                  >
+                    Play Again
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate("/")}
+                  className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+                >
+                  Return to Create Lobby
+                </button>
+              </div>
             </div>
           </Modal>
         )}

@@ -59,13 +59,12 @@ const RoundSummaryModal = ({
   );
 
   const timerPercentage = (timeLeft / SUMMARY_DURATION) * 100;
-  const isGameOver = roundNumber >= maxRounds;
 
   return (
     <Modal
       isOpen={lobby.gameState === GAME_STATE.ROUND_END}
       onClose={onClose}
-      title={isGameOver ? "Game Over!" : `Round ${roundNumber} Complete!`}
+      title={`Round ${roundNumber} Complete!`}
       size="md"
       position="center"
       showCloseButton={true}
@@ -100,39 +99,19 @@ const RoundSummaryModal = ({
         </div>
       </div>
 
-      {!isGameOver ? (
-        <div className="text-center">
-          <div className="mb-4">
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-              <div
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-linear"
-                style={{ width: `${timerPercentage}%` }}
-              />
-            </div>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Next round in {timeLeft} seconds
-            </p>
-          </div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Round {roundNumber + 1} of {maxRounds} starting soon...
+      <div className="text-center">
+        <div className="p-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-purple-800 rounded-lg text-white">
+          <h3 className="text-xl font-bold mb-2">Round Over!</h3>
+          <p>
+            Leader:{" "}
+            <span className="font-bold">{sortedPlayers[0]?.username}</span> with{" "}
+            <span className="font-bold">
+              {sortedPlayers[0]?.score + (sortedPlayers[0]?.roundScore || 0)}
+            </span>{" "}
+            points!
           </p>
         </div>
-      ) : (
-        <div className="text-center">
-          <div className="p-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-purple-800 rounded-lg text-white">
-            <h3 className="text-xl font-bold mb-2">Game Over! Final Results</h3>
-            <p>
-              Winner:{" "}
-              <span className="font-bold">{sortedPlayers[0]?.username}</span>{" "}
-              with{" "}
-              <span className="font-bold">
-                {sortedPlayers[0]?.score + (sortedPlayers[0]?.roundScore || 0)}
-              </span>{" "}
-              points!
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
     </Modal>
   );
 };

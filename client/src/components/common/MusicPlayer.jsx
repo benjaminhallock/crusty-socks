@@ -1,14 +1,41 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 
-const tracks = 
-["/audio/pixelPartyMainTheme1.mp3",
+const tracks = [
+  "/audio/pixelPartyMainTheme1.mp3",
   "/audio/drawASubmarine2.mp3",
-  "/audio/testTrack3.mp3"
+  "/audio/testTrack3.mp3",
 ];
 
-const MusicPlayer = ({ isPlaying, isMuted }) => {
+const MusicPlayer = (
+  { isPlaying, isMuted, musicVolume = 1, sfxVolume = 1 },
+  ref
+) => {
   const audioRef = useRef(null);
+  const testSoundRef = useRef(new Audio("/audio/sfx/correct.mp3"));
   const lastTrackIndexRef = useRef(null);
+
+  // Handle music volume changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.volume = isMuted ? 0 : musicVolume;
+    }
+  }, [musicVolume, isMuted]);
+
+  // Handle SFX volume changes
+  useEffect(() => {
+    testSoundRef.current.volume = isMuted ? 0 : sfxVolume;
+  }, [sfxVolume, isMuted]);
+
+  // Expose functions to parent
+  useImperativeHandle(ref, () => ({
+    playTestSound,
+  }));
+
+  const playTestSound = () => {
+    testSoundRef.current.currentTime = 0;
+    testSoundRef.current.play().catch(console.error);
+  };
 
   const playRandomTrack = () => {
     const audio = audioRef.current;
@@ -21,6 +48,7 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
 
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
+    audio.volume = isMuted ? 0 : musicVolume;
     console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
     audio.play().catch((error) => console.error("Autoplay prevented:", error));
   };
@@ -55,7 +83,11 @@ const MusicPlayer = ({ isPlaying, isMuted }) => {
     }
   }, [isPlaying]);
 
-  return <audio ref={audioRef} />;
+  return (
+    <>
+      <audio ref={audioRef} />
+    </>
+  );
 };
 
-export default MusicPlayer;
+export default forwardRef(MusicPlayer);

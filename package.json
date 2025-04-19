@@ -15,8 +15,8 @@
     "install:all": "npm install",
     "install:client": "npm install --workspace=client",
     "install:server": "npm install --workspace=server",
-    "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
-    "lint:fix": "npm run lint:fix --workspace=client && npm run lint:fix --workspace=server",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
     "sync-constants": "node sync-constants.js",
     "predev": "npm run sync-constants",
     "prebuild": "npm run sync-constants",
@@ -38,5 +38,8 @@
     "concurrently": "^9.1.2",
     "npm-check-updates": "^17.1.18",
     "rimraf": "^6.0.1"
+  },
+  "dependencies": {
+    "eslint-plugin-perfectionist": "^4.11.0"
   }
 }

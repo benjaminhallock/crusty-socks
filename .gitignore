@@ -1,78 +1,50 @@
 # Dependencies
 node_modules/
-.pnp/
-.pnp.js
 
-# Testing
-coverage/
-.nyc_output/
-
-# Production
-build/
-dist/
-.vercel
-
-# Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-config.env
-
-# AWS
-.elasticbeanstalk/
-.ebextensions/
-.aws/
-aws-credentials.json
-
-# IDE
-.idea/
+# IDE and Editor files
 .vscode/
-*.swp
-*.swo
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS
-.DS_Store
-Thumbs.db
+.vscode-test/
+.idea/
 .github/
 
-# Build artifacts
-dist/
-build/
-.next/
-out/
-.cache/
+# AWS deployment
+.ebextensions/
+.elasticbeanstalk/
 
-# Test coverage
-coverage/
-.nyc_output/
-.env.production.local
-config.env
+# Environment files
+*.env
+*.env.*
+*.local
+
+# System files
+.DS_Store
+.DS_Store?
 
 # Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.log
 
-# Editor directories and files
-.idea/
-.vscode/
+# Build and dist directories
+dist/
+build/
+coverage/
+
+# Temporary files
 *.swp
 *.swo
-.DS_Store
-*.pem
+*~
+*.bak
+*.tmp
 
-# TypeScript
-*.tsbuildinfo
+# Debug files
+.debug/
+debug.log
 
-# Cache
+# Package files
+*.tgz
+yarn.lock
+package-lock.json
+
+# Cache directories
+.npm/
 .eslintcache
 .cache/

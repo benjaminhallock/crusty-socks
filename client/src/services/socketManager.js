@@ -1,7 +1,6 @@
 import { io } from "socket.io-client";
 
 import { ENV_CONFIG, SOCKET_EVENTS as se } from "../constants.js";
-import { FaZhihu } from "react-icons/fa";
 
 class SocketManager {
   constructor() {
@@ -16,6 +15,11 @@ class SocketManager {
     this.currentRoom = { roomId: null, lobbyId: null };
     this.connectionStatus = "disconnected";
     this.statusCallbacks = new Set();
+    this.navigate = null; // Add navigation function storage
+  }
+
+  setNavigate(navigate) {
+    this.navigate = navigate;
   }
 
   async connect(userData, roomId) {
@@ -61,29 +65,6 @@ class SocketManager {
           resolve();
         });
 
-        this.socket.on("disconnect", (reason) => {
-          console.log(`Socket disconnected: ${reason}`);
-        });
-        this.socket.on("connect_timeout", (timeout) => {
-          console.log("Connection timed out:", timeout);
-          this.setStatus("connection-timeout");
-        });
-        this.socket.on("error", (error) => {
-          console.error("Socket connection error:", error);
-          this.setStatus("error");
-          reject(error);
-        });
-
-        this.socket.on("reconnect_attempt", (attemptNumber) => {
-          console.log(`Reconnection attempt #${attemptNumber}`);
-          this.setStatus("reconnecting");
-        });
-
-        this.socket.on("reconnect_failed", () => {
-          console.log("Failed to reconnect after maximum attempts");
-          this.setStatus("connection-failed");
-        });
-
         // Set connection timeout
         const timeout = setTimeout(() => {
           if (!this.isConnected()) {
@@ -113,22 +94,56 @@ class SocketManager {
     // Clear existing listeners
     this.socket.removeAllListeners();
 
-    // Basic error handling
+    // Connection related events
     this.socket.on("disconnect", (reason) => {
       console.log(`Socket disconnected: ${reason}`);
       this.setStatus("disconnected");
     });
 
-    this.socket.on("error", (error) => {
-      console.error("Socket error:", error);
-      alert("Error: " + error.message);
+    this.socket.on("connect_timeout", (timeout) => {
+      console.log("Connection timed out:", timeout);
+      this.setStatus("connection-timeout");
     });
 
+    this.socket.on("error", (error) => {
+      console.error("Socket error:", error);
+      this.setStatus("error");
+
+      // Handle specific error cases
+      if (error.message?.includes("lobby is full") && this.navigate) {
+        alert("This lobby is full. You'll be redirected to the home page.");
+        this.navigate("/");
+      } else if (
+        error.message?.includes("kicked from the game") &&
+        this.navigate
+      ) {
+        alert("You have been kicked from the game.");
+        this.navigate("/");
+      } else if (error.message) {
+        alert("Error: " + error.message);
+      }
+    });
+
+    this.socket.on("reconnect_attempt", (attemptNumber) => {
+      console.log(`Reconnection attempt #${attemptNumber}`);
+      this.setStatus("reconnecting");
+    });
+
+    this.socket.on("reconnect_failed", () => {
+      console.log("Failed to reconnect after maximum attempts");
+      this.setStatus("connection-failed");
+      if (this.navigate) {
+        alert("Connection failed. You'll be redirected to the home page.");
+        this.navigate("/");
+      }
+    });
+
+    // Game events
     this.socket.on(se.SOUND, (data) => {
       if (!data) return console.error("Invalid sound data:", data);
       this.soundCallbacks.forEach((cb) => cb(data));
     });
-    // Game events
+
     this.socket.on(se.GAME_STATE_UPDATE, (data) => {
       if (!data?.lobby) return console.error("Invalid game state data:", data);
       this.gameStateCallbacks.forEach((cb) => cb(data));

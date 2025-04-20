@@ -7,7 +7,7 @@ const tracks = [
 ];
 
 const MusicPlayer = (
-  { isPlaying, isMuted, musicVolume = 1, sfxVolume = 1 },
+  { isPlaying, musicVolume = 1, sfxVolume = 1 }, 
   ref
 ) => {
   const audioRef = useRef(null);
@@ -18,14 +18,14 @@ const MusicPlayer = (
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
-      audio.volume = isMuted ? 0 : musicVolume;
+      audio.volume = musicVolume; 
     }
-  }, [musicVolume, isMuted]);
+  }, [musicVolume]);
 
   // Handle SFX volume changes
   useEffect(() => {
-    testSoundRef.current.volume = isMuted ? 0 : sfxVolume;
-  }, [sfxVolume, isMuted]);
+    testSoundRef.current.volume = sfxVolume; // Remove isMuted logic
+  }, [sfxVolume]);
 
   // Expose functions to parent
   useImperativeHandle(ref, () => ({
@@ -48,7 +48,7 @@ const MusicPlayer = (
 
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
-    audio.volume = isMuted ? 0 : musicVolume;
+    audio.volume = musicVolume; 
     console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
     audio.play().catch((error) => console.error("Autoplay prevented:", error));
   };
@@ -62,11 +62,6 @@ const MusicPlayer = (
     audio.addEventListener("ended", handleTrackEnd);
     return () => audio.removeEventListener("ended", handleTrackEnd);
   }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) audio.muted = isMuted;
-  }, [isMuted]);
 
   useEffect(() => {
     const audio = audioRef.current;

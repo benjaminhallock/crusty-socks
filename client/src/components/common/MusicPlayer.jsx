@@ -3,13 +3,10 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 const tracks = [
   "/audio/pixelPartyMainTheme1.mp3",
   "/audio/drawASubmarine2.mp3",
-  "/audio/testTrack3.mp3",
+  // "/audio/testTrack3.mp3",
 ];
 
-const MusicPlayer = (
-  { isPlaying, musicVolume = 1, sfxVolume = 1 }, 
-  ref
-) => {
+const MusicPlayer = ({ isPlaying, musicVolume = 1, sfxVolume = 1 }, ref) => {
   const audioRef = useRef(null);
   const testSoundRef = useRef(new Audio("/audio/sfx/correct.mp3"));
   const lastTrackIndexRef = useRef(null);
@@ -18,7 +15,7 @@ const MusicPlayer = (
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
-      audio.volume = musicVolume; 
+      audio.volume = musicVolume;
     }
   }, [musicVolume]);
 
@@ -48,7 +45,7 @@ const MusicPlayer = (
 
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
-    audio.volume = musicVolume; 
+    audio.volume = musicVolume;
     console.log(`Now Playing Track: ${tracks[nextTrackIndex]}`);
     audio.play().catch((error) => console.error("Autoplay prevented:", error));
   };

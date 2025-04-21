@@ -1,45 +1,54 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-import Chat from './chat.js'; // Assuming you have a Chat model
-import User from './user.js'; // Assuming you have a User model
-
-const reportSchema = new mongoose.Schema(
-  {
-    reportedUser: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    reportedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    roomId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Lobby',
-      required: true,
-    },
-    reason: { type: String, required: true },
-    additionalComments: { type: String },
-    chatLogs: {
-      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Chat' }],
-      validate: [(array) => array.length > 0, 'Chat logs cannot be empty'],
-    },
-    drawingData: { type: String }, // Base64 encoded drawing data
-    status: {
-      type: String,
-      enum: ['pending', 'reviewed', 'resolved'],
-      default: 'pending',
-    },
-    resolvedAt: { type: Date },
-    resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    resolutionComments: { type: String },
+const reportSchema = new mongoose.Schema({
+  reportedUser: {
+    type: String,
+    required: true,
   },
-  { timestamps: true }
-);
+  reportedBy: {
+    type: String,
+    required: true,
+  },
+  roomId: {
+    type: String,
+    required: true,
+  },
+  reason: {
+    type: String,
+    required: true,
+  },
+  additionalComments: {
+    type: String,
+    default: "",
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  chatLogs: {
+    type: [
+      {
+        username: String,
+        message: String,
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    default: [],
+  },
+  status: {
+    type: String,
+    enum: ["pending", "reviewed", "resolved"],
+    default: "pending",
+  },
+  canvasData: {
+    type: String,
+    default: null,
+  },
+});
 
-reportSchema.index({ reportedUser: 1, roomId: 1 }, { unique: true });
-reportSchema.index({ reportedBy: 1, roomId: 1 }, { unique: true });
+const Report = mongoose.model("Report", reportSchema);
 
-export default mongoose.model('Report', reportSchema);
+export default Report;

@@ -1,6 +1,7 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { Transition } from "@headlessui/react";
 import { login, register } from "../../services/api";
+import Button from "../common/ui/Button";
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -103,15 +104,15 @@ const LoginForm = ({ onLoginSuccess }) => {
         leaveTo="opacity-0"
       >
         <div className="w-full max-w-md mx-auto">
-          <div className="text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 transform-gpu">
+          <div className="text-center bg-white/80 dark:bg-gray-800/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 transform-gpu">
             <img
-              className="mx-auto h-40 w-auto transform-gpu hover:scale-[1.02] transition-all duration-300 mb-10"
+              className="mx-auto h-auto w-auto transform-gpu hover:scale-[1.02] transition-all duration-300 mb-10 animate-pulse-subtle"
               src="/logo.png"
               alt="Logo"
+              style={{
+                animation: "scale 3s ease-in-out infinite",
+              }}
             />
-            <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
-              {isRegister ? "Create an account" : "Sign in"}
-            </h2>
 
             <Transition
               show={!!error}
@@ -204,17 +205,15 @@ const LoginForm = ({ onLoginSuccess }) => {
                   setFormData((prev) => ({ ...prev, password: e.target.value }))
                 }
               />
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 disabled={isLoading}
-                className={`w-full py-3 rounded-xl text-white transition-all duration-200 transform-gpu hover:scale-[1.02] ${
-                  isLoading
-                    ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                    : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 dark:from-purple-500 dark:to-indigo-500"
-                }`}
+                fullWidth="true"
+                size="lg"
               >
                 {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
-              </button>
+              </Button>
 
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
@@ -227,13 +226,14 @@ const LoginForm = ({ onLoginSuccess }) => {
                 </div>
               </div>
 
-              <button
+              <Button
                 type="button"
+                variant="nav"
                 onClick={toggleMode}
-                className="w-full py-3 px-4 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-600/50 transition-all duration-200 transform-gpu hover:scale-[1.02]"
+                fullWidth="true"
               >
                 {isRegister ? "Sign in" : "Register"}
-              </button>
+              </Button>
             </form>
           </div>
         </div>

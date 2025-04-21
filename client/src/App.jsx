@@ -6,8 +6,9 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-
 import { checkAuth } from "./services/api";
+
+// Component imports
 import Admin from "./components/admin/Admin";
 import Navbar from "./components/common/Navbar";
 import ErrorBoundary from "./components/common/ErrorBoundary";
@@ -25,20 +26,18 @@ function App() {
   const [bgLoaded, setBgLoaded] = useState(false);
   const navigate = useNavigate();
 
-  const ProtectedRoute = ({ children }) => {
+  // Combined route protection component
+  const AuthRoute = ({ requireAdmin = false, children }) => {
     const location = useLocation();
+
     if (!user)
       return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    if (requireAdmin && !user.isAdmin) return <Navigate to="/" replace />;
+
     return children;
   };
 
-  const AdminRoute = ({ children }) => {
-    const location = useLocation();
-    if (!user || !user.isAdmin)
-      return <Navigate to="/" replace state={{ from: location.pathname }} />;
-    return children;
-  };
-
+  // Load background image
   useEffect(() => {
     const bgImage = new Image();
     bgImage.src = "/wallpaper.svg";
@@ -49,24 +48,17 @@ function App() {
     };
   }, []);
 
+  // Authentication check
   useEffect(() => {
-    const checkUserAuth = async () => {
+    const verifyAuth = async () => {
       const token = localStorage.getItem("token");
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
+      if (!token) return setIsLoading(false);
 
       try {
         const response = await checkAuth();
-        if (!response || !response.success) {
-          console.log("Auth check failed - no success flag");
-          throw new Error("Invalid response");
-        }
 
-        if (!response.user) {
-          console.log("Auth check failed - no user data");
-          throw new Error("Invalid user");
+        if (!response?.success || !response?.user) {
+          throw new Error("Invalid authentication response");
         }
 
         const userData = { ...response.user, id: response.user._id };
@@ -75,39 +67,34 @@ function App() {
       } catch (err) {
         console.error("Auth check failed:", err);
 
-        // Don't clear local storage for connection errors
-        if (err.message !== "Connection error") {
+        // Keep cached user data on connection errors
+        if (err.message === "Connection error") {
+          try {
+            const cachedUser = JSON.parse(localStorage.getItem("user"));
+            if (cachedUser) setUser(cachedUser);
+          } catch (e) {
+            localStorage.clear();
+          }
+        } else {
           localStorage.clear();
           setUser(null);
-        } else {
-          // For connection errors, try to use cached user
-          const cachedUser = localStorage.getItem("user");
-          if (cachedUser) {
-            try {
-              setUser(JSON.parse(cachedUser));
-            } catch (e) {
-              localStorage.clear();
-              setUser(null);
-            }
-          }
         }
+
         navigate("/");
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkUserAuth();
+    verifyAuth();
   }, [navigate]);
 
   const handleLogin = ({ user, token }) => {
-    if (!user || !token) return console.error("Invalid login data");
-    const userInfo = { ...user, id: user._id };
+    if (!user || !token) return;
 
-    // Ensure token is properly saved to localStorage
+    const userInfo = { ...user, id: user._id };
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userInfo));
-
     setUser(userInfo);
   };
 
@@ -120,7 +107,7 @@ function App() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent" />
+        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent" />
       </div>
     );
   }
@@ -141,7 +128,7 @@ function App() {
       <ErrorBoundary>
         <Navbar isLoggedIn={!!user} onLogout={handleLogout} user={user} />
       </ErrorBoundary>
-      <main className=" mt-10 h-[calc(100vh-4rem)]">
+      <main className="h-[calc(90vh-4rem)] mx-auto max-w-[1400px]">
         <Routes>
           <Route
             path="/"
@@ -156,33 +143,33 @@ function App() {
           <Route
             path="/account"
             element={
-              <ProtectedRoute>
+              <AuthRoute>
                 <AccountSettings user={user} />
-              </ProtectedRoute>
+              </AuthRoute>
             }
           />
           <Route
             path="/lobby/new"
             element={
-              <ProtectedRoute>
+              <AuthRoute>
                 <LobbySettings user={user} />
-              </ProtectedRoute>
+              </AuthRoute>
             }
           />
           <Route
             path="/lobby/:roomId"
             element={
-              <ProtectedRoute>
+              <AuthRoute>
                 <GameRoom user={user} />
-              </ProtectedRoute>
+              </AuthRoute>
             }
           />
           <Route
             path="/admin"
             element={
-              <AdminRoute>
+              <AuthRoute requireAdmin={true}>
                 <Admin user={user} />
-              </AdminRoute>
+              </AuthRoute>
             }
           />
           <Route path="/leaderboard" element={<Leaderboard />} />

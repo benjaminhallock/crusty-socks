@@ -21,7 +21,13 @@ router.delete("/delete-account", auth, userController.deleteAccount);
 
 // Route for users to update their own profile
 router.put("/update/:username", auth, userController.updateOwnProfile); // Update own
-router.put("/:userId", auth, userController.updateProfileById); // Update own profile by ID
+router.put("/:userId", auth, userController.updateProfileById); // Update own profile by 
+
+// Get all reports per user
+router.get("/report/:username", auth, userController.getUserReports); // Get all reports 
+
+// Get all chats per user
+router.get("/chat/:username", auth, userController.getUserChats); // Get all chats
 
 // Admin routes
 router.get("/all", auth, isAdmin, userController.getAllUsers); // Get list of all users (admin only)

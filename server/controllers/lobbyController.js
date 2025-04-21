@@ -88,6 +88,7 @@ export const lobbyController = {
         playerLimit: req.body.playerLimit || 8,
         selectWord: req.body.selectWord || 1,
         roundTime: req.body.roundTime || 60,
+        gridSize: req.body.gridSize || 16,
         userId: req.body._id,
       });
 

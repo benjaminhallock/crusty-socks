@@ -57,7 +57,10 @@ export const API_ENDPOINTS = {
   CREATE_REPORT: "/api/report/create",
   GET_ALL_REPORTS: "/api/report/all",
   UPDATE_REPORT_STATUS: (reportId) => `/api/report/update/${reportId}`,
+  UPDATE_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_REPORT: (reportId) => `/api/report/${reportId}`,
 };
+
 // Game-related constants
 export const GAME_CONSTANTS = {
   CANVAS_GRID_SIZE: 16,

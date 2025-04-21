@@ -16,15 +16,6 @@ const RoundSummaryModal = ({
 
   // Add logging for modal lifecycle and props
   useEffect(() => {
-    console.log("[RoundSummaryModal] Rendering with state:", {
-      lobbyGameState: lobby.gameState,
-      isOpen: propIsOpen,
-      roundNumber,
-      maxRounds,
-      timeLeft,
-      isCorrectState: lobby.gameState === GAME_STATE.ROUND_END,
-      playerCount: players.length,
-    });
   }, [
     lobby.gameState,
     propIsOpen,
@@ -64,7 +55,7 @@ const RoundSummaryModal = ({
     <Modal
       isOpen={lobby.gameState === GAME_STATE.ROUND_END}
       onClose={onClose}
-      title={`Round ${roundNumber} Complete!`}
+      title={`Round ${roundNumber - 1} Complete!`}
       size="md"
       position="center"
       showCloseButton={true}

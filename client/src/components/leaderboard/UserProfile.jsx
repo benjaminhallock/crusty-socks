@@ -142,7 +142,7 @@ const UserProfile = ({ currentUser }) => {
             {/* Profile Header */}
             <div className="relative">
               {/* Background Pattern */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-800 dark:to-indigo-900 opacity-80 backdrop-blur-3xl"></div>
               <div className="relative px-6 py-8">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   {/* Avatar */}

@@ -7,7 +7,7 @@ const chatSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Lobby",
     required: true,
-    unique: true,
+    // Remove the unique constraint to allow multiple chat messages per lobby
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,

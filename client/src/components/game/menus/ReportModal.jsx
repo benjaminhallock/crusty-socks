@@ -37,23 +37,38 @@ const ReportModal = ({
       return;
     }
 
+    if (!reportedUser) {
+      setError("Invalid user to report");
+      return;
+    }
+
+    if (!roomId) {
+      setError("Room ID is missing");
+      return;
+    }
+
     setIsSubmitting(true);
     setError("");
 
     try {
       const reportData = {
         reportedUser, // Username of the reported player
-        reportedBy: currentUsername, // Username of the reporting player
         roomId, // ID of the game room
         reason: selectedReason, // Selected reason for reporting
         additionalComments, // Additional comments provided by the user
         chatLogs: includeChatLogs ? chatLogs?.slice(-15) || [] : [], // Last 15 chat logs for context
-        canvasState:
-          includeDrawing && selectedReason === "Inappropriate Drawing"
-            ? canvasState
-            : null,
       };
 
+      // If including drawing for inappropriate drawing reports
+      if (
+        includeDrawing &&
+        selectedReason === "Inappropriate Drawing" &&
+        canvasState
+      ) {
+        reportData.canvasState = canvasState;
+      }
+
+      console.log("Submitting report:", reportData);
       const result = await createReport(reportData);
 
       if (result.success) {
@@ -67,7 +82,7 @@ const ReportModal = ({
       }
     } catch (err) {
       setError("An error occurred while submitting your report");
-      console.error(err);
+      console.error("Report submission error:", err);
     } finally {
       setIsSubmitting(false);
     }

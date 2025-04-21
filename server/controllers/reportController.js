@@ -1,4 +1,4 @@
-import Report from '../models/report.js';
+import Report from "../models/report.js";
 
 export const reportController = {
   // Get all reports (admin only)
@@ -11,47 +11,99 @@ export const reportController = {
     }
   },
 
+  // Get a single report by ID
+  getReportById: async (req, res) => {
+    try {
+      const report = await Report.findById(req.params.id);
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Report not found",
+        });
+      }
+
+      res.json({ success: true, report });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  },
+
   // Create a new report
   createReport: async (req, res) => {
     try {
-      const { reportedUser, reason, additionalComments, chatLogs, roomId } = req.body;
+      console.log("Received report data:", req.body);
+      const {
+        reportedUser,
+        reason,
+        additionalComments,
+        chatLogs,
+        roomId,
+        canvasData,
+      } = req.body;
 
       if (!reportedUser) {
         return res.status(400).json({
           success: false,
-          message: 'Reported user is required',
+          message: "Reported user is required",
         });
       }
 
       if (!roomId) {
         return res.status(400).json({
           success: false,
-          message: 'Room ID is required',
+          message: "Room ID is required",
         });
       }
+
+      if (!req.user || !req.user.username) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required - no valid user found",
+        });
+      }
+
+      // Process chat logs to ensure they're in the correct format
+      const processedChatLogs = Array.isArray(chatLogs)
+        ? chatLogs.map((log) => ({
+            username: log.username || "Unknown",
+            message: log.message || "",
+            timestamp: log.timestamp || Date.now(),
+          }))
+        : [];
 
       const report = new Report({
         reportedUser,
         reportedBy: req.user.username,
         roomId,
-        reason: reason || 'Inappropriate behavior',
-        additionalComments: additionalComments || '',
+        reason: reason || "Inappropriate behavior",
+        additionalComments: additionalComments || "",
         timestamp: Date.now(),
-        chatLogs: chatLogs || [],
-        status: 'pending',
+        chatLogs: processedChatLogs,
+        status: "pending",
+        canvasData: canvasData || null,
       });
 
       await report.save();
+      console.log("Report saved successfully:", report._id);
 
       res.status(201).json({
         success: true,
         report,
       });
     } catch (err) {
-      console.error('Report creation error:', err);
+      console.error("Report creation error:", err);
+      // Log more details about the request
+      console.error("Request body:", req.body);
+      console.error("User:", req.user);
+
       res.status(500).json({
         success: false,
-        message: err.message,
+        message: err.message || "Internal server error during report creation",
+        details: process.env.NODE_ENV === "development" ? err.stack : undefined,
       });
     }
   },
@@ -60,10 +112,10 @@ export const reportController = {
   updateReportStatus: async (req, res) => {
     try {
       const { status } = req.body;
-      if (!['pending', 'reviewed', 'resolved'].includes(status)) {
-        return res.status(400).json({ 
+      if (!["pending", "reviewed", "resolved"].includes(status)) {
+        return res.status(400).json({
           success: false,
-          message: 'Invalid status' 
+          message: "Invalid status",
         });
       }
 
@@ -74,17 +126,17 @@ export const reportController = {
       );
 
       if (!report) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: 'Report not found' 
+          message: "Report not found",
         });
       }
 
       res.json({ success: true, report });
     } catch (err) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: err.message 
+        message: err.message,
       });
     }
   },
@@ -101,7 +153,7 @@ export const reportController = {
       if (!report) {
         return res.status(404).json({
           success: false,
-          message: 'Report not found',
+          message: "Report not found",
         });
       }
 
@@ -115,5 +167,5 @@ export const reportController = {
         message: err.message,
       });
     }
-  }
+  },
 };

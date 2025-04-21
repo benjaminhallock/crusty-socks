@@ -251,44 +251,14 @@ class GameManager {
     }
     try {
       const lobby = await Lobby.findById(lobbyObjectId);
-
-      // Handle restart command at game end
-      if (
-        lobby.gameState === gs.FINISHED &&
-        message.trim().toLowerCase() === "/restart"
-      ) {
-        const isAdmin = lobby.players.find(
-          (p) => p.username === username
-        )?.isAdmin;
-        if (isAdmin) {
-          // Reset lobby state for new game
-          lobby.gameState = gs.WAITING;
-          lobby.currentRound = 1;
-          lobby.players.forEach((p) => {
-            p.score = 0;
-            p.hasDrawn = false;
-            p.hasGuessedCorrect = false;
-            p.drawScore = 0;
-            p.roundScore = 0;
-          });
-          lobby.usedWords = [];
-          lobby.currentWord = "";
-          lobby.currentDrawer = "";
-
-          await lobby.save();
-          this.io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
-          this.io.to(roomId).emit(se.CHAT_MESSAGE, {
-            username: "System",
-            message: "Game has been restarted! Type /start to begin.",
-            timestamp: Date.now(),
-            isSystemMessage: true,
-          });
-          return;
-        }
+      if (!lobby) {
+        console.error("Lobby not found");
+        return;
       }
 
-      // Allow chat during FINISHED state
+      // You can delete this it should've be triggering anyway.
       if (lobby.gameState === gs.DRAWING && lobby.currentDrawer === username) {
+        console.warn("delete this if it runs");
         socket.emit(se.CHAT_MESSAGE, {
           username: "Server",
           message: "You cannot chat while drawing!",
@@ -303,6 +273,7 @@ class GameManager {
         lobby.gameState === gs.DRAWING &&
         trim(message) === trim(lobby.currentWord)
       ) {
+        console.warn("delete this if it runs");
         await this.handleCheckWordGuess({
           socket,
           roomId,
@@ -320,6 +291,10 @@ class GameManager {
         message: message.trim(),
         timestamp: Date.now(),
         isSystemMessage: false,
+      });
+
+      savedChat.save().catch((err) => {
+        console.error("Error saving chat message:", err);
       });
 
       // Emit message to room immediately for better responsiveness
@@ -383,7 +358,9 @@ class GameManager {
 
       const msg = trim(guess);
       const answer = trim(lobby.currentWord);
-      const isCorrectGuess = msg.toLowerCase() === answer.toLowerCase();
+      const isCorrectGuess =
+        msg.toLowerCase().includes(answer.toLowerCase()) ||
+        answer.toLowerCase().includes(msg.toLowerCase());
 
       if (!isCorrectGuess) {
         // Send incorrect guess to all players but only play sound for the guesser
@@ -527,6 +504,14 @@ class GameManager {
       if (!lobby) {
         console.error("Lobby not found");
         return;
+      }
+
+      if (lobby.currentRound > lobby.maxRounds) {
+        lobby.currentRound = 1; // Reset round for next game
+        lobby.players.forEach((p) => {
+          p.score = 0; // Reset scores for next game
+          p.roundPoints = 0; // Reset round points for next game
+        });
       }
 
       // Reset player states and clear canvas
@@ -729,8 +714,8 @@ class GameManager {
       lobby.gameState = gs.ROUND_END;
       lobby.currentRound = (lobby.currentRound || 0) + 1;
       lobby.startTime = Date.now(); // Add start time for round end state
-      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
       await withRetry(() => lobby.save());
+      io.to(roomId).emit(se.GAME_STATE_UPDATE, { lobby });
 
       const roundEndTimer = setTimeout(async () => {
         try {
@@ -741,7 +726,7 @@ class GameManager {
           }
 
           // Check if we should end the game before updating the round
-          if ((lobby.currentRound || 0) >= lobby.maxRounds) {
+          if ((lobby.currentRound || 0) > lobby.maxRounds) {
             await this.handleGameOver(io, roomId, lobby);
           } else {
             await this.startNextDraw(io, roomId);
@@ -790,10 +775,8 @@ class GameManager {
       const endMessage = isTie
         ? `Game Over! It's a tie between ${winners
             .map((w) => w.username)
-            .join(
-              " and "
-            )} with ${topScore} points! Type /restart to play again.`
-        : `Game Over! ${winners[0].username} wins with ${winners[0].score} points! Type /restart to play again.`;
+            .join(" and ")} with ${topScore} points!`
+        : `Game Over! ${winners[0].username} wins with ${winners[0].score} points!`;
 
       io.to(roomId).emit(se.CHAT_MESSAGE, {
         username: "System",

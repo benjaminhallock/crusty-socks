@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { GAME_STATE } from "../../constants";
 import { socketManager } from "../../services/socketManager";
 import ReportModal from "./menus/ReportModal";
-
+import Button from "../common/ui/Button";
 const ChatBox = ({
   user,
   roomId,
@@ -227,13 +227,13 @@ const ChatBox = ({
 
   return (
     <div
-      className="w-full flex flex-col h-full bg-gradient-to-b from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-600"
+      className="w-full flex flex-col h-full bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700"
       onFocus={handleChatFocus}
       onBlur={handleChatBlur}
     >
       {/* Header */}
       <div className="p-2 border-b border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-        <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+        <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 ml-1">
           <span>Chat</span>
           {messages.length > 0 && (
             <span className="text-xs px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 rounded-full">
@@ -260,27 +260,27 @@ const ChatBox = ({
               >
                 <div
                   className={`max-w-[90%] p-2 rounded-xl text-sm shadow-sm hover:shadow-md transition-all duration-200
-                    transform hover:translate-y-[-1px]
-                    ${
-                      msg.isSystemMessage
-                        ? msg.isGuessMessage
-                          ? msg.isCorrect
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50"
-                            : "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50"
-                          : "bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700"
-                        : msg.username === user.username
-                        ? "bg-indigo-500 dark:bg-indigo-600"
-                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                    }
-                    ${
-                      msg.username === user.username
-                        ? "rounded-br-sm"
-                        : "rounded-bl-sm"
-                    }
-                  `}
+              transform hover:translate-y-[-1px] relative overflow-hidden
+              ${
+                msg.isSystemMessage
+                  ? msg.isGuessMessage
+                    ? msg.isCorrect
+                      ? "bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50"
+                      : "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50"
+                    : "bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700"
+                  : msg.username === user.username
+                  ? "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                  : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 dark:from-purple-500 dark:to-indigo-500 before:absolute before:inset-0 before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-[800ms] before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent"
+              }
+              ${
+                msg.username === user.username
+                  ? "rounded-br-sm"
+                  : "rounded-bl-sm"
+              }
+            `}
                 >
                   <div
-                    className={`${
+                    className={`relative z-10 ${
                       msg.isSystemMessage
                         ? msg.isGuessMessage
                           ? msg.isCorrect
@@ -288,8 +288,8 @@ const ChatBox = ({
                             : "text-red-700 dark:text-red-300 font-medium"
                           : "text-gray-600 dark:text-gray-400 italic"
                         : msg.username === user.username
-                        ? "text-white"
-                        : "text-gray-800 dark:text-gray-200"
+                        ? "text-gray-800 dark:text-gray-200"
+                        : "text-white"
                     } ${msg.isSystemMessage ? "text-center" : ""}`}
                   >
                     {msg.isSystemMessage ? (
@@ -300,8 +300,8 @@ const ChatBox = ({
                           <span
                             className={`text-sm font-medium ${
                               msg.username === user.username
-                                ? "text-indigo-100"
-                                : "text-gray-500 dark:text-gray-400"
+                                ? "text-gray-500 dark:text-gray-400"
+                                : "text-indigo-100"
                             }`}
                           >
                             {msg.username === user.username
@@ -367,15 +367,16 @@ const ChatBox = ({
             }
             disabled={gameState === GAME_STATE.FINISHED}
           />
-          <button
+          <Button
             type="submit"
             disabled={!input.trim() || gameState === GAME_STATE.FINISHED}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 
-                text-white text-sm font-medium rounded-lg
-                disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2"
+            variant="primary"
+            size="md"
+            fullWidth={false}
           >
             Send
-          </button>
+          </Button>
         </div>
       </form>
 

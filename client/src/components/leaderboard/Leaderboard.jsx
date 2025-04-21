@@ -127,12 +127,12 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="min-h-screen dark:bg-gray-900/60 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-6 bg-gray-50 py-4 rounded-lg shadow-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
-          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
-            PixelParty Leaderboard
+        <div className="text-center mb-6 bg-gray-50/80 py-4 rounded-lg shadow-lg border border-gray-200 dark:bg-gray-800/80 dark:border-gray-700/70 backdrop-blur-md">
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-700/80 dark:to-indigo-800/80">
+            Pixel Party Leaderboard
           </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             Top players ranked by score and performance
@@ -140,7 +140,7 @@ const Leaderboard = () => {
         </div>
 
         {/* Leaderboard Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="bg-white/95 dark:bg-gray-800/80 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
           {/* Table Header */}
           <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-900/50 dark:to-purple-900/50">
             <div className="grid grid-cols-12 py-4 px-6 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -161,11 +161,13 @@ const Leaderboard = () => {
                   key={player.username || player.id || index}
                   className={`grid grid-cols-12 py-4 px-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${
                     index === 0
-                      ? "bg-yellow-50/50 dark:bg-yellow-900/20"
+                      ? "bg-blue-200/30 dark:bg-blue-800/40"
                       : index === 1
-                      ? "bg-gray-50/50 dark:bg-gray-800/50"
+                      ? "bg-indigo-200/30 dark:bg-indigo-700/40"
                       : index === 2
-                      ? "bg-amber-50/50 dark:bg-amber-900/20"
+                      ? "bg-purple-200/30 dark:bg-purple-600/40"
+                      : index % 2 === 1
+                      ? "bg-purple-100/50 dark:bg-gray-900/80"
                       : ""
                   }`}
                 >

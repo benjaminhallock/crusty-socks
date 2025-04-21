@@ -9,6 +9,8 @@ import {
   updateReport,
   updateUser,
   updateLobby,
+  fetchUserProfile,
+  getReportDetails,
 } from "../../services/api";
 
 import { GAME_STATE as gs } from "../../constants";
@@ -703,17 +705,136 @@ const Admin = () => {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  // Add state for modal details
+  const [detailModal, setDetailModal] = useState({
+    isOpen: false,
+    type: null, // 'user', 'report', or 'lobby'
+    id: null,
+    data: null,
+  });
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
+  const handleViewDetails = async (item, type) => {
+    setDetailModal({
+      isOpen: true,
+      type,
+      id: item._id,
+      data: null,
+    });
+
+    setDetailLoading(true);
+    setDetailError("");
+
+    try {
+      let result;
+      switch (type) {
+        case "user":
+          result = await fetchUserProfile(item.username);
+          break;
+        case "report":
+          result = await getReportDetails(item._id);
+          break;
+        case "lobby":
+          // For lobbies, we already have the data
+          result = { success: true, lobby: item };
+          break;
+        default:
+          throw new Error("Unknown detail type");
+      }
+
+      if (result.success) {
+        setDetailModal((prev) => ({
+          ...prev,
+          data: result[type] || result.profile || result.report || result.lobby,
+        }));
+      } else {
+        setDetailError(result.error || `Failed to load ${type} details`);
+      }
+    } catch (error) {
+      setDetailError(`Error loading details: ${error.message}`);
+    } finally {
+      setDetailLoading(false);
     }
   };
 
+  const closeDetailModal = () => {
+    setDetailModal({
+      isOpen: false,
+      type: null,
+      id: null,
+      data: null,
+    });
+    setDetailError("");
+  };
+
+  // Render the appropriate detail modal based on type
+  const renderDetailModal = () => {
+    if (!detailModal.isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center p-6 border-b border-gray-700">
+            <h2 className="text-2xl font-bold text-white">
+              {detailModal.type === "user" &&
+                `User: ${detailModal.data?.username || ""}`}
+              {detailModal.type === "report" && `Report Details`}
+              {detailModal.type === "lobby" &&
+                `Lobby: ${detailModal.data?.roomId || ""}`}
+            </h2>
+            <button
+              onClick={closeDetailModal}
+              className="text-gray-400 hover:text-white"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="p-6">
+            {detailLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner size="medium" />
+              </div>
+            ) : detailError ? (
+              <div className="bg-red-500/20 border border-red-500 text-red-400 p-4 rounded">
+                {detailError}
+              </div>
+            ) : (
+              <>
+                {detailModal.type === "user" && (
+                  <UserDetailContent user={detailModal.data} />
+                )}
+                {detailModal.type === "report" && (
+                  <ReportDetailContent
+                    report={detailModal.data}
+                    onStatusChange={handleUpdateStatus}
+                  />
+                )}
+                {detailModal.type === "lobby" && (
+                  <LobbyDetailContent lobby={detailModal.data} />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Update the renderContent function to add click handlers to rows
   const renderContent = () => {
     switch (activeView) {
       case "users":
@@ -746,7 +867,8 @@ const Admin = () => {
                   {filterAndSortData(data.users, "users").map((user) => (
                     <tr
                       key={user._id}
-                      className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors"
+                      className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      onClick={() => handleViewDetails(user, "user")}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {user.username}
@@ -765,9 +887,15 @@ const Admin = () => {
                           {user.isAdmin ? "Admin" : "User"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
-                          onClick={() => handleEditClick(user, "user")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(user, "user");
+                          }}
                           className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
                         >
                           Edit
@@ -822,7 +950,8 @@ const Admin = () => {
                   {filterAndSortData(data.lobbies, "lobbies").map((lobby) => (
                     <tr
                       key={lobby._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      onClick={() => handleViewDetails(lobby, "lobby")}
                     >
                       <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
                         {lobby.roomId}
@@ -865,10 +994,16 @@ const Admin = () => {
                       <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300">
                         {lobby.currentRound || 1}/{lobby.maxRounds || 3}
                       </td>
-                      <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">
+                      <td
+                        className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleEditClick(lobby, "lobby")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(lobby, "lobby");
+                            }}
                             className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs md:text-sm"
                           >
                             Edit
@@ -918,7 +1053,8 @@ const Admin = () => {
                   {filterAndSortData(data.reports, "reports").map((report) => (
                     <tr
                       key={report._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      onClick={() => handleViewDetails(report, "report")}
                     >
                       <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700">
                         {report.reportedUser}
@@ -952,13 +1088,17 @@ const Admin = () => {
                       <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700">
                         {new Date(report.timestamp).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td
+                        className="px-4 py-3 text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex gap-2">
                           <select
                             value={report.status}
-                            onChange={(e) =>
-                              handleUpdateStatus(report._id, e.target.value)
-                            }
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleUpdateStatus(report._id, e.target.value);
+                            }}
                             className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded px-2 py-1 text-xs md:text-sm border border-gray-300 dark:border-gray-600"
                           >
                             <option value="pending">Pending</option>
@@ -966,7 +1106,10 @@ const Admin = () => {
                             <option value="resolved">Resolved</option>
                           </select>
                           <button
-                            onClick={() => handleEditClick(report, "report")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(report, "report");
+                            }}
                             className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs md:text-sm"
                           >
                             Edit
@@ -1090,14 +1233,64 @@ const Admin = () => {
     }
   };
 
+  // Add skeleton loader component at the top of the file
+  const SkeletonLoader = ({ type }) => {
+    switch (type) {
+      case "stats":
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-lg shadow p-6 h-24"
+              >
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+              </div>
+            ))}
+          </div>
+        );
+      case "table":
+        return (
+          <div className="bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden animate-pulse">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+            </div>
+            <div className="p-6">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex justify-between mb-4">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/5"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/6"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Replace the loading state in the component with skeleton UI
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-900/10 dark:via-purple-900/10 dark:to-pink-900/10">
-        <div className="text-center">
-          <LoadingSpinner size="large" />
-          <p className="mt-4 text-gray-600 dark:text-gray-400 animate-pulse">
-            Loading admin dashboard...
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-900/10 dark:via-purple-900/10 dark:to-pink-900/10 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-lg shadow-lg p-6 animate-pulse">
+            <div className="flex justify-between items-center">
+              <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-1/6"></div>
+            </div>
+          </div>
+
+          {/* Stats Skeleton */}
+          <SkeletonLoader type="stats" />
+
+          {/* Table Skeleton */}
+          <SkeletonLoader type="table" />
         </div>
       </div>
     );
@@ -1255,9 +1448,520 @@ const Admin = () => {
 
         {/* Edit Modal */}
         {renderEditForm()}
+
+        {/* Detail Modal */}
+        {renderDetailModal()}
       </div>
     </Transition>
   );
 };
 
+// Create our content components used in the detail modal
+const UserDetailContent = ({ user }) => {
+  const [activeTab, setActiveTab] = useState("profile");
+
+  if (!user) return <div>No user data available</div>;
+
+  return (
+    <div>
+      <div className="border-b border-gray-700 mb-4">
+        <nav className="flex space-x-4">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`py-2 px-4 ${
+              activeTab === "profile"
+                ? "border-b-2 border-blue-500 text-white"
+                : "text-gray-400"
+            }`}
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => setActiveTab("stats")}
+            className={`py-2 px-4 ${
+              activeTab === "stats"
+                ? "border-b-2 border-blue-500 text-white"
+                : "text-gray-400"
+            }`}
+          >
+            Game Stats
+          </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`py-2 px-4 ${
+              activeTab === "reports"
+                ? "border-b-2 border-blue-500 text-white"
+                : "text-gray-400"
+            }`}
+          >
+            Reports
+          </button>
+          <button
+            onClick={() => setActiveTab("chatHistory")}
+            className={`py-2 px-4 ${
+              activeTab === "chatHistory"
+                ? "border-b-2 border-blue-500 text-white"
+                : "text-gray-400"
+            }`}
+          >
+            Chat History
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === "profile" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="text-gray-400 text-sm">Email</h3>
+            <p className="text-white">{user.email}</p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Account Status</h3>
+            <p className={user.isActive ? "text-green-500" : "text-red-500"}>
+              {user.isActive ? "Active" : "Suspended"}
+            </p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Role</h3>
+            <p className="text-white">{user.isAdmin ? "Admin" : "Player"}</p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Created</h3>
+            <p className="text-white">
+              {new Date(user.createdAt).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "stats" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="text-gray-400 text-sm">Games Played</h3>
+            <p className="text-white">{user.stats?.gamesPlayed || 0}</p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Wins</h3>
+            <p className="text-white">{user.stats?.wins || 0}</p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Correct Guesses</h3>
+            <p className="text-white">{user.stats?.correctGuesses || 0}</p>
+          </div>
+          <div>
+            <h3 className="text-gray-400 text-sm">Total Score</h3>
+            <p className="text-white">{user.stats?.totalScore || 0}</p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "reports" && (
+        <div className="mt-4">
+          <h3 className="text-lg font-medium text-white mb-2">Reports</h3>
+          {user.reports && user.reports.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-700">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {user.reports.map((report) => (
+                    <tr key={report._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                        {new Date(report.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                        {report.reason}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`px-2 py-1 rounded ${
+                            report.status === "resolved"
+                              ? "bg-green-900 text-green-300"
+                              : report.status === "reviewed"
+                              ? "bg-blue-900 text-blue-300"
+                              : "bg-yellow-900 text-yellow-300"
+                          }`}
+                        >
+                          {report.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-400">No reports found</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === "chatHistory" && (
+        <div className="mt-4">
+          <h3 className="text-lg font-medium text-white mb-2">
+            Recent Chat History
+          </h3>
+          {user.chatHistory && user.chatHistory.length > 0 ? (
+            <div className="bg-gray-700 rounded p-4 max-h-96 overflow-y-auto">
+              {user.chatHistory.map((message, index) => (
+                <div key={index} className="mb-1">
+                  <span className="text-gray-400 text-xs">
+                    {new Date(message.timestamp).toLocaleString()}:
+                  </span>
+                  <span className="ml-2 text-white">{message.message}</span>
+                  <span className="text-gray-400 text-xs ml-2">
+                    (Room: {message.roomId})
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400">No chat history found</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ReportDetailContent = ({ report, onStatusChange }) => {
+  const [newStatus, setNewStatus] = useState(report?.status || "pending");
+
+  if (!report) return <div>No report data available</div>;
+
+  const handleStatusUpdate = () => {
+    if (newStatus !== report.status) {
+      onStatusChange(report._id, newStatus);
+    }
+  };
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <h3 className="text-gray-400 text-sm">Reported User</h3>
+          <p
+            className="text-blue-400 hover:underline cursor-pointer"
+            onClick={() =>
+              handleViewDetails({ username: report.reportedUser }, "user")
+            }
+          >
+            {report.reportedUser}
+          </p>
+        </div>
+        <div>
+          <h3 className="text-gray-400 text-sm">Reported By</h3>
+          <p
+            className="text-blue-400 hover:underline cursor-pointer"
+            onClick={() =>
+              handleViewDetails({ username: report.reportedBy }, "user")
+            }
+          >
+            {report.reportedBy}
+          </p>
+        </div>
+        <div>
+          <h3 className="text-gray-400 text-sm">Room ID</h3>
+          <p className="text-white">{report.roomId}</p>
+        </div>
+        <div>
+          <h3 className="text-gray-400 text-sm">Date</h3>
+          <p className="text-white">
+            {new Date(report.timestamp).toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <h3 className="text-gray-400 text-sm">Reason</h3>
+          <p className="text-white">{report.reason}</p>
+        </div>
+        <div>
+          <h3 className="text-gray-400 text-sm">Status</h3>
+          <div className="flex items-center gap-2">
+            <select
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value)}
+              className="bg-gray-700 text-white rounded px-2 py-1"
+            >
+              <option value="pending">Pending</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <button
+              onClick={handleStatusUpdate}
+              disabled={newStatus === report.status}
+              className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
+            >
+              Update
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {report.additionalComments && (
+        <div className="mb-6">
+          <h3 className="text-gray-400 text-sm mb-2">Additional Comments</h3>
+          <div className="bg-gray-700 rounded p-4 text-white">
+            {report.additionalComments}
+          </div>
+        </div>
+      )}
+
+      {report.canvasData && (
+        <div className="mb-6">
+          <h3 className="text-gray-400 text-sm mb-2">Drawing Evidence</h3>
+          <div className="bg-white rounded overflow-hidden">
+            <img
+              src={report.canvasData}
+              alt="Drawing Evidence"
+              className="w-full h-auto"
+              style={{ maxHeight: "300px" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {report.chatLogs && report.chatLogs.length > 0 && (
+        <div>
+          <h3 className="text-gray-400 text-sm mb-2">Chat Logs</h3>
+          <div className="bg-gray-700 rounded p-4 max-h-64 overflow-y-auto">
+            {report.chatLogs.map((message, index) => (
+              <div key={index} className="mb-1">
+                <span
+                  className="text-blue-400 hover:underline cursor-pointer"
+                  onClick={() =>
+                    handleViewDetails({ username: message.username }, "user")
+                  }
+                >
+                  {message.username}:
+                </span>
+                <span className="ml-1 text-white">{message.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LobbyDetailContent = ({ lobby }) => {
+  if (!lobby) return <div>No lobby data available</div>;
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Basic Info */}
+        <div className="bg-gray-700/50 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-white mb-3">
+            Lobby Information
+          </h3>
+          <div className="space-y-2">
+            <div>
+              <span className="text-gray-400">Room ID:</span>
+              <span className="text-white ml-2">{lobby.roomId}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Game State:</span>
+              <span
+                className={`ml-2 px-2 py-1 rounded text-xs ${
+                  lobby.gameState === "waiting"
+                    ? "bg-gray-500 text-white"
+                    : lobby.gameState === "picking_word"
+                    ? "bg-blue-500 text-white"
+                    : lobby.gameState === "drawing"
+                    ? "bg-green-500 text-white"
+                    : "bg-purple-500 text-white"
+                }`}
+              >
+                {lobby.gameState?.replace("_", " ") || "waiting"}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Player Count:</span>
+              <span className="text-white ml-2">
+                {lobby.players?.length || 0}/{lobby.playerLimit || 8}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Round:</span>
+              <span className="text-white ml-2">
+                {lobby.currentRound || 1}/{lobby.maxRounds || 3}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Round Time:</span>
+              <span className="text-white ml-2">{lobby.roundTime || 60}s</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Category:</span>
+              <span className="text-white ml-2 capitalize">
+                {lobby.selectCategory || "random"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Current Drawing */}
+        {lobby.canvasData && (
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-white mb-3">
+              Current Drawing
+            </h3>
+            <div className="bg-white rounded overflow-hidden">
+              <img
+                src={lobby.canvasData}
+                alt="Current Drawing"
+                className="w-full h-auto"
+                style={{ maxHeight: "200px" }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Players Section */}
+      <div className="mt-6 bg-gray-700/50 rounded-lg p-4">
+        <h3 className="text-lg font-medium text-white mb-3">Players</h3>
+        {lobby.players && lobby.players.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-600">
+              <thead>
+                <tr className="text-left text-gray-400 text-xs">
+                  <th className="p-2">Username</th>
+                  <th className="p-2">Score</th>
+                  <th className="p-2">Status</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lobby.players.map((player, index) => (
+                  <tr
+                    key={index}
+                    className="border-t border-gray-600 hover:bg-gray-600/30"
+                  >
+                    <td className="p-2 text-white">{player.username}</td>
+                    <td className="p-2 text-white">{player.score}</td>
+                    <td className="p-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          player.username === lobby.currentDrawer
+                            ? "bg-green-500 text-white"
+                            : player.hasGuessedCorrect
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-500 text-white"
+                        }`}
+                      >
+                        {player.username === lobby.currentDrawer
+                          ? "Drawing"
+                          : player.hasGuessedCorrect
+                          ? "Guessed"
+                          : "Guessing"}
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      <button
+                        onClick={() =>
+                          handleViewDetails(
+                            { username: player.username },
+                            "user"
+                          )
+                        }
+                        className="text-blue-400 hover:underline"
+                      >
+                        View Profile
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-400">No players in this lobby</p>
+        )}
+      </div>
+
+      {/* Chat Messages Section */}
+      <div className="mt-6 bg-gray-700/50 rounded-lg p-4">
+        <h3 className="text-lg font-medium text-white mb-3">Chat Messages</h3>
+        {lobby.messages && lobby.messages.length > 0 ? (
+          <div className="bg-gray-800 rounded p-2 max-h-60 overflow-y-auto">
+            {lobby.messages.map((message, index) => (
+              <div key={index} className="mb-2 hover:bg-gray-700 p-1 rounded">
+                <div className="flex justify-between">
+                  <span
+                    className="font-bold text-blue-400 hover:underline cursor-pointer"
+                    onClick={() =>
+                      handleViewDetails({ username: message.user }, "user")
+                    }
+                  >
+                    {message.user}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(message.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-gray-300">{message.message}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400">No chat messages</p>
+        )}
+      </div>
+
+      {/* Kicked Users Section */}
+      {lobby.kickedUsers && lobby.kickedUsers.length > 0 && (
+        <div className="mt-6 bg-gray-700/50 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-white mb-3">Kicked Users</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-600">
+              <thead>
+                <tr className="text-left text-gray-400 text-xs">
+                  <th className="p-2">Username</th>
+                  <th className="p-2">Kicked At</th>
+                  <th className="p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lobby.kickedUsers.map((kicked, index) => (
+                  <tr key={index} className="border-t border-gray-600">
+                    <td className="p-2 text-gray-300">{kicked.username}</td>
+                    <td className="p-2 text-gray-300">
+                      {new Date(kicked.kickedAt).toLocaleString()}
+                    </td>
+                    <td className="p-2">
+                      <button
+                        onClick={() =>
+                          handleViewDetails(
+                            { username: kicked.username },
+                            "user"
+                          )
+                        }
+                        className="text-blue-400 hover:underline"
+                      >
+                        View Profile
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 export default Admin;

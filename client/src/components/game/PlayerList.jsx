@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
@@ -10,16 +10,7 @@ import { GAME_STATE } from "../../constants";
 import { socketManager } from "../../services/socketManager";
 import Button from "../common/ui/Button";
 import GameSettings from "./GameSettings";
-const PlayerList = ({
-  players,
-  drawerUsername,
-  roomId,
-  gameState,
-  currentUsername,
-  isAdmin,
-  onStartGame,
-  lobby,
-}) => {
+const PlayerList = ({ lobby, user, onStartGame }) => {
   const navigate = useNavigate();
   const [showPopup, setShowPopup] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
@@ -27,6 +18,17 @@ const PlayerList = ({
   const [chatLogs, setChatLogs] = useState([]);
   const [canvasState, setCanvasState] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  const {
+    players,
+    currentDrawer: drawerUsername,
+    roomId,
+    gameState,
+    userId: lobbyUserId,
+  } = lobby;
+
+  const isAdmin = user.isAdmin;
+  const currentUsername = user.username;
 
   useEffect(() => {
     if (socketManager.isConnected()) {
@@ -138,17 +140,40 @@ const PlayerList = ({
     "video games": "Video Games 🎮",
   };
 
-  const sortedPlayers = [...players].sort((a, b) => {
-    if (gameState === GAME_STATE.DRAWING) {
-      if (a.username === drawerUsername) return -1;
-      if (b.username === drawerUsername) return 1;
-    }
-    if (a.score !== b.score) return b.score - a.score;
-    if ((b.roundScore || 0) !== (a.roundScore || 0)) {
-      return (b.roundScore || 0) - (a.roundScore || 0);
-    }
-    return (b.drawScore || 0) - (a.drawScore || 0);
-  });
+  // Add this useEffect to track lobby changes
+  useEffect(() => {
+    console.log("[PlayerList] Lobby updated:", lobby);
+  }, [lobby]); // Re-run when lobby changes
+
+  // Memoize the sorted players to prevent unnecessary re-calculations
+  const sortedPlayers = useMemo(() => {
+    return [...lobby.players].sort((a, b) => {
+      if (gameState === GAME_STATE.DRAWING) {
+        if (a.username === drawerUsername) return -1;
+        if (b.username === drawerUsername) return 1;
+      }
+      if (a.score !== b.score) return b.score - a.score;
+      if ((b.roundScore || 0) !== (a.roundScore || 0)) {
+        return (b.roundScore || 0) - (a.roundScore || 0);
+      }
+      return (b.drawScore || 0) - (a.drawScore || 0);
+    });
+  }, [lobby.players, gameState, drawerUsername]);
+
+  {
+    gameState === GAME_STATE.WAITING &&
+      (lobbyUserId === user._id || isAdmin) && (
+        <Button
+          onClick={onStartGame}
+          title="Start Game"
+          variant="primary"
+          size="sm"
+          className="flex items-center justify-center gap-1 px-2 py-1 text-sm"
+        >
+          <span>Start Game</span>
+        </Button>
+      );
+  }
 
   return (
     <div className="w-full bg-white/95 dark:bg-gray-800/95 p-2 shadow-sm rounded-lg relative flex flex-col transition-colors border border-gray-200/50 dark:border-gray-700/50">
@@ -167,7 +192,7 @@ const PlayerList = ({
               <Button
                 onClick={() => setShowSettings(true)}
                 title="Game Settings"
-                variant="secondary"
+                variant="primary"
                 size="sm"
                 className="flex items-center justify-center w-6 h-6"
               >
@@ -178,8 +203,7 @@ const PlayerList = ({
             onClick={handleInviteLink}
             title="Invite Players"
             variant="secondary"
-            size="md"
-            className=""
+            size="sm"
           >
             <span className="sr-only">Copy Invite Link</span>
             <FaCopy className="w-3 h-3" />
@@ -213,16 +237,16 @@ const PlayerList = ({
               handlePlayerClick(e, player);
             }}
             className={`flex items-center gap-2 p-1.5 rounded-md transition-all duration-200 cursor-pointer relative border
-              ${
-                player.username === currentUsername
-                  ? "bg-white/80 dark:bg-gray-800/80 border-indigo-300 dark:border-indigo-600"
-                  : player.username === drawerUsername &&
-                    gameState === GAME_STATE.DRAWING
-                  ? "bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
-                  : player.hasGuessedCorrect
-                  ? "bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-700"
-                  : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-200 dark:border-gray-600"
-              }`}
+            ${
+              player.username === currentUsername
+                ? "bg-white/80 dark:bg-gray-800/80 border-indigo-300 dark:border-indigo-600"
+                : player.username === drawerUsername &&
+                  gameState === GAME_STATE.DRAWING
+                ? "bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
+                : player.hasGuessedCorrect
+                ? "bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-700"
+                : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-200 dark:border-gray-600"
+            }`}
           >
             <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
               {drawerUsername === player.username &&

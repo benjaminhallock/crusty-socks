@@ -1,25 +1,26 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 
-import User from '../models/user.js';
+import User from "../models/user.js";
 
 class AuthError extends Error {
   constructor(message) {
     super(message);
-    this.name = 'AuthError';
+    this.name = "AuthError";
   }
 }
 
 // Common authentication middleware
 const authenticate = async (req, requireAdmin = false) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token?.trim()) throw new AuthError('Authorization header missing or malformed');
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token?.trim())
+    throw new AuthError("Authorization header missing or malformed");
 
   try {
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(userId);
-    
-    if (!user) throw new AuthError('User not found');
-    if (requireAdmin && !user.isAdmin) throw new AuthError('Access denied');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (!user) throw new AuthError("User not found");
+    if (requireAdmin && !user.isAdmin) throw new AuthError("Access denied");
 
     // Attach user to request
     Object.assign(req, {
@@ -27,13 +28,13 @@ const authenticate = async (req, requireAdmin = false) => {
       token: `Bearer ${token}`,
       _id: user._id,
     });
-    
+
     return true;
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      throw new AuthError('Token has expired');
-    } else if (err.name === 'JsonWebTokenError') {
-      throw new AuthError('Invalid token');
+    if (err.name === "TokenExpiredError") {
+      throw new AuthError("Token has expired");
+    } else if (err.name === "JsonWebTokenError") {
+      throw new AuthError("Invalid token");
     }
     throw err;
   }
@@ -47,7 +48,7 @@ export const auth = async (req, res, next) => {
   } catch (err) {
     res.status(401).json({
       success: false,
-      message: err.message || 'Authentication failed',
+      message: err.message || "Authentication failed",
     });
   }
 };
@@ -58,9 +59,13 @@ export const isAdmin = async (req, res, next) => {
     await authenticate(req, true);
     next();
   } catch (err) {
-    res.status(err instanceof AuthError && err.message === 'Access denied' ? 403 : 401).json({
-      success: false,
-      message: err.message || 'Authentication failed',
-    });
+    res
+      .status(
+        err instanceof AuthError && err.message === "Access denied" ? 403 : 401
+      )
+      .json({
+        success: false,
+        message: err.message || "Authentication failed",
+      });
   }
 };

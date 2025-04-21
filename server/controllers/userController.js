@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import Report from "../models/report.js";
+import Chat from "../models/chat.js";
 
 import { Filter } from "bad-words";
 import bcrypt from "bcrypt";
@@ -33,18 +35,25 @@ export const userController = {
     }
   },
 
-  validateUser: async (req, res) => {
-    try {
-      res.status(200).json({
-        user: req.user,
-        token: req.token,
-      });
-    } catch (error) {
-      res.status(401).json({
+  validateUser: (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({
         ok: false,
-        message: "Invalid token",
+        message: "Invalid or missing token",
       });
     }
+
+    res.status(200).json({
+      ok: true,
+      user: {
+        _id: req.user._id,
+        username: req.user.username,
+        email: req.user.email,
+        isAdmin: req.user.isAdmin,
+        profile: req.user.profile,
+      },
+      token: req.token,
+    });
   },
 
   register: async (req, res) => {
@@ -623,6 +632,56 @@ export const userController = {
       res
         .status(500)
         .json({ success: false, message: "Error deleting account" });
+    }
+  },
+
+  // Get all reports for a specific user
+  getUserReports: async (req, res) => {
+    try {
+      const username = req.params.username;
+
+      // Find reports where the user is either the reporter or reportee
+      const reports = await Report.find({
+        $or: [{ reportedUser: username }, { reportedBy: username }],
+      }).sort({ timestamp: -1 }); // Sort by newest first
+
+      return res.json({
+        success: true,
+        reports,
+      });
+    } catch (err) {
+      console.error("Error fetching user reports:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching user reports",
+        error: err.message,
+      });
+    }
+  },
+
+  // Get chat history for a specific user
+  getUserChats: async (req, res) => {
+    try {
+      const username = req.params.username;
+
+      // Get chat logs with this username
+      const chatHistory = await Chat.find({
+        username: username,
+      })
+        .sort({ timestamp: -1 })
+        .limit(100); // Sort by newest first, limit to 100 messages
+
+      return res.json({
+        success: true,
+        chatHistory,
+      });
+    } catch (err) {
+      console.error("Error fetching user chat history:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching user chat history",
+        error: err.message,
+      });
     }
   },
 };

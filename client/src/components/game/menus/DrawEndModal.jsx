@@ -13,15 +13,7 @@ const DrawEndModal = ({
   const [timeLeft, setTimeLeft] = useState(cooldownTime);
 
   // Add logging for modal lifecycle
-  useEffect(() => {
-    console.log("[DrawEndModal] Rendering with state:", {
-      gameState: lobby.gameState,
-      word,
-      drawer,
-      timeLeft,
-      isCorrectState: lobby.gameState === gs.DRAW_END,
-    });
-  }, [lobby.gameState, word, drawer, timeLeft]);
+  useEffect(() => {}, [lobby.gameState, word, drawer, timeLeft]);
 
   // Simplified effect to just handle countdown
   useEffect(() => {

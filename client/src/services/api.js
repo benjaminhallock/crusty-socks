@@ -222,18 +222,48 @@ export const createReport = async (reportData) => {
       throw new Error("Room ID is required for reporting a player");
     }
 
-    const { data } = await api.post(x.CREATE_REPORT, {
+    if (!reportData.reportedUser) {
+      throw new Error("Reported user is required");
+    }
+
+    // Ensure chatLogs is in the correct format
+    const chatLogs = Array.isArray(reportData.chatLogs)
+      ? reportData.chatLogs.map((log) => ({
+          username: log.username || "Unknown",
+          message: log.message || "",
+          timestamp: log.timestamp || Date.now(),
+        }))
+      : [];
+
+    // Create a clean request object with only the expected fields
+    const requestPayload = {
       reportedUser: reportData.reportedUser,
       reason: reportData.reason || "Inappropriate behavior",
       roomId: reportData.roomId,
-      chatLogs: reportData.chatLogs || [],
-      ...(reportData.additionalComments && {
-        additionalComments: reportData.additionalComments,
-      }),
-    });
+      additionalComments: reportData.additionalComments || "",
+      chatLogs: chatLogs,
+    };
+
+    // Only add canvasData if it exists
+    if (reportData.canvasState && reportData.canvasState.data) {
+      requestPayload.canvasData = reportData.canvasState.data;
+    }
+
+    console.log("Sending report data:", JSON.stringify(requestPayload));
+
+    const { data } = await api.post(x.CREATE_REPORT, requestPayload);
+
+    console.log("Report creation response:", data);
 
     return { success: true, report: data.report };
   } catch (error) {
+    console.error("Report creation error:", error);
+    // Log more details about the error
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error response status:", error.response.status);
+      console.error("Error response headers:", error.response.headers);
+    }
     return handleApiError(error);
   }
 };
@@ -331,6 +361,35 @@ export const deleteAccount = async () => {
   try {
     const { data } = await api.delete(x.DELETE_ACCOUNT);
     return { success: true, message: data.message };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Add a function to fetch report details
+export const getReportDetails = async (reportId) => {
+  try {
+    const { data } = await api.get(x.GET_REPORT(reportId));
+    return { success: true, report: data.report };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Add these new functions for user reports and chat logs
+export const getUserReports = async (username) => {
+  try {
+    const { data } = await api.get(`/api/user/report/${username}`);
+    return { success: true, reports: data.reports || [] };
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+export const getUserChatHistory = async (username) => {
+  try {
+    const { data } = await api.get(`/api/user/chat/${username}`);
+    return { success: true, chatHistory: data.chatHistory || [] };
   } catch (error) {
     return handleApiError(error);
   }

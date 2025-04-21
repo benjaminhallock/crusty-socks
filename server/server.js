@@ -10,6 +10,7 @@ import { initializeSocketEvents } from "./gameManager.js";
 import lobbyRoutes from "./routes/lobbys.js";
 import reportRoutes from "./routes/reports.js";
 import userRoutes from "./routes/users.js";
+import chatRoutes from "./routes/chats.js";
 
 dotenv.config({ path: "./config.env" });
 if (!process.env.JWT_SECRET) process.exit(1);
@@ -58,6 +59,7 @@ app.use(express.json());
 app.use("/api/user", userRoutes);
 app.use("/api/lobby", lobbyRoutes);
 app.use("/api/report", reportRoutes);
+app.use("/api/chat", chatRoutes);
 
 initializeSocketEvents(io);
 

@@ -103,7 +103,7 @@ const LobbySettings = ({ user }) => {
       >
         <div className="w-full max-w-lg mx-auto">
           <div className="text-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 transform-gpu">
-            <h3 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">
+            <h3 className="text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-400 dark:to-indigo-500 bg-clip-text text-transparent">
               Game Settings
             </h3>
 
@@ -128,7 +128,7 @@ const LobbySettings = ({ user }) => {
                         [id]: parseInt(e.target.value),
                       }))
                     }
-                    className="w-full mt-1 appearance-none h-2 bg-gray-200 rounded-lg dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all duration-200"
+                    className="w-full mt-1 appearance-none h-2 bg-gray-200 rounded-lg dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all duration-200"
                   />
                 </div>
               ))}
@@ -150,7 +150,7 @@ const LobbySettings = ({ user }) => {
                         selectCategory: e.target.value,
                       }))
                     }
-                    className="w-full mt-1 border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all duration-200"
+                    className="w-full mt-1 border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all duration-200"
                   >
                     <option value="random">Random</option>
                     <option value="animals">Animals</option>
@@ -194,7 +194,7 @@ const LobbySettings = ({ user }) => {
                         playerLimit: parseInt(e.target.value),
                       }))
                     }
-                    className="w-full mt-1 border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 transition-all duration-200"
+                    className="w-full mt-1 border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all duration-200"
                   >
                     {[...Array(11).keys()].slice(2).map((num) => (
                       <option key={num} value={num}>

@@ -73,6 +73,7 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
       lobby.gameState !== GAME_STATE.DRAWING &&
       lobby.gameState !== GAME_STATE.PICKING_WORD
     ) {
+      setTimeLeft(0); // Reset timer when not in active state
       return;
     }
 
@@ -90,9 +91,11 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
       initialTimeLeft = Math.max(0, WORD_SELECTION_TIME - elapsedSeconds);
     }
 
+    // Ensure we set timeLeft even if it's 0
     setTimeLeft(initialTimeLeft);
     lastTickRef.current = null;
 
+    // Only start animation if we have time left
     if (initialTimeLeft > 0) {
       animationFrameRef.current = requestAnimationFrame(updateTimer);
     }
@@ -132,29 +135,29 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
 
   // Calculate width based on the correct time limit for each state
   const getTimerWidth = () => {
+    if (!timeLeft) return 0;
+
     if (lobby.gameState === GAME_STATE.DRAWING) {
-      // Smoother animation by using decimal points
-      const percentage = (timeLeft / lobby.roundTime) * 100;
-      return Math.max(0, Math.min(100, percentage)).toFixed(1);
+      return (timeLeft / lobby.roundTime) * 100;
     } else if (lobby.gameState === GAME_STATE.PICKING_WORD) {
-      const percentage = (timeLeft / WORD_SELECTION_TIME) * 100;
-      return Math.max(0, Math.min(100, percentage)).toFixed(1);
+      return (timeLeft / WORD_SELECTION_TIME) * 100;
     }
     return 100;
   };
 
-  // Get timer bar color based on time remaining
+  // Get timer bar color based on time remaining and game state
   const getTimerColor = () => {
-    if (lobby.gameState !== GAME_STATE.DRAWING) {
-      return "bg-indigo-400";
+    if (lobby.gameState === GAME_STATE.PICKING_WORD) {
+      return timeLeft <= 5 ? "bg-amber-400 animate-pulse" : "bg-indigo-400";
     }
-    if (timeLeft <= 10) {
-      return "bg-red-400 animate-pulse";
+
+    if (lobby.gameState === GAME_STATE.DRAWING) {
+      if (timeLeft <= 10) return "bg-red-400 animate-pulse";
+      if (timeLeft <= 30) return "bg-amber-400";
+      return "bg-emerald-400";
     }
-    if (timeLeft <= 30) {
-      return "bg-amber-400";
-    }
-    return "bg-emerald-400";
+
+    return "bg-indigo-400";
   };
 
   // Calculate the current reveal percentage based on time elapsed
@@ -287,7 +290,7 @@ const HiddenWord = ({ lobby, user, onWordPick }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-2 px-4 bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-700/95 dark:to-gray-800/95 rounded-lg shadow-md">
+    <div className="flex flex-col items-center justify-center py-2 px-4  bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-800/60 dark:to-gray-900/60 rounded-lg shadow-md">
       {/* Word Display and Status Section */}
       <div className="flex flex-col items-center gap-1 w-full">
         <div className="relative">

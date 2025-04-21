@@ -60,7 +60,7 @@ const GameSettings = ({ lobby }) => {
         title="Game Settings"
       >
         <svg
-          className="w-5 h-5 text-gray-500 dark:text-indigo-400"
+          className="w-5 h-5 text-gray-500 dark:text-purple-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

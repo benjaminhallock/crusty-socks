@@ -161,6 +161,7 @@ const GameRoom = ({ user }) => {
         if (lobbyData) {
           setLobbyId(lobbyData._id);
           setLobby((prev) => ({ ...prev, ...lobbyData }));
+          console.log("[GameRoom] Lobby data:", lobbyData);
           initializationComplete.current = true;
         }
       } catch (error) {
@@ -329,7 +330,7 @@ const GameRoom = ({ user }) => {
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
     >
-      <div className="min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-blue-300 via-pink-300 to-yellow-300 dark:from-gray-800 dark:via-purple-800 dark:to-indigo-800 p-4 rounded-lg shadow-2xl">
+      <div className="min-h-[calc(90vh-4rem)] w-full bg-gradient-to-r from-purple-600/80 to-indigo-600/80 dark:from-purple-800/80 dark:to-indigo-900/80 p-4 rounded shadow-2xl">
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-2">
             <strong className="font-bold">Error: </strong>
@@ -341,7 +342,7 @@ const GameRoom = ({ user }) => {
             <LoadingSpinner />
           </div>
         )}
-        <div className="h-full w-full flex flex-col gap-4 rounded-lg bg-white/90 dark:bg-gray-700/90 p-4 shadow-lg">
+        <div className="h-full w-full flex flex-col gap-4 rounded-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-4 shadow-lg">
           {/* Status and HiddenWord sections */}
           <div className="flex items-center w-full">
             <SocketStatusIcon status={socketStatus} />
@@ -360,15 +361,9 @@ const GameRoom = ({ user }) => {
             <div className="w-full lg:w-[250px]">
               <div className="flex flex-col gap-4">
                 <PlayerList
-                  players={lobby.players}
-                  drawerUsername={lobby.currentDrawer}
-                  roomId={roomId}
-                  lobbyId={lobbyId}
-                  gameState={lobby.gameState}
-                  currentUsername={user.username}
-                  isAdmin={user.isAdmin}
-                  onStartGame={() => socketManager.startGame(roomId)}
                   lobby={lobby}
+                  user={user}
+                  onStartGame={() => socketManager.startGame(roomId)}
                 />
               </div>
             </div>
@@ -378,13 +373,8 @@ const GameRoom = ({ user }) => {
               {lobby.gameState && (
                 <div className="w-full h-full min-h-[400px]">
                   <PixelCanvas
+                    lobby={lobby}
                     isDrawer={lobby.currentDrawer === user.username}
-                    drawerUsername={lobby.currentDrawer}
-                    gridSize={lobby.gridSize}
-                    lobbyId={lobby._id}
-                    roomId={roomId}
-                    gameState={lobby.gameState}
-                    canvasState={lobby.canvasState}
                   />
                 </div>
               )}

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Transition } from "@headlessui/react";
 
 import Button from "../common/ui/Button";
-import { fetchLobby } from "../../services/api";
+import { checkAuth } from "../../services/api";
 
 const CreateLobby = ({ user }) => {
   const navigate = useNavigate();
@@ -11,8 +11,9 @@ const CreateLobby = ({ user }) => {
   const [isShowing, setIsShowing] = useState(false);
 
   useEffect(() => {
-    if (!user || localStorage.getItem("token") === null) {
-      localStorage.removeItem("user");
+    if (!user || localStorage.getItem("token") === null || checkAuth().success === false) {
+      localStorage.clear();
+      sessionStorage.clear();
       navigate("/");
     }
     setIsShowing(true);
@@ -28,7 +29,7 @@ const CreateLobby = ({ user }) => {
   };
 
   return (
-    <div className= "flex items-center justify-center min-h-[calc(100vh-5rem)]">
+    <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
       <Transition
         as={Fragment}
         show={isShowing}
@@ -86,7 +87,9 @@ const CreateLobby = ({ user }) => {
                     onClick={async () => {
                       try {
                         const text = await navigator.clipboard.readText();
-                        const input = document.querySelector('input[name="roomId"]');
+                        const input = document.querySelector(
+                          'input[name="roomId"]'
+                        );
                         if (input) {
                           input.value = text.trim();
                         }
@@ -97,17 +100,17 @@ const CreateLobby = ({ user }) => {
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                     title="Paste from clipboard"
                   >
-                    <svg 
-                      className="w-5 h-5" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" 
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                       />
                     </svg>
                   </button>

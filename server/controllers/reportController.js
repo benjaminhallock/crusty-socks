@@ -35,7 +35,9 @@ export const reportController = {
   // Create a new report
   createReport: async (req, res) => {
     try {
-      console.log("Received report data:", req.body);
+      // Log the full request body for debugging
+      console.log("Full request body:", req.body);
+
       const {
         reportedUser,
         reason,
@@ -45,17 +47,20 @@ export const reportController = {
         canvasData,
       } = req.body;
 
+      // Enhanced validation for roomId
+      if (!roomId || typeof roomId !== "string" || roomId.trim() === "") {
+        console.error("Invalid or missing roomId:", roomId);
+        return res.status(400).json({
+          success: false,
+          message: "Valid room ID is required",
+          receivedValue: roomId,
+        });
+      }
+
       if (!reportedUser) {
         return res.status(400).json({
           success: false,
           message: "Reported user is required",
-        });
-      }
-
-      if (!roomId) {
-        return res.status(400).json({
-          success: false,
-          message: "Room ID is required",
         });
       }
 
@@ -66,29 +71,31 @@ export const reportController = {
         });
       }
 
-      // Process chat logs to ensure they're in the correct format
-      const processedChatLogs = Array.isArray(chatLogs)
-        ? chatLogs.map((log) => ({
-            username: log.username || "Unknown",
-            message: log.message || "",
-            timestamp: log.timestamp || Date.now(),
-          }))
-        : [];
-
+      // Create report with validated roomId
       const report = new Report({
         reportedUser,
         reportedBy: req.user.username,
-        roomId,
+        roomId: roomId.trim(), // Ensure clean roomId
         reason: reason || "Inappropriate behavior",
         additionalComments: additionalComments || "",
         timestamp: Date.now(),
-        chatLogs: processedChatLogs,
+        chatLogs: Array.isArray(chatLogs)
+          ? chatLogs.map((log) => ({
+              username: log.username || "Unknown",
+              message: log.message || "",
+              timestamp: log.timestamp || Date.now(),
+            }))
+          : [],
         status: "pending",
         canvasData: canvasData || null,
       });
 
       await report.save();
-      console.log("Report saved successfully:", report._id);
+      console.log("Report saved successfully:", {
+        id: report._id,
+        roomId: report.roomId,
+        reportedUser: report.reportedUser,
+      });
 
       res.status(201).json({
         success: true,
@@ -96,10 +103,7 @@ export const reportController = {
       });
     } catch (err) {
       console.error("Report creation error:", err);
-      // Log more details about the request
       console.error("Request body:", req.body);
-      console.error("User:", req.user);
-
       res.status(500).json({
         success: false,
         message: err.message || "Internal server error during report creation",

@@ -165,6 +165,9 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     }, FORCE_UPDATE_DELAY);
   };
 
+  // Add a helper function to check if history operations are allowed
+  const canUseHistory = () => canDraw() && gameState !== GAME_STATE.WAITING;
+
   const throttledDraw = (ctx, x, y, color) => {
     const now = performance.now();
     if (now - lastDrawTime.current < DRAW_THROTTLE) return false;
@@ -172,12 +175,22 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     lastDrawTime.current = now;
     if (drawPixel(ctx, x, y, color)) {
       drawnPixelsRef.current.set(`${x},${y}`, color);
+      
+      // Save state after delay to batch brush strokes
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      updateTimeoutRef.current = setTimeout(() => {
+        saveState();
+        updateTimeoutRef.current = null;
+      }, FORCE_UPDATE_DELAY);
+      
       return true;
     }
     return false;
   };
 
-  // Draw handlers
+  // Modified handleDrawStart to save state before flood fill
   const handleDrawStart = (e) => {
     if (!canDraw()) return;
     setIsDrawing(true);
@@ -192,8 +205,9 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     const color = currentTool === "eraser" ? "#FFFFFF" : currentColor;
 
     if (currentTool === "fill") {
-      saveState();
+      saveState();  // Save before flood fill
       if (floodFill(ctx, pixel.x, pixel.y, color)) {
+        saveState();  // Save after flood fill
         updateCanvasState(true);
       }
       setIsDrawing(false);
@@ -230,6 +244,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     }
   };
 
+  // Modified handleDrawEnd to save state after drawing
   const handleDrawEnd = () => {
     if (!canDraw()) return;
     setIsDrawing(false);
@@ -238,6 +253,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
+      saveState(); // Save state when drawing ends
     }
 
     if (drawnPixelsRef.current.size > 0) {
@@ -347,7 +363,8 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
 
   // History operations
   const undo = () => {
-    if (history.length <= 1) return;
+    if (!canUseHistory() || history.length <= 1) return;
+    
     const prevState = history[history.length - 2];
     setRedoStates((prev) => [...prev, history[history.length - 1]]);
     setHistory((prev) => prev.slice(0, -1));
@@ -363,7 +380,8 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
   };
 
   const redo = () => {
-    if (redoStates.length === 0) return;
+    if (!canUseHistory() || redoStates.length === 0) return;
+    
     const nextState = redoStates[redoStates.length - 1];
     setHistory((prev) => [...prev, nextState]);
     setRedoStates((prev) => prev.slice(0, -1));
@@ -472,7 +490,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
     };
   };
 
-  // Add keyboard shortcuts for tools
+  // Update keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!canDraw()) return;
@@ -488,13 +506,19 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
           setCurrentTool("eraser");
           break;
         case "c":
-          setShowCheckerboard((prev) => !prev);
+          setShowCheckerboard(prev => !prev);
           break;
         case "z":
-          if (e.ctrlKey || e.metaKey) undo();
+          if ((e.ctrlKey || e.metaKey) && canUseHistory()) {
+            e.preventDefault();
+            undo();
+          }
           break;
         case "y":
-          if (e.ctrlKey || e.metaKey) redo();
+          if ((e.ctrlKey || e.metaKey) && canUseHistory()) {
+            e.preventDefault();
+            redo();
+          }
           break;
         default:
           break;
@@ -503,7 +527,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canDraw]);
+  }, [canDraw, history.length, redoStates.length]);
 
   return (
     <div className="relative flex flex-col items-center w-full h-full bg-gradient-to-b from-white/95 to-gray-50/95 dark:from-gray-800/95 dark:to-gray-900/95 rounded-xl shadow-lg p-4 pb-2 border border-gray-200 dark:border-gray-700">
@@ -666,7 +690,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
 
           <Button
             onClick={undo}
-            disabled={!canDraw() || history.length <= 1}
+            disabled={!canUseHistory() || history.length <= 1}
             title="Undo (Ctrl+Z)"
             variant="secondary"
             size="sm"
@@ -676,7 +700,7 @@ const PixelCanvas = ({ lobby, isDrawer }) => {
 
           <Button
             onClick={redo}
-            disabled={!canDraw() || redoStates.length === 0}
+            disabled={!canUseHistory() || redoStates.length === 0}
             title="Redo (Ctrl+Y)"
             variant="secondary"
             size="sm"

@@ -218,52 +218,48 @@ export const fetchLeaderboard = async () => {
 
 export const createReport = async (reportData) => {
   try {
+    // Enhanced validation
+    if (!reportData || typeof reportData !== "object") {
+      throw new Error("Invalid report data");
+    }
+
+    // Log the incoming data for debugging
+    console.log("Incoming report data:", reportData);
+
+    // Validate roomId specifically
     if (!reportData.roomId) {
+      console.error("Missing roomId in report data:", reportData);
       throw new Error("Room ID is required for reporting a player");
     }
 
-    if (!reportData.reportedUser) {
-      throw new Error("Reported user is required");
-    }
-
-    // Ensure chatLogs is in the correct format
-    const chatLogs = Array.isArray(reportData.chatLogs)
-      ? reportData.chatLogs.map((log) => ({
-          username: log.username || "Unknown",
-          message: log.message || "",
-          timestamp: log.timestamp || Date.now(),
-        }))
-      : [];
-
-    // Create a clean request object with only the expected fields
+    // Create request payload with explicit roomId assignment
     const requestPayload = {
       reportedUser: reportData.reportedUser,
       reason: reportData.reason || "Inappropriate behavior",
-      roomId: reportData.roomId,
+      roomId: reportData.roomId, // Explicitly include roomId
       additionalComments: reportData.additionalComments || "",
-      chatLogs: chatLogs,
+      chatLogs: Array.isArray(reportData.chatLogs)
+        ? reportData.chatLogs.map((log) => ({
+            username: log.username || "Unknown",
+            message: log.message || "",
+            timestamp: log.timestamp || Date.now(),
+          }))
+        : [],
+      canvasData: reportData.canvasState?.data || null,
     };
 
-    // Only add canvasData if it exists
-    if (reportData.canvasState && reportData.canvasState.data) {
-      requestPayload.canvasData = reportData.canvasState.data;
-    }
-
-    console.log("Sending report data:", JSON.stringify(requestPayload));
+    // Log the final payload for verification
+    console.log("Sending report payload:", requestPayload);
 
     const { data } = await api.post(x.CREATE_REPORT, requestPayload);
 
-    console.log("Report creation response:", data);
-
-    return { success: true, report: data.report };
+    return {
+      success: true,
+      report: data.report,
+    };
   } catch (error) {
     console.error("Report creation error:", error);
-    // Log more details about the error
-    if (error.response) {
-      console.error("Error response data:", error.response.data);
-      console.error("Error response status:", error.response.status);
-      console.error("Error response headers:", error.response.headers);
-    }
+    console.error("Original report data:", reportData);
     return handleApiError(error);
   }
 };

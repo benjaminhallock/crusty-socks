@@ -3,7 +3,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 const tracks = [
   "/audio/pixelPartyMainTheme1.mp3",
   "/audio/drawASubmarine2.mp3",
-  // "/audio/testTrack3.mp3",
+  "/audio/getActive3.mp3"
 ];
 
 const MusicPlayer = ({ isPlaying, musicVolume = 1, sfxVolume = 1 }, ref) => {

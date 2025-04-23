@@ -5,10 +5,25 @@ export const chatController = {
   // Get all chats (admin only) - sort by newest first
   getAllChats: async (req, res) => {
     try {
-      const chats = await Chat.find({}).sort({ timestamp: -1 });
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = (page - 1) * limit;
+
+      const [chats, total] = await Promise.all([
+        Chat.find({})
+          .sort({ timestamp: -1 })
+          .skip(skip)
+          .limit(limit)
+          .populate("userId", "username"),
+        Chat.countDocuments(),
+      ]);
+
       res.json({
         success: true,
-        data: chats,
+        chats,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
       });
     } catch (error) {
       res.status(500).json({
@@ -19,80 +34,44 @@ export const chatController = {
     }
   },
 
-  // Get chat by ID
-  getChatById: async (req, res) => {
+  getChatByLobbyId: async (req, res) => {
     try {
-      const chat = await Chat.findById(req.params.id);
-
-      if (!chat) {
-        return res.status(404).json({
-          success: false,
-          message: "Chat not found",
-        });
-      }
-
-      // Check if user has access to this chat
-      if (
-        !req.user.isAdmin &&
-        chat.userId &&
-        chat.userId.toString() !== req.user._id.toString()
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied",
-        });
-      }
+      const { lobbyObjectId } = req.params;
+      const chats = await Chat.find({ lobbyId: lobbyObjectId })
+        .sort({ timestamp: -1 })
+        .populate("userId", "username");
 
       res.json({
         success: true,
-        data: chat,
+        chats,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Error fetching chat",
+        message: "Error fetching lobby chats",
         error: error.message,
       });
     }
   },
 
-  // Get chat history for specific user (admin only) - sort by newest first
-  getChatHistoryByUserId: async (req, res) => {
+  getChatByUserInLobby: async (req, res) => {
     try {
-      const { userId } = req.params;
-
-      // Validate userId format for MongoDB
-      if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid user ID format",
-        });
-      }
-
-      // Find the user's username
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      // Now get all chats from this user
+      const { lobbyObjectId, userId } = req.params;
       const chats = await Chat.find({
-        $or: [{ userId: userId }, { username: user.username }],
+        lobbyId: lobbyObjectId,
+        userId: userId,
       })
         .sort({ timestamp: -1 })
-        .limit(100);
+        .populate("userId", "username");
 
       res.json({
         success: true,
-        data: chats,
+        chats,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Error fetching chat history",
+        message: "Error fetching user lobby chats",
         error: error.message,
       });
     }

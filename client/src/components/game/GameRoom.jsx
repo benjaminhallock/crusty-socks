@@ -330,7 +330,7 @@ const GameRoom = ({ user }) => {
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
     >
-      <div className="min-h-[calc(90vh-4rem)] w-full bg-gradient-to-r from-purple-600/80 to-indigo-600/80 dark:from-purple-800/80 dark:to-indigo-900/80 p-4 rounded shadow-2xl">
+      <div className="min-h-auto w-full bg-gradient-to-r from-purple-600/80 to-indigo-600/80 dark:from-purple-800/80 dark:to-indigo-900/80 p-4 rounded shadow-2xl">
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-2">
             <strong className="font-bold">Error: </strong>

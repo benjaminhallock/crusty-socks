@@ -54,16 +54,16 @@ const Leaderboard = () => {
                 return player;
               }
 
-              // Create an image object to verify loading
+             
               const img = new Image();
               img.crossOrigin = "anonymous";
 
-              // Set up error handling
+              
               img.onerror = () => {
                 player.avatarUrl = null;
               };
 
-              // Start loading the image
+              
               img.src = url.href;
             } catch (e) {
               console.warn("Invalid avatar URL:", e);
@@ -218,9 +218,6 @@ const Leaderboard = () => {
                           {player.displayName ||
                             player.username ||
                             `Player #${index + 1}`}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          @{player.username}
                         </span>
                       </div>
                     </Link>

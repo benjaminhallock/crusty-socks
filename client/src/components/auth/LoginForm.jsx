@@ -65,6 +65,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         // Passes a username or email to the login function
         res = await login(formData.email, formData.password);
       }
+      //if (res?.user && res?.token)
       if (res?.user && res?.token) {
         console.log(
           "Login successful, passing token to onLoginSuccess:",
@@ -76,6 +77,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         });
       } else {
         setError(res?.message || "Authentication failed");
+        
       }
     } catch (error) {
       setError(error.message || "Authentication failed");

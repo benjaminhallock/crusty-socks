@@ -132,6 +132,7 @@ userSchema.statics.findByCredentials = async function (email, password) {
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
+  // if(isMatch) <-- developers should only use this to bypass password
   if (!isMatch) {
     console.warn("Password incorrect");
     return null;

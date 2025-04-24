@@ -1,24 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
 import {
-  Routes,
-  Route,
-  useLocation,
   Navigate,
+  Route,
+  Routes,
+  useLocation,
   useNavigate,
-} from "react-router-dom";
-import { checkAuth } from "./services/api";
+} from 'react-router-dom';
+import { checkAuth } from './services/api';
 
 // Component imports
-import Admin from "./components/admin/Admin";
-import Navbar from "./components/common/Navbar";
-import ErrorBoundary from "./components/common/ErrorBoundary";
-import GameRoom from "./components/game/GameRoom";
-import LoginForm from "./components/auth/LoginForm";
-import CreateLobby from "./components/lobby/CreateLobby";
-import LobbySettings from "./components/lobby/LobbySettings";
-import UserProfile from "./components/leaderboard/UserProfile";
-import Leaderboard from "./components/leaderboard/Leaderboard";
-import AccountSettings from "./components/auth/AccountSettings";
+import Admin from './components/admin/Admin';
+import AccountSettings from './components/auth/AccountSettings';
+import LoginForm from './components/auth/LoginForm';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import Navbar from './components/common/Navbar';
+import GameRoom from './components/game/GameRoom';
+import Leaderboard from './components/leaderboard/Leaderboard';
+import UserProfile from './components/leaderboard/UserProfile';
+import CreateLobby from './components/lobby/CreateLobby';
+import LobbySettings from './components/lobby/LobbySettings';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -40,10 +40,10 @@ function App() {
   // Load background image
   useEffect(() => {
     const bgImage = new Image();
-    bgImage.src = "/wallpaper.svg";
+    bgImage.src = '/wallpaper.svg';
     bgImage.onload = () => setBgLoaded(true);
     bgImage.onerror = () => {
-      console.error("Failed to load background image");
+      console.error('Failed to load background image');
       setBgLoaded(true);
     };
   }, []);
@@ -51,57 +51,38 @@ function App() {
   // Authentication check
   useEffect(() => {
     const verifyAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return setIsLoading(false);
-
+      setIsLoading(true);
       try {
-        const response = await checkAuth();
-
-        if (!response?.success || !response?.user) {
-          throw new Error("Invalid authentication response");
-        }
-
-        const userData = { ...response.user, id: response.user._id };
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
+        const { user } = await checkAuth();
+        setUser(user ? { ...user, id: user._id } : null);
       } catch (err) {
-        console.error("Auth check failed:", err);
-
-        // Keep cached user data on connection errors
-        if (err.message === "Connection error") {
-          try {
-            const cachedUser = JSON.parse(localStorage.getItem("user"));
-            if (cachedUser) setUser(cachedUser);
-          } catch (e) {
-            localStorage.clear();
-          }
-        } else {
-          localStorage.clear();
-          setUser(null);
-        }
-
-        navigate("/");
-      } finally {
-        setIsLoading(false);
+        console.error('Auth check failed:', err);
       }
+      setIsLoading(false);
     };
 
-    verifyAuth();
-  }, [navigate]);
+    // Only verify if we have a token but no user
+    const token = localStorage.getItem('token');
+    if (token && !user) {
+      verifyAuth();
+    } else if (!token) {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const handleLogin = ({ user, token }) => {
+  const handleLogin = async ({ user, token }) => {
     if (!user || !token) return;
 
     const userInfo = { ...user, id: user._id };
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userInfo));
     setUser(userInfo);
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userInfo));
   };
 
   const handleLogout = () => {
     localStorage.clear();
     setUser(null);
-    navigate("/");
+    navigate('/');
   };
 
   if (isLoading) {
@@ -118,11 +99,11 @@ function App() {
         id="app-background"
         style={{
           opacity: bgLoaded ? 0.9 : 0,
-          transition: "opacity 0.5s ease-in-out",
-          backgroundColor: window.matchMedia("(prefers-color-scheme: dark)")
+          transition: 'opacity 0.5s ease-in-out',
+          backgroundColor: window.matchMedia('(prefers-color-scheme: dark)')
             .matches
-            ? "rgba(0, 0, 0, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
+            ? 'rgba(0, 0, 0, 0.8)'
+            : 'rgba(255, 255, 255, 0.8)',
         }}
       />
       <ErrorBoundary>
@@ -130,13 +111,18 @@ function App() {
       </ErrorBoundary>
       <main className="h-[calc(90vh-4rem)] mx-auto max-w-[1400px]">
         <Routes>
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route
+            path="/user/:username"
+            element={<UserProfile currentUser={user} />}
+          />
           <Route
             path="/"
             element={
               user ? (
                 <CreateLobby user={user} />
               ) : (
-                <LoginForm onLoginSuccess={handleLogin} />
+                <LoginForm onLoginFunc={handleLogin} />
               )
             }
           />
@@ -172,11 +158,7 @@ function App() {
               </AuthRoute>
             }
           />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route
-            path="/user/:username"
-            element={<UserProfile currentUser={user} />}
-          />
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

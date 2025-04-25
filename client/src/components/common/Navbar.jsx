@@ -24,23 +24,24 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     isPlaying: false,
     musicVolume: parseFloat(localStorage.getItem("musicVolume") || "0.5"),
     sfxVolume: parseFloat(localStorage.getItem("sfxVolume") || "0.5"),
-    isPopupOpen: false,
+    isPopupOpen: false
   });
   const musicPlayerRef = useRef(null);
 
-  // Improved theme toggle that works directly with DOM
-  const toggleTheme = () => {
-    const isDarkMode = document.documentElement.classList.contains("dark");
+  
+  const toggleTheme = () => { // on theme button click, do this
+    const isDarkMode = document.documentElement.classList.contains("dark"); // dark mode makes it true, light mode makes it false
     document.documentElement.classList.toggle("dark", !isDarkMode);
-    localStorage.theme = isDarkMode ? "light" : "dark";
+    localStorage.theme = isDarkMode ? "light" : "dark"; // switches theme
 
     // Update state after DOM changes
     setSettings((prev) => ({ ...prev, isDark: !isDarkMode }));
   };
 
-  // Simplified state updates for non-theme settings
+ 
   const updateSetting = (key, value) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...prev, [key]: value })); // spreading previous state so only the desired prop changes
+    // prev is shallow copy
 
     // Handle side effects
     if (key.includes("Volume")) {
@@ -52,10 +53,10 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     if (!settings.isPlaying) {
       updateSetting("isPlaying", true);
     }
-    updateSetting("isPopupOpen", !settings.isPopupOpen);
+    updateSetting("isPopupOpen", !settings.isPopupOpen); 
   };
 
-  // Check auth status
+  
   useEffect(() => {
     if (!isLoggedIn && !localStorage.getItem("token")) {
       navigate("/");
@@ -65,7 +66,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
   // Set initial theme based on localStorage or system preference on component mount
   useEffect(() => {
     const theme = localStorage.getItem("theme");
-    const systemPrefersDark = window.matchMedia(
+    const systemPrefersDark = window.matchMedia( // window.matchMedia check a media query to see if the browser prefers dark mode
       "(prefers-color-scheme: dark)"
     ).matches;
 
@@ -96,9 +97,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </button>
 
-            {/* Navigation items */}
+            
             <div className="flex items-center gap-3">
-              {isLoggedIn ? (
+              {isLoggedIn ? ( // are you logged in or not: display different buttons
                 <>
                   <Button
                     onClick={() => navigate("/leaderboard")}
@@ -245,7 +246,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
               <div className="relative z-50">
                 <Menu as="div" className="relative">
-                  {({ open }) => (
+                  {({ open }) => ( // change music button style for when popup is open
                     <>
                       <Menu.Button
                         as={Button}
@@ -337,6 +338,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           isPlaying={settings.isPlaying}
           musicVolume={settings.musicVolume}
           sfxVolume={settings.sfxVolume}
+          // isPlaying, musicVolume, and sfxVolume will be passed down to child (MusicPlayer)
         />
       </nav>
     </div>

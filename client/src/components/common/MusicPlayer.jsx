@@ -1,4 +1,5 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+// MusicPlayer serves as the child of the Navbar
 
 const tracks = [
   "/audio/pixelPartyMainTheme1.mp3",
@@ -6,9 +7,9 @@ const tracks = [
   "/audio/getActive3.mp3"
 ];
 
-const MusicPlayer = ({ isPlaying, musicVolume = 1, sfxVolume = 1 }, ref) => {
+const MusicPlayer = ({ isPlaying, musicVolume = 0.5, sfxVolume = 0.5 }, ref) => {
   const audioRef = useRef(null);
-  const testSoundRef = useRef(new Audio("/audio/sfx/correct.mp3"));
+  const testSoundRef = useRef(new Audio("/audio/sfx/correct.mp3")); // lightweight for a test sound
   const lastTrackIndexRef = useRef(null);
 
   // Handle music volume changes

@@ -15,7 +15,7 @@ const ReportDetail = () => {
       setLoading(true);
       const result = await getReportDetails(reportId);
 
-      if (result.ok) {
+      if (result.success) {
         setReport(result.report);
         setNewStatus(result.report.status);
       } else {
@@ -31,7 +31,7 @@ const ReportDetail = () => {
     if (!newStatus || newStatus === report.status) return;
 
     const result = await updateReportStatus(reportId, newStatus);
-    if (result.ok) {
+    if (result.success) {
       setReport({ ...report, status: newStatus });
     } else {
       setError(result.error || "Failed to update status");

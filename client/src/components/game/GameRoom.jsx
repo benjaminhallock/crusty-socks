@@ -192,7 +192,7 @@ const GameRoom = ({ user }) => {
   const fetchLobbyData = async () => {
     try {
       const data = await fetchLobby(roomId);
-      if (!data.ok || !data.lobby) {
+      if (!data.success || !data.lobby) {
         throw new Error(data.error || "Failed to fetch lobby data");
       }
 

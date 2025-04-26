@@ -35,7 +35,7 @@ const LobbySettings = ({ user }) => {
     setError("");
     try {
       const res = await createLobby(gameState);
-      if (res.ok && res.roomId) {
+      if (res.success && res.roomId) {
         setIsShowing(false); // Trigger exit animation
         // Add slight delay to allow animation to complete
         setTimeout(() => {

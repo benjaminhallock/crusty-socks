@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import {
   FaUser,
   FaSignOutAlt,
@@ -11,28 +11,28 @@ import {
   FaTrophy,
   FaCog,
   FaCaretDown,
-} from 'react-icons/fa';
-import Button from './ui/Button';
-import MusicPlayer from './MusicPlayer';
-import { Menu, Transition } from '@headlessui/react';
+} from "react-icons/fa";
+import Button from "./ui/Button";
+import MusicPlayer from "./MusicPlayer";
+import { Menu, Transition } from "@headlessui/react";
 
 const Navbar = ({ isLoggedIn, onLogout, user }) => {
   const navigate = useNavigate();
   // Combine related state into a settings object
   const [settings, setSettings] = useState({
-    isDark: document.documentElement.classList.contains('dark'),
+    isDark: document.documentElement.classList.contains("dark"),
     isPlaying: false,
-    musicVolume: parseFloat(localStorage.getItem('musicVolume') || '0.5'),
-    sfxVolume: parseFloat(localStorage.getItem('sfxVolume') || '0.5'),
+    musicVolume: parseFloat(localStorage.getItem("musicVolume") || "0.5"),
+    sfxVolume: parseFloat(localStorage.getItem("sfxVolume") || "0.5"),
     isPopupOpen: false,
   });
   const musicPlayerRef = useRef(null);
 
   // Improved theme toggle that works directly with DOM
   const toggleTheme = () => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    document.documentElement.classList.toggle('dark', !isDarkMode);
-    localStorage.theme = isDarkMode ? 'light' : 'dark';
+    const isDarkMode = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", !isDarkMode);
+    localStorage.theme = isDarkMode ? "light" : "dark";
 
     // Update state after DOM changes
     setSettings((prev) => ({ ...prev, isDark: !isDarkMode }));
@@ -43,30 +43,37 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
 
     // Handle side effects
-    if (key.includes('Volume')) {
+    if (key.includes("Volume")) {
       localStorage.setItem(key, value);
     }
   };
 
   const handleMusicButtonClick = () => {
     if (!settings.isPlaying) {
-      updateSetting('isPlaying', true);
+      updateSetting("isPlaying", true);
     }
-    updateSetting('isPopupOpen', !settings.isPopupOpen);
+    updateSetting("isPopupOpen", !settings.isPopupOpen);
   };
+
+  // Check auth status
+  useEffect(() => {
+    if (!isLoggedIn && !localStorage.getItem("token")) {
+      navigate("/");
+    }
+  }, [isLoggedIn, navigate]);
 
   // Set initial theme based on localStorage or system preference on component mount
   useEffect(() => {
-    const theme = localStorage.getItem('theme');
+    const theme = localStorage.getItem("theme");
     const systemPrefersDark = window.matchMedia(
-      '(prefers-color-scheme: dark)'
+      "(prefers-color-scheme: dark)"
     ).matches;
 
-    if (theme === 'dark' || (!theme && systemPrefersDark)) {
-      document.documentElement.classList.add('dark');
+    if (theme === "dark" || (!theme && systemPrefersDark)) {
+      document.documentElement.classList.add("dark");
       setSettings((prev) => ({ ...prev, isDark: true }));
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
       setSettings((prev) => ({ ...prev, isDark: false }));
     }
   }, []);
@@ -78,7 +85,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           <div className="max-w-7xl mx-auto px-3 py-1.5 flex justify-between items-center">
             {/* Logo */}
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="relative group h-7 transform hover:scale-105 transition-all duration-300 ease-out hover:brightness-110"
             >
               <img
@@ -94,10 +101,10 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               {isLoggedIn ? (
                 <>
                   <Button
-                    onClick={() => navigate('/leaderboard')}
+                    onClick={() => navigate("/leaderboard")}
                     className="text-sm h-8 flex items-center gap-1.5 px-2.5 py-0 bg-purple-100 hover:bg-purple-200 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 backdrop-blur-sm text-purple-700 dark:text-purple-300 transition-all duration-200 shadow-sm hover:shadow border border-purple-200 dark:border-purple-200/10"
                   >
-                    <FaTrophy className="inline-block align-middle mr-1 h-3 w-3 text-purple-600 dark:text-purple-400" />
+                    <FaTrophy className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                     <span className="hidden sm:inline font-medium">
                       Leaderboard
                     </span>
@@ -107,7 +114,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                     onClick={() => navigate(`/user/${user?.username}`)}
                     className="text-sm h-8 flex items-center gap-1.5 px-2.5 py-0 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 backdrop-blur-sm text-indigo-700 dark:text-indigo-300 transition-all duration-200 shadow-sm hover:shadow border border-indigo-200 dark:border-indigo-200/10"
                   >
-                    <FaUser className="inline-block align-middle mr-1 h-3 w-3 text-indigo-800 dark:text-indigo-400" />
+                    <FaUser className="h-3 w-3 text-indigo-800 dark:text-indigo-400" />
                     <span className="hidden sm:inline font-medium">
                       {user?.username}
                     </span>
@@ -122,7 +129,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                             className="text-sm h-8 flex items-center gap-1.5 px-2 py-0 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
                           >
                             <FaCaretDown
-                              className={`h-3 w-3 text-gray-700 dark:text-white transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                              className={`h-3 w-3 text-gray-700 dark:text-white transition-transform duration-200 ${
+                                open ? "rotate-180" : ""
+                              }`}
                             />
                           </Menu.Button>
 
@@ -139,10 +148,14 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                                 <Menu.Item>
                                   {({ active }) => (
                                     <button
-                                      onClick={() => navigate('/account')}
-                                      className={`${active ? 'bg-indigo-100 dark:bg-indigo-500/20' : ''} w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                      onClick={() => navigate("/account")}
+                                      className={`${
+                                        active
+                                          ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                          : ""
+                                      } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
                                     >
-                                      <FaCog className="inline-block mr-1 h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                                      <FaCog className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                                       Account Settings
                                     </button>
                                   )}
@@ -152,10 +165,14 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                                   <Menu.Item>
                                     {({ active }) => (
                                       <button
-                                        onClick={() => navigate('/admin')}
-                                        className={`${active ? 'bg-indigo-100 dark:bg-indigo-500/20' : ''} w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                        onClick={() => navigate("/admin")}
+                                        className={`${
+                                          active
+                                            ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                            : ""
+                                        } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
                                       >
-                                        <FaUserShield className="inline-block mr-1 h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                                        <FaUserShield className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                                         Admin Panel
                                       </button>
                                     )}
@@ -166,14 +183,18 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                                   {({ active }) => (
                                     <button
                                       onClick={() => toggleTheme()}
-                                      className={`${active ? 'bg-indigo-100 dark:bg-indigo-500/20' : ''} w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
+                                      className={`${
+                                        active
+                                          ? "bg-indigo-100 dark:bg-indigo-500/20"
+                                          : ""
+                                      } w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-3`}
                                     >
                                       {settings.isDark ? (
-                                        <FaSun className="inline-block mr-1 h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                                        <FaSun className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                                       ) : (
-                                        <FaMoon className="inline-block mr-1 h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                                        <FaMoon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                                       )}
-                                      {settings.isDark ? 'Light' : 'Dark'} Mode
+                                      {settings.isDark ? "Light" : "Dark"} Mode
                                     </button>
                                   )}
                                 </Menu.Item>
@@ -182,9 +203,13 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                                   {({ active }) => (
                                     <button
                                       onClick={() => onLogout()}
-                                      className={`${active ? 'bg-red-100 dark:bg-red-500/10' : ''} w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-3 border-t border-red-100/20 dark:border-red-500/20`}
+                                      className={`${
+                                        active
+                                          ? "bg-red-100 dark:bg-red-500/10"
+                                          : ""
+                                      } w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-3 border-t border-red-100/20 dark:border-red-500/20`}
                                     >
-                                      <FaSignOutAlt className="inline-block mr-1 h-3.5 w-3.5 text-red-500 dark:text-red-400" />
+                                      <FaSignOutAlt className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
                                       Logout
                                     </button>
                                   )}
@@ -200,17 +225,17 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               ) : (
                 <>
                   <Button
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate("/login")}
                     className="text-sm h-8 flex items-center gap-1.5 px-3 py-0 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 border border-white/10"
                   >
-                    <FaSignInAlt className="inline-block mr-1 h-3 w-3" />
+                    <FaSignInAlt className="h-3 w-3" />
                     <span className="hidden sm:inline font-medium">Login</span>
                   </Button>
                   <Button
-                    onClick={() => navigate('/leaderboard')}
+                    onClick={() => navigate("/leaderboard")}
                     className="text-sm h-8 flex items-center gap-1.5 px-3 py-0 bg-purple-500/20 hover:bg-purple-500/30 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 backdrop-blur-sm text-purple-900 dark:text-purple-300 transition-all duration-200 shadow-md hover:shadow-lg border border-purple-200/20"
                   >
-                    <FaTrophy className="inline-block mr-1 h-3 w-3 text-purple-700 dark:text-purple-400" />
+                    <FaTrophy className="h-3 w-3 text-purple-700 dark:text-purple-400" />
                     <span className="hidden sm:inline font-medium">
                       Leaderboard
                     </span>
@@ -226,7 +251,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                         as={Button}
                         onClick={handleMusicButtonClick}
                         className={`text-sm h-8 flex items-center justify-center gap-1.5 px-2 py-0 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-105 relative group ${
-                          settings.isPlaying ? 'ring-2 ring-indigo-500' : ''
+                          settings.isPlaying ? "ring-2 ring-indigo-500" : ""
                         }`}
                       >
                         <FaMusic className="h-3 w-3 text-gray-700 dark:text-white/90 transition-colors duration-200" />
@@ -258,7 +283,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                               step="0.01"
                               value={settings.musicVolume}
                               onChange={(e) =>
-                                updateSetting('musicVolume', e.target.value)
+                                updateSetting("musicVolume", e.target.value)
                               }
                               className="w-full accent-indigo-600 dark:accent-indigo-400"
                             />
@@ -274,7 +299,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                                 value={settings.sfxVolume}
                                 onChange={(e) => {
                                   const value = e.target.value;
-                                  updateSetting('sfxVolume', value);
+                                  updateSetting("sfxVolume", value);
                                   if (musicPlayerRef.current) {
                                     musicPlayerRef.current.playTestSound();
                                   }
@@ -296,7 +321,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                   aria-label="Toggle theme"
                   className="h-8 group text-sm flex items-center justify-center gap-1.5 px-2 py-0 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 backdrop-blur-sm transition-all duration-200 shadow-sm hover:shadow border border-gray-200 dark:border-white/10"
                 >
-                  {document.documentElement.classList.contains('dark') ? (
+                  {document.documentElement.classList.contains("dark") ? (
                     <FaSun className="h-3 w-3 text-amber-500 dark:text-amber-400 group-hover:text-amber-600 dark:group-hover:text-amber-300 group-hover:rotate-90 transition-all duration-300" />
                   ) : (
                     <FaMoon className="h-3 w-3 text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 group-hover:rotate-[-90deg] transition-all duration-300" />

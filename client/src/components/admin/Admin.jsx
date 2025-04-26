@@ -5,21 +5,18 @@ import {
   getAllUsers,
   getAllLobbies,
   getAllReports,
-  getAllChats,
   updateReportStatus,
   updateReport,
   updateUser,
   updateLobby,
   fetchUserProfile,
   getReportDetails,
-  getReportsByUser,
-  getChatHistoryByUserId
 } from "../../services/api";
 
 import { GAME_STATE as gs } from "../../constants";
 
 const Admin = () => {
-  const [data, setData] = useState({ users: [], lobbies: [], reports: [], chats: [] });
+  const [data, setData] = useState({ users: [], lobbies: [], reports: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("reports");
@@ -30,7 +27,7 @@ const Admin = () => {
   });
   const [editingItem, setEditingItem] = useState(null);
   const [editFormData, setEditFormData] = useState({});
-  const [ok, setok] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState("overview");
 
@@ -103,29 +100,22 @@ const Admin = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [usersResponse, lobbiesResponse, reportsResponse, chatsResponse] =
-          await Promise.all([
-            getAllUsers(),
-            getAllLobbies(),
-            getAllReports(),
-            getAllChats()
-          ]);
+        const [usersResponse, lobbiesResponse, reportsResponse] =
+          await Promise.all([getAllUsers(), getAllLobbies(), getAllReports()]);
+
         setData({
-          users: usersResponse.ok ? usersResponse.users : [],
-          lobbies: lobbiesResponse.ok ? lobbiesResponse.lobbies : [],
-          reports: reportsResponse.ok ? reportsResponse.reports : [],
-          chats: chatsResponse.ok ? chatsResponse.data : [],
+          users: usersResponse.success ? usersResponse.users : [],
+          lobbies: lobbiesResponse.success ? lobbiesResponse.lobbies : [],
+          reports: reportsResponse.success ? reportsResponse.reports : [],
         });
 
         const errors = [];
-        if (!usersResponse.ok)
+        if (!usersResponse.success)
           errors.push(`Users: ${usersResponse.error}`);
-        if (!lobbiesResponse.ok)
+        if (!lobbiesResponse.success)
           errors.push(`Lobbies: ${lobbiesResponse.error}`);
-        if (!reportsResponse.ok)
+        if (!reportsResponse.success)
           errors.push(`Reports: ${reportsResponse.error}`);
-        if (!chatsResponse.ok)
-          errors.push(`Chats: ${chatsResponse.error}`);
 
         if (errors.length > 0) {
           setError(`Failed to load some data: ${errors.join(", ")}`);
@@ -153,7 +143,7 @@ const Admin = () => {
     try {
       setError("");
       const result = await updateReportStatus(reportId, newStatus);
-      if (result.ok) {
+      if (result.success) {
         setData((prev) => ({
           ...prev,
           reports: prev.reports.map((report) =>
@@ -199,7 +189,7 @@ const Admin = () => {
           // Ensure we're passing the correct userId
           const userId = editFormData._id || id;
           result = await updateUser(userId, editFormData);
-          if (result.ok) {
+          if (result.success) {
             setData((prev) => ({
               ...prev,
               users: prev.users.map((user) =>
@@ -212,7 +202,7 @@ const Admin = () => {
           break;
         case "lobby":
           result = await updateLobby(id, editFormData);
-          if (result.ok) {
+          if (result.success) {
             setData((prev) => ({
               ...prev,
               lobbies: prev.lobbies.map((lobby) =>
@@ -223,7 +213,7 @@ const Admin = () => {
           break;
         case "report":
           result = await updateReport(id, editFormData);
-          if (result.ok) {
+          if (result.success) {
             setData((prev) => ({
               ...prev,
               reports: prev.reports.map((report) =>
@@ -237,7 +227,7 @@ const Admin = () => {
           return;
       }
 
-      if (result?.ok) {
+      if (result?.success) {
         showSuccessMessage(
           `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully`
         );
@@ -250,9 +240,9 @@ const Admin = () => {
   };
 
   const showSuccessMessage = (message) => {
-    setok(message);
+    setSuccessMessage(message);
     setTimeout(() => {
-      setok("");
+      setSuccessMessage("");
     }, 3000);
   };
 
@@ -738,28 +728,25 @@ const Admin = () => {
 
     try {
       let result;
-      if (type === "user") {
-        result = await fetchUserProfile(item.username);
-        // Fetch extra data for reports against the user and the user's chats:
-        const reportsResult = await getReportsByUser(item._id);
-        const chatsResult = await getChatHistoryByUserId(item._id);
-        if (reportsResult.ok) {
-          result.reports = reportsResult.reports;
-        }
-        if (chatsResult.ok) {
-          result.chatHistory = chatsResult.data;
-        }
-      } else if (type === "report") {
-        result = await getReportDetails(item._id);
-      } else if (type === "lobby") {
-        // For lobbies, we already have the data
-        result = { ok: true, lobby: item };
+      switch (type) {
+        case "user":
+          result = await fetchUserProfile(item.username);
+          break;
+        case "report":
+          result = await getReportDetails(item._id);
+          break;
+        case "lobby":
+          // For lobbies, we already have the data
+          result = { success: true, lobby: item };
+          break;
+        default:
+          throw new Error("Unknown detail type");
       }
 
-      if (result.ok) {
+      if (result.success) {
         setDetailModal((prev) => ({
           ...prev,
-          data: result.profile || result.report || result.lobby || result,
+          data: result[type] || result.profile || result.report || result.lobby,
         }));
       } else {
         setDetailError(result.error || `Failed to load ${type} details`);
@@ -990,7 +977,9 @@ const Admin = () => {
                               : "bg-gray-500 text-white"
                           }`}
                         >
-                          {lobby.gameState?.replace("_", " ") || "waiting"}
+                          {lobby.gameState
+                            ? lobby.gameState.replace("_", " ")
+                            : "WAITING"}
                         </span>
                       </td>
                       <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-900 dark:text-gray-300 capitalize">
@@ -1126,46 +1115,6 @@ const Admin = () => {
                             Edit
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      case "chats":
-        return (
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">All Chats</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Lobby ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Message
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Timestamp
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {data.chats.map((chat) => (
-                    <tr key={chat._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{chat.lobbyObjectId}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{chat.username}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{chat.message}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(chat.timestamp).toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -1380,9 +1329,9 @@ const Admin = () => {
                 {error}
               </div>
             )}
-            {ok && (
+            {successMessage && (
               <div className="mt-4 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-300 px-4 py-3 rounded relative">
-                {ok}
+                {successMessage}
               </div>
             )}
           </div>
@@ -1411,7 +1360,7 @@ const Admin = () => {
                 ),
               },
               {
-                label: "Lobbies",
+                label: "Total Lobbies",
                 value: data.lobbies.length,
                 view: "lobbies",
                 icon: (
@@ -1425,7 +1374,7 @@ const Admin = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M3 7h18M3 12h18M3 17h18"
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                     />
                   </svg>
                 ),
@@ -1451,12 +1400,12 @@ const Admin = () => {
                 ),
               },
               {
-                label: "All Chats",
-                value: data.chats.length,
-                view: "chats",
+                label: "Active Lobbies",
+                value: data.lobbies.filter((lobby) => lobby.isActive).length,
+                view: "lobbies",
                 icon: (
                   <svg
-                    className="w-6 h-6 text-indigo-500"
+                    className="w-6 h-6 text-green-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1465,7 +1414,7 @@ const Admin = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
                     />
                   </svg>
                 ),

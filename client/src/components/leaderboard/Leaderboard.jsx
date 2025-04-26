@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 
-import { fetchLeaderboard } from '../../services/api';
-import LoadingSpinner from '../common/ui/LoadingSpinner';
+import { fetchLeaderboard } from "../../services/api";
+import LoadingSpinner from "../common/ui/LoadingSpinner";
+import { Transition } from "@headlessui/react";
 
 const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -21,25 +22,61 @@ const Leaderboard = () => {
         setIsLoading(true);
         const response = await fetchLeaderboard();
 
-        if (!response.ok || !response.leaderboard) {
-          throw new Error(response.error || 'Failed to load leaderboard data');
+        if (!response.success) {
+          throw new Error(response.error);
         }
 
-        // Process leaderboard data without URL manipulation
-        const processedLeaderboard = response.leaderboard.map((player) => ({
-          ...player,
-          avatarUrl: player.avatarUrl || null,
-          username: player.username || 'Anonymous',
-          displayName: player.displayName || player.username || 'Anonymous',
-          totalScore: player.totalScore || player.score || 0,
-          gamesPlayed: player.gamesPlayed || player.games || 0,
-          gamesWon: player.gamesWon || player.wins || 0,
-        }));
+        // Validate and process avatarUrls
+        const processedLeaderboard = response.leaderboard.map((player) => {
+          if (player.avatarUrl) {
+            try {
+              const url = new URL(player.avatarUrl);
+              // Only allow HTTPS URLs and from trusted domains
+              if (!url.protocol.startsWith("https:")) {
+                player.avatarUrl = null;
+                return player;
+              }
 
-        setLeaderboard(processedLeaderboard);
+              // Validate against allowed domains (you can expand this list)
+              const allowedDomains = [
+                "localhost",
+                "crustysocks.com",
+                "amazonaws.com",
+                "cloudfront.net",
+              ];
+
+              const isAllowedDomain = allowedDomains.some((domain) =>
+                url.hostname.includes(domain)
+              );
+
+              if (!isAllowedDomain) {
+                player.avatarUrl = null;
+                return player;
+              }
+
+             
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+
+              
+              img.onerror = () => {
+                player.avatarUrl = null;
+              };
+
+              
+              img.src = url.href;
+            } catch (e) {
+              console.warn("Invalid avatar URL:", e);
+              player.avatarUrl = null;
+            }
+          }
+          return player;
+        });
+
+        setLeaderboard(response.leaderboard);
       } catch (error) {
-        console.error('Error loading leaderboard:', error);
-        setError(error.message || 'Failed to load leaderboard');
+        console.error("Error loading leaderboard:", error);
+        setError(error.message);
       } finally {
         setIsLoading(false);
       }
@@ -124,14 +161,14 @@ const Leaderboard = () => {
                   key={player.username || player.id || index}
                   className={`grid grid-cols-12 py-4 px-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${
                     index === 0
-                      ? 'bg-blue-200/30 dark:bg-blue-800/40'
+                      ? "bg-blue-200/30 dark:bg-blue-800/40"
                       : index === 1
-                        ? 'bg-indigo-200/30 dark:bg-indigo-700/40'
-                        : index === 2
-                          ? 'bg-purple-200/30 dark:bg-purple-600/40'
-                          : index % 2 === 1
-                            ? 'bg-purple-100/50 dark:bg-gray-900/80'
-                            : ''
+                      ? "bg-indigo-200/30 dark:bg-indigo-700/40"
+                      : index === 2
+                      ? "bg-purple-200/30 dark:bg-purple-600/40"
+                      : index % 2 === 1
+                      ? "bg-purple-100/50 dark:bg-gray-900/80"
+                      : ""
                   }`}
                 >
                   {/* Rank Column */}
@@ -170,7 +207,7 @@ const Leaderboard = () => {
                           />
                         ) : (
                           <span className="text-indigo-600 dark:text-indigo-400 text-lg font-bold">
-                            {(player.displayName || player.username || '?')
+                            {(player.displayName || player.username || "?")
                               .charAt(0)
                               .toUpperCase()}
                           </span>
@@ -215,10 +252,10 @@ const Leaderboard = () => {
                         px-2 py-1 rounded-full text-xs font-medium
                         ${
                           (player.winRate || calculateWinRate(player)) >= 50
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                             : (player.winRate || calculateWinRate(player)) >= 25
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400"
                         }
                       `}
                     >

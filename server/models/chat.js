@@ -1,25 +1,39 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-import User from './user.js';
+import User from "./user.js";
 
 const chatSchema = new mongoose.Schema({
   lobbyObjectId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Lobby',
+    ref: "Lobby",
+    required: true,
+    // Remove the unique constraint to allow multiple chat messages per lobby
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
+    required: false, // Make userId optional
   },
-  username: String,
-  message: String,
-  timestamp: Date,
-  isSystemMessage: Boolean,
-  isDeleted: Boolean,
+  username: {
+    type: String,
+    required: true,
+  },
+  message: {
+    type: String,
+    required: true,
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  isSystemMessage: {
+    type: Boolean,
+    default: false,
+  },
   visibleTo: String,
 });
 
-chatSchema.pre('save', function (next) {
+chatSchema.pre("save", function (next) {
   if (this.isNew) {
     // If we have both userId and username, validate they match
     if (this.userId && this.username) {
@@ -28,7 +42,7 @@ chatSchema.pre('save', function (next) {
       })
         .then((user) => {
           if (!user) {
-            return next(new Error('UserId and username do not match'));
+            return next(new Error("UserId and username do not match"));
           }
           next();
         })
@@ -96,5 +110,5 @@ chatSchema.index({ lobbyObjectId: 1, timestamp: 1 });
 chatSchema.index({ lobbyObjectId: 1, timestamp: -1 });
 chatSchema.index({ lobbyObjectId: 1, visibleTo: 1 });
 
-const Chat = mongoose.model('Chat', chatSchema);
+const Chat = mongoose.model("Chat", chatSchema);
 export default Chat;

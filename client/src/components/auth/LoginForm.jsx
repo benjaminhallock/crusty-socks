@@ -1,86 +1,63 @@
-import { useState, Fragment, useEffect } from "react";
-import { Transition } from "@headlessui/react";
-import { login, register } from "../../services/api";
-import Button from "../common/ui/Button";
+import { Transition } from '@headlessui/react';
+import { Fragment, useState } from 'react';
+import { login, register } from '../../services/api';
+import Button from '../common/ui/Button';
 
-const LoginForm = ({ onLoginSuccess }) => {
+const LoginForm = ({ onLoginFunc }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [isRegister, setIsRegister] = useState(false);
-  const [isShowing, setIsShowing] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    username: "",
+    email: '',
+    password: '',
+    username: '',
   });
-
-  // Show transition on mount
-  useState(() => {
-    setIsShowing(true);
-  }, []);
 
   // Handle form submission for login or registration
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Validate input fields
-    if (
-      !formData.email ||
-      !formData.password ||
-      (isRegister && !formData.username)
-    ) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    if (isRegister) {
-      if (!/^[a-zA-Z0-9]{6,}$/.test(formData.username)) {
-        setError(
-          "Username must be at least 6 characters and contain only letters and numbers"
-        );
-        return;
-      }
-    }
-
-    if (!/^[a-zA-Z0-9]{6,}$/.test(formData.password)) {
-      setError(
-        "Password must be at least 6 characters and contain only letters and numbers"
-      );
-      return;
-    }
-
     setIsLoading(true);
-    setError("");
+    setError('');
 
     try {
-      let res;
-      if (isRegister) {
-        // Call register service for new user registration
-        res = await register(
-          formData.email,
-          formData.username,
-          formData.password
-        );
-      } else {
-        // Passes a username or email to the login function
-        res = await login(formData.email, formData.password);
+      // Validate form data
+      if (
+        !formData.email ||
+        !formData.password ||
+        (isRegister && !formData.username)
+      ) {
+        setError('Please fill in all required fields');
+        return;
       }
-      //if (res?.user && res?.token)
-      if (res?.user && res?.token) {
-        console.log(
-          "Login successful, passing token to onLoginSuccess:",
-          res.token
-        );
-        onLoginSuccess({
-          user: res.user,
-          token: res.token,
-        });
-      } else {
-        setError(res?.message || "Authentication failed");
-        
+
+      // Log attempt
+      console.log('Attempting', isRegister ? 'registration' : 'login');
+
+      const res = isRegister
+        ? await register(formData.email, formData.username, formData.password)
+        : await login(formData.email, formData.password);
+
+      // Debug response
+      console.log('Auth response:', { ...res, password: '[REDACTED]' });
+
+      if (res.error) {
+        setError(res.error);
+        return;
       }
-    } catch (error) {
-      setError(error.message || "Authentication failed");
+
+      if (!res.token || !res.user) {
+        setError('Invalid response from server');
+        return;
+      }
+
+      // Call login function
+      await onLoginFunc({
+        user: res.user,
+        token: res.token,
+      });
+    } catch (err) {
+      console.error('Login/Register error:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -89,17 +66,17 @@ const LoginForm = ({ onLoginSuccess }) => {
   // Toggle between login and registration modes
   const toggleMode = () => {
     setIsRegister(!isRegister);
-    setError("");
-    setFormData({ email: "", password: "", username: "" });
+    setError('');
+    setFormData({ email: '', password: '', username: '' });
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
       <Transition
         as={Fragment}
-        show={isShowing}
         enter="transition-all duration-500"
         enterFrom="opacity-0 translate-y-8"
+        show={true}
         enterTo="opacity-100 translate-y-0"
         leave="transition-all duration-300"
         leaveFrom="opacity-100"
@@ -112,7 +89,7 @@ const LoginForm = ({ onLoginSuccess }) => {
               src="/logo.png"
               alt="Logo"
               style={{
-                animation: "scale 3s ease-in-out infinite",
+                animation: 'scale 3s ease-in-out infinite',
               }}
             />
 
@@ -214,7 +191,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 fullWidth="true"
                 size="lg"
               >
-                {isLoading ? "Loading..." : isRegister ? "Register" : "Sign in"}
+                {isLoading ? 'Loading...' : isRegister ? 'Register' : 'Sign in'}
               </Button>
 
               <div className="relative my-4">
@@ -223,7 +200,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 </div>
                 <div className="relative flex justify-center">
                   <span className="px-4 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
-                    {isRegister ? "Already registered?" : "Need an account?"}
+                    {isRegister ? 'Already registered?' : 'Need an account?'}
                   </span>
                 </div>
               </div>
@@ -234,7 +211,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 onClick={toggleMode}
                 fullWidth="true"
               >
-                {isRegister ? "Sign in" : "Register"}
+                {isRegister ? 'Sign in' : 'Register'}
               </Button>
             </form>
           </div>

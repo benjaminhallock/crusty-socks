@@ -71,7 +71,7 @@ const ReportModal = ({
       console.log("Submitting report:", reportData);
       const result = await createReport(reportData);
 
-      if (result.success) {
+      if (result.ok) {
         setSuccess(true);
         // Close the modal after 2 seconds
         setTimeout(() => {
@@ -140,7 +140,7 @@ const ReportModal = ({
 
         {success ? (
           <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 rounded mb-4 text-center">
-            Report submitted successfully!
+            Report submitted
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

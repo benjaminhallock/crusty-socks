@@ -1,53 +1,121 @@
-import axios from "axios";
+import axios from 'axios';
+import {
+  API_ENDPOINTS_FRONTEND as API,
+  ENV_CONFIG,
+  log,
+  logError,
+} from '../constants.js';
 
-import { API_ENDPOINTS as x, ENV_CONFIG } from "../constants.js";
+const serverUrl = ENV_CONFIG.getServerApiUrl();
+if (!serverUrl) {
+  throw new Error('Server API URL is not configured');
+}
 
 // Create axios instance with defaults
 const api = axios.create({
-  baseURL: ENV_CONFIG.getClientApiUrl(),
-  headers: { "Content-Type": "application/json" },
+  baseURL: serverUrl,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  validateStatus: (status) => status >= 200 && status < 500,
 });
 
 // Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+api.interceptors.request.use(
+  (config) => {
+    try {
+      const token = localStorage.getItem('token');
+      // Remove existing auth header
+      delete config.headers.Authorization;
+
+      if (token && typeof token === 'string' && token.length > 0) {
+        // Ensure token has Bearer prefix
+        const tokenWithBearer = token.startsWith('Bearer ')
+          ? token
+          : `Bearer ${token}`;
+        config.headers.Authorization = tokenWithBearer;
+      }
+
+      return config;
+    } catch (error) {
+      console.error('Token interceptor error:', error);
+      return config;
+    }
+  },
+  (error) => Promise.reject(error)
+);
 
 // Generic error handler
 const handleApiError = (error) => {
-  if (error.message === "Network Error") {
-    return {
-      success: false,
-      error: "Network error, please check your internet connection.",
-    };
-  }
-  if (error.response?.status === 404) {
-    return { success: false, error: "Resource not found" };
-  } else if (error.response?.status === 500) {
-    return { success: false, error: "Internal server error" };
-  }
-  console.error("API Error:", error.response?.data || error.message);
-  return {
-    success: false,
-    error: error.response?.data?.message || error.message,
+  // Standard error response format
+  const errorResponse = {
+    ok: false,
+    error: 'An unexpected error occurred',
+    status: error.response?.status || 500,
   };
+
+  // Network or axios errors
+  if (error.message === 'Network Error') {
+    errorResponse.error =
+      'Network error, please check your internet connection';
+    errorResponse.code = 'NETWORK_ERROR';
+    return errorResponse;
+  }
+
+  // Handle HTTP status codes
+  if (error.response) {
+    switch (error.response.status) {
+      case 400:
+        errorResponse.error = error.response.data?.message || 'Invalid request';
+        errorResponse.code = 'BAD_REQUEST';
+        break;
+      case 401:
+        errorResponse.error = 'Authentication required';
+        errorResponse.code = 'UNAUTHORIZED';
+        break;
+      case 403:
+        errorResponse.error = 'Access denied';
+        errorResponse.code = 'FORBIDDEN';
+        break;
+      case 404:
+        errorResponse.error = 'Resource not found';
+        errorResponse.code = 'NOT_FOUND';
+        break;
+      case 429:
+        errorResponse.error = 'Too many requests, please try again later';
+        errorResponse.code = 'RATE_LIMIT';
+        break;
+      case 500:
+        errorResponse.error = 'Internal server error';
+        errorResponse.code = 'SERVER_ERROR';
+        break;
+      default:
+        errorResponse.error = error.response.data?.message || 'Request failed';
+        errorResponse.code = 'UNKNOWN_ERROR';
+    }
+  }
+
+  // Log errors in development only
+  if (ENV_CONFIG.isDevelopment()) {
+    logError('API Error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      code: errorResponse.code,
+    });
+  }
+
+  return errorResponse;
 };
 
 // ----- Auth functions -----
 export const fetchLobby = async (roomId) => {
   try {
-    const { data } = await api.get(x.GET_LOBBY(roomId));
+    const { data } = await api.get(API.GET_LOBBY(roomId));
     if (!data || !data.lobby) {
-      throw new Error("Lobby not found");
+      throw new Error('Lobby not found');
     }
-    return {
-      success: true,
-      lobby: data.lobby,
-    };
+    return { lobby: data.lobby };
   } catch (error) {
     return handleApiError(error);
   }
@@ -55,12 +123,8 @@ export const fetchLobby = async (roomId) => {
 
 export const createLobby = async (lobbyData) => {
   try {
-    const { data } = await api.post(x.CREATE_LOBBY, lobbyData);
-    return {
-      success: true,
-      roomId: data.roomId,
-      ...data,
-    };
+    const { data } = await api.post(API.CREATE_LOBBY, lobbyData);
+    return { roomId: data.roomId, ...data };
   } catch (error) {
     return handleApiError(error);
   }
@@ -68,38 +132,49 @@ export const createLobby = async (lobbyData) => {
 
 export const login = async (email, password) => {
   try {
-    const { data } = await api.post(x.LOGIN, { email, password });
-    const token = data.token.replace("Bearer ", "");
+    log(`Making login request to: ${API.LOGIN()}`);
+    const { data } = await api.post(API.LOGIN(), { email, password });
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    // Validate response
+    if (!data.token || !data.user) {
+      logError('Invalid login response:', data);
+      throw new Error('Invalid server response');
+    }
+
+    // Store auth data
+    const token = data.token.replace('Bearer ', '');
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
     return {
-      success: true,
+      ok: true,
       user: data.user,
       token,
     };
   } catch (error) {
+    logError('Login error:', {
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data,
+    });
     return handleApiError(error);
   }
 };
 
 export const register = async (email, username, password) => {
   try {
-    const { data } = await api.post(x.REGISTER, {
+    const { data } = await api.post('/api/user/register', {
       email,
       username,
       password,
     });
-
-    const token = data.token.replace("Bearer ", "");
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    return {
-      success: true,
-      user: data.user,
-      token,
-    };
+    if (!data || !data.token || !data.user) {
+      throw new Error('Invalid registration response');
+    }
+    const token = data?.token.replace('Bearer ', '');
+    localStorage.setItem('token', token || '');
+    localStorage.setItem('user', JSON.stringify(data.user));
+    return { user: data.user, token };
   } catch (error) {
     return handleApiError(error);
   }
@@ -107,41 +182,52 @@ export const register = async (email, username, password) => {
 
 export const checkAuth = async () => {
   try {
-    const { data } = await api.get(x.VALIDATE);
-
+    const { data } = await api.get(API.VALIDATE);
     if (!data.user) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      return { success: false };
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return { status: 401, message: 'Unauthorized' };
     }
-
     return {
-      success: true,
-      ...data,
+      user: {
+        id: data.user._id,
+        username: data.user.username,
+        email: data.user.email,
+        role: data.user.role,
+        createdAt: data.user.createdAt,
+      },
     };
   } catch (error) {
-    // Only clear tokens for auth-related errors
     if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     return {
-      success: false,
       error: error.response?.data?.message || error.message,
     };
   }
 };
 
+export const getAllChats = async () => {
+  try {
+    const { data } = await api.get(API.GET_CHAT_ALL());
+    if (!data || !data.data) {
+      throw new Error('Invalid response format from server');
+    }
+    return { chats: data.data };
+  } catch (error) {
+    console.error('getAllChats error:', error.message);
+    return handleApiError(error);
+  }
+};
+
 export const getAllUsers = async () => {
   try {
-    const { data } = await api.get(x.GET_ALL_USERS);
-    if (!data.users || !Array.isArray(data.users)) {
-      throw new Error("Failed to fetch users");
+    const { data } = await api.get(API.GET_ALL_USERS);
+    if (!data || !data.users) {
+      throw new Error('Failed to fetch users');
     }
-    return {
-      success: true,
-      users: data.users || [],
-    };
+    return { users: data.users };
   } catch (error) {
     return handleApiError(error);
   }
@@ -149,30 +235,24 @@ export const getAllUsers = async () => {
 
 export const getAllLobbies = async () => {
   try {
-    const { data } = await api.get(x.GET_ALL_LOBBIES);
-
-    const lobbies = data?.lobbies || (Array.isArray(data) ? data : []);
-
-    return {
-      success: true,
-      lobbies,
-    };
+    const { data } = await api.get(API.GET_ALL_LOBBIES);
+    if (!data || !data.lobbies) {
+      throw new Error('Failed to fetch lobbies');
+    }
+    return { lobbies: data.lobbies };
   } catch (error) {
-    console.error("getAllLobbies error:", error.message);
+    console.error('getAllLobbies error:', error.message);
     return handleApiError(error);
   }
 };
 
 export const fetchUserProfile = async (username) => {
   try {
-    const { data } = await api.get(x.GET_USER_PROFILE(username));
-
-    if (!data.success || !data.profile) {
-      throw new Error("Profile data is missing or invalid");
+    const { data } = await api.get(API.GET_USER_PROFILE(username));
+    if (!data || !data.profile) {
+      throw new Error('Profile data is missing or invalid');
     }
-
     return {
-      success: true,
       profile: data.profile,
     };
   } catch (error) {
@@ -182,15 +262,11 @@ export const fetchUserProfile = async (username) => {
 
 export const updateUserProfile = async (username, profileData) => {
   try {
-    const { data } = await api.put(
-      x.UPDATE_USER_PROFILE(username),
-      profileData
-    );
-
-    if (!data.success) {
-      throw new Error(data.message || "Failed to update profile");
+    const res = await api.put(API.UPDATE_USER_PROFILE(username), profileData);
+    if (!res.ok) {
+      throw new Error(res.data.message || 'Failed to update profile');
     }
-    return data;
+    return res;
   } catch (error) {
     return handleApiError(error);
   }
@@ -198,78 +274,35 @@ export const updateUserProfile = async (username, profileData) => {
 
 export const fetchLeaderboard = async () => {
   try {
-    const { data } = await api.get(x.LEADERBOARD);
-
-    if (!data || (!data.leaderboard && !Array.isArray(data))) {
-      throw new Error("Invalid response format from server");
+    const { data } = await api.get(API.GET_LEADERBOARD);
+    if (!data || !data.leaderboard) {
+      throw new Error('Invalid leaderboard data format');
     }
-
-    const leaderboardData = data.leaderboard || data;
-    return {
-      success: true,
-      leaderboard: leaderboardData,
-    };
+    return { leaderboard: data.leaderboard };
   } catch (error) {
     return handleApiError(error);
   }
 };
 
 // ----- Report functions -----
-
 export const createReport = async (reportData) => {
   try {
-    // Enhanced validation
-    if (!reportData || typeof reportData !== "object") {
-      throw new Error("Invalid report data");
+    const { data } = await api.post(API.CREATE_REPORT, reportData);
+    if (!data || !data.report) {
+      throw new Error('Invalid report response');
     }
-
-    // Log the incoming data for debugging
-    console.log("Incoming report data:", reportData);
-
-    // Validate roomId specifically
-    if (!reportData.roomId) {
-      console.error("Missing roomId in report data:", reportData);
-      throw new Error("Room ID is required for reporting a player");
-    }
-
-    // Create request payload with explicit roomId assignment
-    const requestPayload = {
-      reportedUser: reportData.reportedUser,
-      reason: reportData.reason || "Inappropriate behavior",
-      roomId: reportData.roomId, // Explicitly include roomId
-      additionalComments: reportData.additionalComments || "",
-      chatLogs: Array.isArray(reportData.chatLogs)
-        ? reportData.chatLogs.map((log) => ({
-            username: log.username || "Unknown",
-            message: log.message || "",
-            timestamp: log.timestamp || Date.now(),
-          }))
-        : [],
-      canvasData: reportData.canvasState?.data || null,
-    };
-
-    // Log the final payload for verification
-    console.log("Sending report payload:", requestPayload);
-
-    const { data } = await api.post(x.CREATE_REPORT, requestPayload);
-
-    return {
-      success: true,
-      report: data.report,
-    };
+    return { report: data.report };
   } catch (error) {
-    console.error("Report creation error:", error);
-    console.error("Original report data:", reportData);
     return handleApiError(error);
   }
 };
 
 export const updateReportStatus = async (reportId, status) => {
   try {
-    const { data } = await api.put(x.UPDATE_REPORT_STATUS(reportId), {
+    const { data } = await api.put(API.UPDATE_REPORT_STATUS(reportId), {
       status,
     });
-    return { success: true, report: data };
+    return { report: data };
   } catch (error) {
     return handleApiError(error);
   }
@@ -277,8 +310,11 @@ export const updateReportStatus = async (reportId, status) => {
 
 export const getAllReports = async () => {
   try {
-    const { data } = await api.get(x.GET_ALL_REPORTS);
-    return { success: true, reports: data.reports || [] };
+    const { data } = await api.get(API.GET_ALL_REPORTS);
+    if (!data || !data.reports) {
+      throw new Error('Invalid reports response');
+    }
+    return { reports: data.reports };
   } catch (error) {
     return handleApiError(error);
   }
@@ -286,8 +322,8 @@ export const getAllReports = async () => {
 
 export const updateUser = async (userId, userData) => {
   try {
-    const { data } = await api.put(x.UPDATE_USER(userId), userData);
-    return { success: true, user: data.user };
+    const { data } = await api.put(API.UPDATE_USER(userId), userData);
+    return { user: data.user };
   } catch (error) {
     return handleApiError(error);
   }
@@ -295,8 +331,9 @@ export const updateUser = async (userId, userData) => {
 
 export const updateLobby = async (lobbyId, lobbyData) => {
   try {
-    const { data } = await api.put(x.UPDATE_LOBBY(lobbyId), lobbyData);
-    return { success: true, lobby: data.lobby };
+    // Here we assume the update lobby endpoint is defined only on the backend.
+    const { data } = await api.put(`/api/lobby/${lobbyId}`, lobbyData);
+    return { lobby: data.lobby };
   } catch (error) {
     return handleApiError(error);
   }
@@ -304,32 +341,8 @@ export const updateLobby = async (lobbyId, lobbyData) => {
 
 export const updateReport = async (reportId, reportData) => {
   try {
-    const { data } = await api.put(x.UPDATE_REPORT(reportId), reportData);
-    return { success: true, report: data.report };
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-export const verifyEmail = async () => {
-  try {
-    const { data } = await api.post(x.VERIFY_EMAIL);
-    return {
-      success: true,
-      message: data.message || "Verification email sent successfully",
-    };
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-export const changePassword = async ({ currentPassword, newPassword }) => {
-  try {
-    const { data } = await api.put(x.CHANGE_PASSWORD, {
-      currentPassword,
-      newPassword,
-    });
-    return { success: true, message: data.message };
+    const { data } = await api.put(API.UPDATE_REPORT(reportId), reportData);
+    return { report: data.report };
   } catch (error) {
     return handleApiError(error);
   }
@@ -337,17 +350,12 @@ export const changePassword = async ({ currentPassword, newPassword }) => {
 
 export const changeEmail = async ({ newEmail, password }) => {
   try {
-    const { data } = await api.put(x.CHANGE_EMAIL, { newEmail, password });
-    return { success: true, message: data.message };
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-export const updateUserPreferences = async (preferences) => {
-  try {
-    const { data } = await api.put(x.UPDATE_PREFERENCES, preferences);
-    return { success: true, preferences: data.preferences };
+    // Using a backend endpoint since this is a static route.
+    const { data } = await api.put('/api/user/change-email', {
+      newEmail,
+      password,
+    });
+    return { message: data.message };
   } catch (error) {
     return handleApiError(error);
   }
@@ -355,37 +363,39 @@ export const updateUserPreferences = async (preferences) => {
 
 export const deleteAccount = async () => {
   try {
-    const { data } = await api.delete(x.DELETE_ACCOUNT);
-    return { success: true, message: data.message };
+    const { data } = await api.delete('/api/user/delete');
+    return { message: data.message };
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Add a function to fetch report details
 export const getReportDetails = async (reportId) => {
   try {
-    const { data } = await api.get(x.GET_REPORT(reportId));
-    return { success: true, report: data.report };
+    const { data } = await api.get(API.GET_REPORT(reportId));
+    return { report: data.report };
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Add these new functions for user reports and chat logs
-export const getUserReports = async (username) => {
+export const getChatHistoryByUserId = async (userId) => {
   try {
-    const { data } = await api.get(`/api/user/report/${username}`);
-    return { success: true, reports: data.reports || [] };
+    const { data } = await api.get(API.GET_CHAT_BY_USER(userId));
+    if (!data || !data.data) {
+      throw new Error('Invalid chat history response');
+    }
+    return { chatHistory: data.data };
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-export const getUserChatHistory = async (username) => {
+export const getReportsByUser = async (userId) => {
   try {
-    const { data } = await api.get(`/api/user/chat/${username}`);
-    return { success: true, chatHistory: data.chatHistory || [] };
+    // This endpoint is not defined in constants; so use a literal.
+    const { data } = await api.get(`/api/report/user/${userId}`);
+    return { reports: data.reports };
   } catch (error) {
     return handleApiError(error);
   }

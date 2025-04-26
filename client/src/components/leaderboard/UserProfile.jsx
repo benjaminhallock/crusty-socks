@@ -24,7 +24,7 @@ const UserProfile = ({ currentUser }) => {
       try {
         setIsLoading(true);
         const response = await fetchUserProfile(username);
-        if (response.success && response.profile) {
+        if (response.ok && response.profile) {
           setProfile(response.profile);
           setFormData({
             displayName:
@@ -53,7 +53,7 @@ const UserProfile = ({ currentUser }) => {
     e.preventDefault();
     try {
       const response = await updateUserProfile(username, formData);
-      if (response.success) {
+      if (response.ok) {
         setProfile((prev) => ({
           ...prev,
           displayName: formData.displayName,

@@ -11,6 +11,7 @@ const MusicPlayer = ({ isPlaying, musicVolume = 0.5, sfxVolume = 0.5 }, ref) => 
   const audioRef = useRef(null);
   const testSoundRef = useRef(new Audio("/audio/sfx/correct.mp3")); // lightweight for a test sound
   const lastTrackIndexRef = useRef(null);
+  // audioRef has to be declared as audio variable INSIDE of useEffects to handle the audio element re-rendering
 
   // Handle music volume changes
   useEffect(() => {
@@ -25,9 +26,9 @@ const MusicPlayer = ({ isPlaying, musicVolume = 0.5, sfxVolume = 0.5 }, ref) => 
     testSoundRef.current.volume = sfxVolume; // Remove isMuted logic
   }, [sfxVolume]);
 
-  // Expose functions to parent
+  // Exposes playTestSound to Navbar
   useImperativeHandle(ref, () => ({
-    playTestSound,
+    playTestSound
   }));
 
   const playTestSound = () => {
@@ -42,7 +43,7 @@ const MusicPlayer = ({ isPlaying, musicVolume = 0.5, sfxVolume = 0.5 }, ref) => 
     let nextTrackIndex;
     do {
       nextTrackIndex = Math.floor(Math.random() * tracks.length);
-    } while (nextTrackIndex === lastTrackIndexRef.current);
+    } while (nextTrackIndex === lastTrackIndexRef.current); // Avoid repeating the last track
 
     lastTrackIndexRef.current = nextTrackIndex;
     audio.src = tracks[nextTrackIndex];
@@ -57,9 +58,9 @@ const MusicPlayer = ({ isPlaying, musicVolume = 0.5, sfxVolume = 0.5 }, ref) => 
 
     const handleTrackEnd = () => setTimeout(playRandomTrack, 3000);
 
-    audio.addEventListener("ended", handleTrackEnd);
+    audio.addEventListener("ended", handleTrackEnd); // ended is a built-in event triggered by <audio> element in the DOM
     return () => audio.removeEventListener("ended", handleTrackEnd);
-  }, []);
+  }, []); // runs when the component mounts. Cleanup function removes event listener. 
 
   useEffect(() => {
     const audio = audioRef.current;

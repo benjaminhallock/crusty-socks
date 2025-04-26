@@ -260,7 +260,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                               </label>
                             </div>
                             <input
-                              type="range"
+                              type="range" 
                               min="0"
                               max="1"
                               step="0.01"
@@ -274,8 +274,8 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Sound Effects
                               </label>
-                              <input
-                                type="range"
+                              <input 
+                                type="range" 
                                 min="0"
                                 max="1"
                                 step="0.01"

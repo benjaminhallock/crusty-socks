@@ -11,7 +11,7 @@ const CreateLobby = ({ user }) => {
   const [isShowing, setIsShowing] = useState(false);
 
   useEffect(() => {
-    if (!user || localStorage.getItem("token") === null || checkAuth().success === false) {
+    if (!user || localStorage.getItem("token") === null || !checkAuth().ok) {
       localStorage.clear();
       sessionStorage.clear();
       navigate("/");

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   fetchUserProfile,
   getUserReports,
   getUserChatHistory,
-} from "../../services/api";
+} from '../../services/api';
 
 const UserDetail = () => {
   const { username } = useParams();
@@ -17,20 +17,20 @@ const UserDetail = () => {
     reports: true,
     chats: true,
   });
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("profile");
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('profile');
 
   // Fetch user profile data
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading((prev) => ({ ...prev, profile: true }));
 
-      const result = await fetchUserProfile(username);
+      const res = await fetchUserProfile(username);
 
-      if (result.success) {
-        setUser(result.profile);
+      if (res.ok) {
+        setUser(res.profile);
       } else {
-        setError(result.error || "Failed to load user profile");
+        setError(res.error || 'Failed to load user profile');
       }
 
       setLoading((prev) => ({ ...prev, profile: false }));
@@ -42,15 +42,15 @@ const UserDetail = () => {
   // Fetch user reports
   useEffect(() => {
     const fetchUserReportData = async () => {
-      if (activeTab === "reports") {
+      if (activeTab === 'reports') {
         setLoading((prev) => ({ ...prev, reports: true }));
 
-        const result = await getUserReports(username);
+        const res = await getUserReports(username);
 
-        if (result.success) {
-          setReports(result.reports);
+        if (res.ok) {
+          setReports(res.reports);
         } else {
-          console.error("Failed to load user reports:", result.error);
+          console.error('Failed to load user reports:', result.error);
         }
 
         setLoading((prev) => ({ ...prev, reports: false }));
@@ -63,15 +63,15 @@ const UserDetail = () => {
   // Fetch user chat history
   useEffect(() => {
     const fetchUserChatData = async () => {
-      if (activeTab === "chatHistory") {
+      if (activeTab === 'chatHistory') {
         setLoading((prev) => ({ ...prev, chats: true }));
 
-        const result = await getUserChatHistory(username);
+        const res = await getUserChatHistory(username);
 
-        if (result.success) {
-          setChatHistory(result.chatHistory);
+        if (res.ok) {
+          setChatHistory(res.chatHistory);
         } else {
-          console.error("Failed to load chat history:", result.error);
+          console.error('Failed to load chat history:', res.error);
         }
 
         setLoading((prev) => ({ ...prev, chats: false }));
@@ -134,41 +134,41 @@ const UserDetail = () => {
         <div className="border-b border-gray-700 mb-4">
           <nav className="flex space-x-4">
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => setActiveTab('profile')}
               className={`py-2 px-4 ${
-                activeTab === "profile"
-                  ? "border-b-2 border-blue-500 text-white"
-                  : "text-gray-400"
+                activeTab === 'profile'
+                  ? 'border-b-2 border-blue-500 text-white'
+                  : 'text-gray-400'
               }`}
             >
               Profile
             </button>
             <button
-              onClick={() => setActiveTab("stats")}
+              onClick={() => setActiveTab('stats')}
               className={`py-2 px-4 ${
-                activeTab === "stats"
-                  ? "border-b-2 border-blue-500 text-white"
-                  : "text-gray-400"
+                activeTab === 'stats'
+                  ? 'border-b-2 border-blue-500 text-white'
+                  : 'text-gray-400'
               }`}
             >
               Game Stats
             </button>
             <button
-              onClick={() => setActiveTab("reports")}
+              onClick={() => setActiveTab('reports')}
               className={`py-2 px-4 ${
-                activeTab === "reports"
-                  ? "border-b-2 border-blue-500 text-white"
-                  : "text-gray-400"
+                activeTab === 'reports'
+                  ? 'border-b-2 border-blue-500 text-white'
+                  : 'text-gray-400'
               }`}
             >
               Reports
             </button>
             <button
-              onClick={() => setActiveTab("chatHistory")}
+              onClick={() => setActiveTab('chatHistory')}
               className={`py-2 px-4 ${
-                activeTab === "chatHistory"
-                  ? "border-b-2 border-blue-500 text-white"
-                  : "text-gray-400"
+                activeTab === 'chatHistory'
+                  ? 'border-b-2 border-blue-500 text-white'
+                  : 'text-gray-400'
               }`}
             >
               Chat History
@@ -176,7 +176,7 @@ const UserDetail = () => {
           </nav>
         </div>
 
-        {activeTab === "profile" && (
+        {activeTab === 'profile' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <h3 className="text-gray-400 text-sm">Email</h3>
@@ -186,15 +186,15 @@ const UserDetail = () => {
               <h3 className="text-gray-400 text-sm">Account Status</h3>
               <p
                 className={
-                  user.isActive !== false ? "text-green-500" : "text-red-500"
+                  user.isActive !== false ? 'text-green-500' : 'text-red-500'
                 }
               >
-                {user.isActive !== false ? "Active" : "Suspended"}
+                {user.isActive !== false ? 'Active' : 'Suspended'}
               </p>
             </div>
             <div>
               <h3 className="text-gray-400 text-sm">Role</h3>
-              <p className="text-white">{user.isAdmin ? "Admin" : "Player"}</p>
+              <p className="text-white">{user.isAdmin ? 'Admin' : 'Player'}</p>
             </div>
             <div>
               <h3 className="text-gray-400 text-sm">Created</h3>
@@ -205,7 +205,7 @@ const UserDetail = () => {
           </div>
         )}
 
-        {activeTab === "stats" && (
+        {activeTab === 'stats' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <h3 className="text-gray-400 text-sm">Games Played</h3>
@@ -226,7 +226,7 @@ const UserDetail = () => {
           </div>
         )}
 
-        {activeTab === "reports" && (
+        {activeTab === 'reports' && (
           <div className="mt-4">
             <h3 className="text-lg font-medium text-white mb-2">Reports</h3>
             {loading.reports ? (
@@ -269,11 +269,11 @@ const UserDetail = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span
                             className={`px-2 py-1 rounded ${
-                              report.status === "resolved"
-                                ? "bg-green-900 text-green-300"
-                                : report.status === "reviewed"
-                                ? "bg-blue-900 text-blue-300"
-                                : "bg-yellow-900 text-yellow-300"
+                              report.status === 'resolved'
+                                ? 'bg-green-900 text-green-300'
+                                : report.status === 'reviewed'
+                                  ? 'bg-blue-900 text-blue-300'
+                                  : 'bg-yellow-900 text-yellow-300'
                             }`}
                           >
                             {report.status}
@@ -298,7 +298,7 @@ const UserDetail = () => {
           </div>
         )}
 
-        {activeTab === "chatHistory" && (
+        {activeTab === 'chatHistory' && (
           <div className="mt-4">
             <h3 className="text-lg font-medium text-white mb-2">
               Recent Chat History

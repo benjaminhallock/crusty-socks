@@ -9,35 +9,39 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\"",
+    "dev": "concurrently 'cd client && npm run dev' 'cd server && npm run dev'",
     "build": "npm run sync-constants && cd client && npm run build && cd ../server && npm run build",
     "start": "npm run start --workspace=client && npm run start --workspace=server",
-    "install:all": "npm install",
-    "install:client": "npm install --workspace=client",
-    "install:server": "npm install --workspace=server",
-    "lint": "npm run lint --workspaces",
-    "lint:fix": "npm run lint:fix --workspaces",
     "sync-constants": "node sync-constants.js",
     "predev": "npm run sync-constants",
     "prebuild": "npm run sync-constants",
-    "update-all": "npm update --workspace client && npm update --workspace server",
-    "upgrade-all": "ncu -u --deep && npm install",
-    "upgrade-client": "ncu -u --workspace client && npm install --workspace client",
-    "upgrade-server": "ncu -u --workspace server && npm install --workspace server",
-    "upgrade-react-vite": "npx npm-check-updates \"/^(vite|react)/\" -u --deep",
-    "deploy:aws": "npm run build && eb deploy",
-    "deploy:client": "aws s3 sync client/dist/ s3://crustysocks-client --delete",
-    "deploy:server": "eb deploy",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
     "test": "npm run test:client && npm run test:server",
     "test:client": "cd client && npm test",
     "test:server": "cd server && npm test",
     "clean": "rimraf \"{.,client,server}/{node_modules,dist,.cache,coverage,.nyc_output,package-lock.json,.eslintcache}\" && rimraf \"./{.jest,.next}\"",
-    "superclean": "rimraf \"{.,client,server}/{node_modules,dist,.cache,coverage,.nyc_output,package-lock.json,.eslintcache}\" && rimraf \"./{.jest,.next}\""
+    "superclean": "rimraf \"{.,client,server}/{node_modules,dist,.cache,coverage,.nyc_output,package-lock.json,.eslintcache}\" && rimraf \"./{.jest,.next}\"",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
     "npm-check-updates": "^17.1.18",
-    "rimraf": "^6.0.1"
+    "rimraf": "^6.0.1",
+    "prettier": "^3.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-config-prettier": "^8.0.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^13.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,scss,md,json}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "eslint-plugin-perfectionist": "^4.11.0"

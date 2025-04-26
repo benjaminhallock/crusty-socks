@@ -1,23 +1,20 @@
-import express from "express";
-
-import { reportController } from "../controllers/reportController.js";
-import { auth, isAdmin } from "../middleware/auth.js";
+import express from 'express';
+import { reportController as rs } from '../controllers/reportController.js';
+import { auth, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all reports (admin only)
-router.get("/all", auth, isAdmin, reportController.getAllReports);
+// Auth
+router.post('/create', auth, rs.createReport);
 
-// Get a single report by ID (admin only)
-router.get("/:id", auth, isAdmin, reportController.getReportById);
+// Admin
+router.get('/all', auth, isAdmin, rs.getAllReports);
+router.get('/:id', auth, isAdmin, rs.getReportById);
+router.get('/user/:userId', auth, isAdmin, rs.getReportsByUserId);
 
-// Create a new report
-router.post("/create", auth, reportController.createReport);
+router.put('/status/:id', auth, isAdmin, rs.updateReportStatus);
+router.put('/:id', auth, isAdmin, rs.updateReport);
 
-// Update report status
-router.put("/status/:id", auth, isAdmin, reportController.updateReportStatus);
-
-// Update an entire report
-router.put("/:id", auth, isAdmin, reportController.updateReport);
+router.delete('/:id', auth, isAdmin, rs.deleteReport);
 
 export default router;

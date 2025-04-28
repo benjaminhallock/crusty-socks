@@ -22,25 +22,26 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
   const [settings, setSettings] = useState({
     isDark: document.documentElement.classList.contains('dark'),
     isPlaying: false,
-    musicVolume: parseFloat(localStorage.getItem('musicVolume') || '0.5'),
-    sfxVolume: parseFloat(localStorage.getItem('sfxVolume') || '0.5'),
+    musicVolume: parseFloat(localStorage.getItem("musicVolume") || "0.5"),
+    sfxVolume: parseFloat(localStorage.getItem("sfxVolume") || "0.5"),
     isPopupOpen: false,
   });
   const musicPlayerRef = useRef(null);
 
   // Improved theme toggle that works directly with DOM
   const toggleTheme = () => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    document.documentElement.classList.toggle('dark', !isDarkMode);
-    localStorage.theme = isDarkMode ? 'light' : 'dark';
+    const isDarkMode = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", !isDarkMode);
+    localStorage.theme = isDarkMode ? "light" : "dark";
 
     // Update state after DOM changes
     setSettings((prev) => ({ ...prev, isDark: !isDarkMode }));
   };
 
-  // Simplified state updates for non-theme settings
+ 
   const updateSetting = (key, value) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...prev, [key]: value })); // spreading previous state so only the desired prop changes
+    // prev is shallow copy
 
     // Handle side effects
     if (key.includes('Volume')) {
@@ -52,14 +53,21 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
     if (!settings.isPlaying) {
       updateSetting('isPlaying', true);
     }
-    updateSetting('isPopupOpen', !settings.isPopupOpen);
+    updateSetting("isPopupOpen", !settings.isPopupOpen);
   };
+
+  // Check auth status
+  useEffect(() => {
+    if (!isLoggedIn && !localStorage.getItem("token")) {
+      navigate("/");
+    }
+  }, [isLoggedIn, navigate]);
 
   // Set initial theme based on localStorage or system preference on component mount
   useEffect(() => {
-    const theme = localStorage.getItem('theme');
+    const theme = localStorage.getItem("theme");
     const systemPrefersDark = window.matchMedia(
-      '(prefers-color-scheme: dark)'
+      "(prefers-color-scheme: dark)"
     ).matches;
 
     if (theme === 'dark' || (!theme && systemPrefersDark)) {
@@ -89,9 +97,9 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
               <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </button>
 
-            {/* Navigation items */}
+            
             <div className="flex items-center gap-3">
-              {isLoggedIn ? (
+              {isLoggedIn ? ( // are you logged in or not: display different buttons
                 <>
                   <Button
                     onClick={() => navigate('/leaderboard')}
@@ -220,7 +228,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
 
               <div className="relative z-50">
                 <Menu as="div" className="relative">
-                  {({ open }) => (
+                  {({ open }) => ( // change music button style for when popup is open
                     <>
                       <Menu.Button
                         as={Button}
@@ -252,7 +260,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                               </label>
                             </div>
                             <input
-                              type="range"
+                              type="range" 
                               min="0"
                               max="1"
                               step="0.01"
@@ -266,8 +274,8 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Sound Effects
                               </label>
-                              <input
-                                type="range"
+                              <input 
+                                type="range" 
                                 min="0"
                                 max="1"
                                 step="0.01"
@@ -312,6 +320,7 @@ const Navbar = ({ isLoggedIn, onLogout, user }) => {
           isPlaying={settings.isPlaying}
           musicVolume={settings.musicVolume}
           sfxVolume={settings.sfxVolume}
+          // isPlaying, musicVolume, and sfxVolume will be passed down to child (MusicPlayer)
         />
       </nav>
     </div>

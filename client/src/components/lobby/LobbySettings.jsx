@@ -234,4 +234,4 @@ const LobbySettings = ({ user }) => {
   )
 }
 
-export default LobbySettings
+export default LobbySettings;

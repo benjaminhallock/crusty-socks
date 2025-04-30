@@ -30,6 +30,11 @@ const chatSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  username: String,
+  message: String,
+  timestamp: Date,
+  isSystemMessage: Boolean,
+  isDeleted: Boolean,
   visibleTo: String,
 })
 

@@ -1,9 +1,11 @@
-import express from 'express'
+import express from 'express';
+import { reportController as rs } from '../controllers/reportController.js';
+import { auth, isAdmin } from '../middleware/auth.js';
 
-import { reportController } from '../controllers/reportController.js'
-import { auth, isAdmin } from '../middleware/auth.js'
+const router = express.Router();
 
-const router = express.Router()
+// Auth
+router.post('/create', auth, rs.createReport);
 
 router.get('/all', auth, isAdmin, reportController.getAllReports)
 router.get('/:id', auth, isAdmin, reportController.getReportById)

@@ -1,11 +1,15 @@
-import express from 'express'
-import { chatController } from '../controllers/chatController.js'
-import { auth, isAdmin } from '../middleware/auth.js'
+import express from 'express';
+import { chatController } from '../controllers/chatController.js';
+import { auth, isAdmin } from '../middleware/auth.js';
 
-const router = express.Router()
+const router = express.Router();
 
-router.get('/all', auth, isAdmin, chatController.getAllChats)
-router.get('/:lobbyObjectId', auth, chatController.getChatByLobbyId)
-router.get('/:lobbyObjectId/:userId', auth, chatController.getChatByUserInLobby)
+router.get('/all', auth, isAdmin, chatController.getAllChats);
+router.get('/:lobbyObjectId', auth, chatController.getChatByLobbyId);
+router.get(
+  '/:lobbyObjectId/:userId',
+  auth,
+  chatController.getChatByUserInLobbyId
+);
 
-export default router
+export default router;

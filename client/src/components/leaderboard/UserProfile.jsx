@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Transition } from "@headlessui/react";
+import { Transition } from '@headlessui/react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import LoadingSpinner from "../common/ui/LoadingSpinner";
-import { fetchUserProfile, updateUserProfile } from "../../services/api";
+import { fetchUserProfile, updateUserProfile } from '../../services/api';
+import LoadingSpinner from '../common/ui/LoadingSpinner';
+
+const DEFAULT_AVATAR = '/logo_tiny.png'; // Using a local fallback image
 
 const UserProfile = ({ currentUser }) => {
   const { username } = useParams();
@@ -12,28 +14,40 @@ const UserProfile = ({ currentUser }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [formData, setFormData] = useState({
-    displayName: "",
-    bio: "",
-    avatarUrl: "",
+    displayName: '',
+    bio: '',
+    avatarUrl: '',
   });
   const isOwnProfile = currentUser && currentUser.username === username;
+
+  const handleImageError = () => {
+    setAvatarError(true);
+    if (profile) {
+      setProfile((prev) => ({
+        ...prev,
+        avatarUrl: DEFAULT_AVATAR,
+      }));
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setIsLoading(true);
         const response = await fetchUserProfile(username);
-        if (response.ok && response.profile) {
+        console.log('Profile response:', response);
+        if (response.success && response.profile) {
           setProfile(response.profile);
           setFormData({
             displayName:
               response.profile.displayName || response.profile.username,
-            bio: response.profile.bio || "",
-            avatarUrl: response.profile.avatarUrl || "",
+            bio: response.profile.bio || '',
+            avatarUrl: response.profile.avatarUrl || '',
           });
         } else {
-          throw new Error(response.error || "Failed to fetch profile data");
+          throw new Error(response.error || 'Failed to fetch profile data');
         }
       } catch (error) {
         setError(error.message);
@@ -53,7 +67,7 @@ const UserProfile = ({ currentUser }) => {
     e.preventDefault();
     try {
       const response = await updateUserProfile(username, formData);
-      if (response.ok) {
+      if (response.success) {
         setProfile((prev) => ({
           ...prev,
           displayName: formData.displayName,
@@ -62,7 +76,7 @@ const UserProfile = ({ currentUser }) => {
         }));
         setIsEditing(false);
       } else {
-        throw new Error(response.error || "Failed to update profile");
+        throw new Error(response.error || 'Failed to update profile');
       }
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -71,10 +85,10 @@ const UserProfile = ({ currentUser }) => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
@@ -150,8 +164,13 @@ const UserProfile = ({ currentUser }) => {
                     <div className="w-32 h-32 rounded-full overflow-hidden bg-white dark:bg-gray-700 shadow-2xl ring-4 ring-white dark:ring-gray-700">
                       {profile.avatarUrl ? (
                         <img
-                          src={profile.avatarUrl}
+                          src={
+                            avatarError
+                              ? DEFAULT_AVATAR
+                              : profile.avatarUrl || DEFAULT_AVATAR
+                          }
                           alt={profile.displayName}
+                          onError={handleImageError}
                           className="w-full h-full object-cover"
                         />
                       ) : (

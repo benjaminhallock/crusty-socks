@@ -1,18 +1,31 @@
-export const log = message => {
+export const log = (message) => {
   if (import.meta.env.MODE === 'development') {
-    console.log(message)
+    console.log(message);
   }
-}
-export const logError = message => {
+};
+export const logError = (message) => {
   if (import.meta.env.VITE_MODE === 'development') {
-    console.error(message)
+    console.error(message);
   }
-}
-export const logWarning = message => {
+};
+export const logWarning = (message) => {
   if (import.meta.env.MODE === 'development') {
-    console.warn(message)
+    console.warn(message);
   }
-}
+};
+
+export const ENV_CONFIG = {
+  getServerUrl: () => {
+    const isProduction = import.meta.env.PROD;
+    const isDevelopment = import.meta.env.DEV;
+
+    if (isProduction) {
+      return 'https://api.example.com';
+    } else if (isDevelopment) {
+      return 'http://localhost:3001';
+    }
+  },
+};
 
 export const API_ENDPOINTS = {
   // User routes
@@ -20,28 +33,29 @@ export const API_ENDPOINTS = {
   REGISTER: '/api/user/register',
   VALIDATE: '/api/user/auth',
   GET_ALL_USERS: '/api/user/all',
-  GET_USER_PROFILE: username => `/api/user/${username}`,
-  UPDATE_USER_PROFILE: username => `/api/user/update/${username}`,
-  UPDATE_USER: userId => `/api/user/${userId}`,
+  GET_USER_PROFILE: (username) => `/api/user/${username}`,
+  UPDATE_USER_PROFILE: (username) => `/api/user/update/${username}`,
+  UPDATE_USER: (userId) => `/api/user/${userId}`,
   LEADERBOARD: '/api/user/top',
 
   // Lobby routes
   CREATE_LOBBY: '/api/lobby/create',
-  GET_LOBBY: roomId => `/api/lobby/${roomId}`,
+  GET_LOBBY: (roomId) => `/api/lobby/${roomId}`,
   GET_ALL_LOBBIES: '/api/lobby/all',
 
   // Report routes
   CREATE_REPORT: '/api/report/create',
   GET_ALL_REPORTS: '/api/report/all',
-  UPDATE_REPORT_STATUS: reportId => `/api/report/update/${reportId}`,
-  UPDATE_REPORT: reportId => `/api/report/${reportId}`,
-  GET_REPORT: reportId => `/api/report/${reportId}`,
-  GET_REPORTS_BY_USER: userId => `/api/report/user/${userId}`,
+  UPDATE_REPORT_STATUS: (reportId) => `/api/report/update/${reportId}`,
+  UPDATE_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_REPORTS_BY_USER: (userId) => `/api/report/user/${userId}`,
 
-  GET_CHAT: lobbyObjectId => `/api/chat/${lobbyObjectId}`,
-  GET_CHAT_BY_USER: (lobbyObjectId, userId) => `/api/chat/${lobbyObjectId}/${userId}`,
+  GET_CHAT: (lobbyObjectId) => `/api/chat/${lobbyObjectId}`,
+  GET_CHAT_BY_USER: (lobbyObjectId, userId) =>
+    `/api/chat/${lobbyObjectId}/${userId}`,
   GET_ALL_CHATS: '/api/chat/all',
-}
+};
 
 export const SOCKET_EVENTS = {
   START_GAME: 'startGame',
@@ -62,14 +76,82 @@ export const SOCKET_EVENTS = {
   SOUND: 'sound',
   DISCONNECT: 'disconnect',
   RECONNECT: 'reconnect',
-}
+};
 
-export const ENV_CONFIG = {
-  getServerUrl: () => {
-    const mode = import.meta.env.MODE
-    return mode === 'development' ? 'http://localhost:3001' : 'https://api.crusty-socks.com'
-  },
-}
+export const API_ENDPOINTS_BACKEND = {
+  // User routes
+  LOGIN: '/api/user/login',
+  REGISTER: '/api/user/register',
+  VALIDATE: '/api/user/auth',
+  GET_ALL_USERS: '/api/user/all',
+  LEADERBOARD: '/api/user/top',
+
+  // Lobby routes
+  CREATE_LOBBY: '/api/lobby/create',
+  GET_ALL_LOBBIES: '/api/lobby/all',
+  LEAVE_LOBBY: '/api/lobby/leave',
+  GET_LOBBY: '/api/lobby/:roomId',
+
+  // Report routes
+  CREATE_REPORT: '/api/report/create',
+  GET_ALL_REPORTS: '/api/report/all',
+  GET_REPORT: '/api/report/:reportId',
+  GET_REPORT_BY_USER_ID: '/api/report/user/:userId',
+
+  // Chat routes
+  CHAT_ALL: '/api/chat/all',
+  CHAT_BY_ID: '/api/chat/:id',
+  CHAT_BY_LOBBY: '/api/chat/admin/lobby/:LobbyId',
+  CHAT_BY_USER_IN_LOBBY: '/api/chat/admin/:LobbyId/:userId',
+  CHAT_BY_USER: '/api/chat/admin/user/:userId',
+};
+
+export const API_ENDPOINTS_FRONTEND = {
+  // User routes
+  GET_USER_PROFILE: (username) => `/api/user/${username}`,
+  UPDATE_USER_PROFILE: (username) => `/api/user/update/${username}`,
+  UPDATE_USER: (userId) => `/api/user/${userId}`,
+
+  // Lobby routes
+  GET_LOBBY: (roomId) => `/api/lobby/${roomId}`,
+  GET_ALL_LOBBIES: () => `/api/lobby/all`,
+  CREATE_LOBBY: () => `/api/lobby/create`,
+  LEAVE_LOBBY: () => `/api/lobby/leave`,
+
+  // Report routes
+  UPDATE_REPORT_STATUS: (reportId) => `/api/report/update/${reportId}`,
+  UPDATE_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_ALL_REPORTS: () => `/api/report/all`,
+  GET_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_REPORT_BY_USER_ID: (userId) => `/api/report/user/${userId}`,
+  CREATE_REPORT: () => `/api/report/create`,
+  DELETE_REPORT: (reportId) => `/api/report/${reportId}`,
+  GET_REPORT_BY_ID: (reportId) => `/api/report/${reportId}`,
+
+  // Chat routes
+  GET_CHAT_BY_LOBBY: (lobbyId) => `/api/chat/admin/lobby/${lobbyId}`,
+  GET_CHAT_BY_USER_IN_LOBBY: (lobbyId, userId) =>
+    `/api/chat/admin/${lobbyId}/${userId}`,
+  GET_CHAT_BY_USER: (userId) => `/api/chat/admin/user/${userId}`,
+  GET_CHAT_BY_ID: (id) => `/api/chat/${id}`,
+  GET_CHAT_ALL: () => `/api/chat/all`,
+  GET_CHAT_BY_LOBBY_ID: (lobbyId) => `/api/chat/admin/lobby/${lobbyId}`,
+};
+
+export const GAME_STATE = {
+  WAITING: 'waiting',
+  PICKING_WORD: 'picking_word',
+  DRAWING: 'drawing',
+  DRAW_END: 'draw_end',
+  ROUND_END: 'round_end',
+  FINISHED: 'finished',
+};
+
+export const GAME_CONSTANTS = {
+  CANVAS_GRID_SIZE: 16,
+  CANVAS_WIDTH: 800,
+  CANVAS_HEIGHT: 600,
+};
 
 export const WORD_LIST = {
   animals: [
@@ -264,20 +346,4 @@ export const WORD_LIST = {
     'Dark Souls',
     'Diablo',
   ],
-}
-
-export const GAME_CONSTANTS = {
-  CANVAS_GRID_SIZE: 16,
-  CANVAS_WIDTH: 800,
-  CANVAS_HEIGHT: 600,
-  WORD_SELECTION_TIME: 30,
-}
-
-export const GAME_STATE = {
-  WAITING: 'waiting',
-  PICKING_WORD: 'picking_word',
-  DRAWING: 'drawing',
-  DRAW_END: 'draw_end',
-  ROUND_END: 'round_end',
-  FINISHED: 'finished',
-}
+};

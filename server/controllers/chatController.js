@@ -4,10 +4,21 @@ import User from '../models/user.js';
 export const chatController = {
   // Get all chats (admin only) - sort by newest first
   getAllChats: async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
     try {
-      const chats = await Chat.find({}).sort({ timestamp: -1 });
+      const totalChats = await Chat.countDocuments({});
+      const chats = await Chat.find({})
+        .sort({ timestamp: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+
       res.status(200).json({
-        data: chats,
+        chats,
+        total: totalChats,
+        page,
+        pages: Math.ceil(totalChats / limit),
       });
     } catch (error) {
       res.status(500).json({
@@ -73,7 +84,6 @@ export const chatController = {
     }
   },
 
-  // Renamed: Get chat in a lobby for a specific user
   getChatByUserInLobbyId: async (req, res) => {
     try {
       const { lobbyObjectId, userId } = req.params;

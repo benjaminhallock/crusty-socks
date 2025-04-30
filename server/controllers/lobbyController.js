@@ -78,6 +78,7 @@ export const lobbyController = {
       });
     }
   },
+  
   createLobby: async (req, res) => {
     try {
       const lobby = new Lobby({

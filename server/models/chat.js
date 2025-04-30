@@ -1,17 +1,17 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose'
 
-import User from "./user.js";
+import User from './user.js'
 
 const chatSchema = new mongoose.Schema({
   lobbyObjectId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Lobby",
+    ref: 'Lobby',
     required: true,
     // Remove the unique constraint to allow multiple chat messages per lobby
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: false, // Make userId optional
   },
   username: {
@@ -31,84 +31,88 @@ const chatSchema = new mongoose.Schema({
     default: false,
   },
   visibleTo: String,
-});
+})
 
-chatSchema.pre("save", function (next) {
+chatSchema.pre('save', function (next) {
   if (this.isNew) {
     // If we have both userId and username, validate they match
     if (this.userId && this.username) {
       User.findOne({
         $and: [{ _id: this.userId }, { username: this.username }],
       })
-        .then((user) => {
+        .then(user => {
           if (!user) {
-            return next(new Error("UserId and username do not match"));
+            return next(new Error('UserId and username do not match'))
           }
-          next();
+          next()
         })
-        .catch((err) => next(err));
+        .catch(err => next(err))
     }
     // If we only have username, find userId
     else if (this.username) {
       User.findOne({ username: this.username })
-        .then((user) => {
+        .then(user => {
           if (user) {
-            this.userId = user._id;
+            this.userId = user._id
           }
-          next();
+          next()
         })
-        .catch((err) => next(err));
+        .catch(err => next(err))
     }
     // If we only have userId, find username
     else if (this.userId) {
       User.findById(this.userId)
-        .then((user) => {
+        .then(user => {
           if (user) {
-            this.username = user.username;
+            this.username = user.username
           }
-          next();
+          next()
         })
-        .catch((err) => next(err));
+        .catch(err => next(err))
     } else {
-      next();
+      next()
     }
   } else {
-    next(); // Call next() if userId is already set
+    next() // Call next() if userId is already set
   }
-});
+})
 
 chatSchema.statics.findOneOrCreate = async function (lobbyObjectId) {
-  const chat = await this.findOne({ lobbyObjectId });
+  const chat = await this.findOne({ lobbyObjectId })
   if (chat) {
-    return chat;
+    return chat
   }
-  return await this.create({ lobbyObjectId });
-};
+  return await this.create({ lobbyObjectId })
+}
 
 chatSchema.statics.findByLobbyId = async function (lobbyObjectId) {
-  const chat = await this.find({ lobbyObjectId }).sort({ timestamp: -1 });
+  const chat = await this.find({ lobbyObjectId }).sort({ timestamp: -1 })
   if (!chat) {
-    return null;
+    return null
   }
-  return chat;
-};
-chatSchema.statics.findByLobbyIdAndUserId = async function (
-  lobbyObjectId,
-  userId
-) {
+  return chat
+}
+chatSchema.statics.findByLobbyIdAndUserId = async function (lobbyObjectId, userId) {
   const chat = await this.find({ lobbyObjectId, userId }).sort({
     timestamp: -1,
-  });
+  })
   if (!chat) {
-    return null;
+    return null
   }
-  return chat;
-};
+  return chat
+}
 
 // Index for faster queries
-chatSchema.index({ lobbyObjectId: 1, timestamp: 1 });
-chatSchema.index({ lobbyObjectId: 1, timestamp: -1 });
-chatSchema.index({ lobbyObjectId: 1, visibleTo: 1 });
+chatSchema.index({ lobbyObjectId: 1, timestamp: 1 })
+chatSchema.index({ lobbyObjectId: 1, timestamp: -1 })
+chatSchema.index({ lobbyObjectId: 1, visibleTo: 1 })
 
-const Chat = mongoose.model("Chat", chatSchema);
-export default Chat;
+// Add static method to find by roomId
+chatSchema.statics.findByRoomId = async function (roomId) {
+  const lobby = await mongoose.model('Lobby').findOne({ roomId })
+  if (!lobby) return []
+  return this.find({ lobbyObjectId: lobby._id }).sort({ timestamp: -1 })
+}
+
+const Chat = mongoose.model('Chat', chatSchema)
+export default Chat

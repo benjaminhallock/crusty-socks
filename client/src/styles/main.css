@@ -86,14 +86,14 @@
 }
 
 /* Range Input Styling */
-input[type="range"] {
+input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;
 }
 
 /* Thumb styling for Webkit (Chrome, Safari, Edge) */
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -106,7 +106,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Thumb styling for Firefox */
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -116,10 +116,10 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Dark mode thumb styling */
-.dark input[type="range"]::-webkit-slider-thumb {
+.dark input[type='range']::-webkit-slider-thumb {
   background: rgb(192, 132, 252);
 }
 
-.dark input[type="range"]::-moz-range-thumb {
+.dark input[type='range']::-moz-range-thumb {
   background: rgb(192, 132, 252);
 }

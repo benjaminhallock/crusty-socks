@@ -1,78 +1,76 @@
-import { createServer } from "http";
+import cors from 'cors'
+import dotenv from 'dotenv'
+import express from 'express'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
 
-import cors from "cors";
-import dotenv from "dotenv";
-import express from "express";
-import { Server } from "socket.io";
+import connectDB from './db/connection.js'
+import { initGame } from './gameManager.js'
+import chatRoutes from './routes/chats.js'
+import lobbyRoutes from './routes/lobbys.js'
+import reportRoutes from './routes/reports.js'
+import userRoutes from './routes/users.js'
 
-import connectDB from "./db/connection.js";
-import { initializeSocketEvents } from "./gameManager.js";
-import lobbyRoutes from "./routes/lobbys.js";
-import reportRoutes from "./routes/reports.js";
-import userRoutes from "./routes/users.js";
-import chatRoutes from "./routes/chats.js";
+// Load environment variables
+dotenv.config({ path: './config.env' })
 
-dotenv.config({ path: "./config.env" });
-if (!process.env.JWT_SECRET) process.exit(1);
+// Exit if required JWT_SECRET is missing
+if (!process.env.JWT_SECRET) {
+  console.error('Missing JWT_SECRET environment variable')
+  process.exit(1)
+}
 
-const app = express();
-const httpServer = createServer(app);
+// Server setup
+const app = express()
+const httpServer = createServer(app)
 
-const isProd = process.env.NODE_ENV === "development" ? false : true;
-const CLIENT_URL = isProd
-  ? process.env.CLIENT_URL || "http://localhost:5174"
-  : "http://localhost:5174";
+// Environment configuration
+const DEVELOPMENT_URL = 'http://localhost:5174'
+const isProduction = process.env.NODE_ENV !== 'development'
+const CLIENT_URL = isProduction ? process.env.CLIENT_URL || DEVELOPMENT_URL : DEVELOPMENT_URL
 
+// CORS configuration for both Express and Socket.IO
+const corsOptions = {
+  origin: [CLIENT_URL, 'http://localhost:3001'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}
+
+// Initialize Socket.IO with CORS settings
 const io = new Server(httpServer, {
-  cors: {
-    origin: CLIENT_URL,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
-    credentials: true,
-    maxAge: 86400,
-    allowedHeaders: ["Content-Type", "Authorization"],
-  },
-  allowEIO3: true,
+  cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ["websocket", "polling"],
-  connectTimeout: 45000,
-});
+  transports: ['websocket', 'polling'],
+})
 
-console.info(
-  `[SERVER] Socket.IO is on ${
-    isProd ? "production" : "development"
-  } mode with client URL ${CLIENT_URL}`
-);
+// Log server mode
+console.info(`[SERVER] Running in ${isProduction ? 'production' : 'development'} mode`)
+console.info(`[SERVER] Client URL: ${CLIENT_URL}`)
 
-app.use(
-  cors({
-    origin: [CLIENT_URL, "http://localhost:5174", "http://localhost:3001"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
-    credentials: true,
-    maxAge: 86400,
-    allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
-    exposedHeaders: ["Content-Length", "Content-Type"],
-  })
-);
+// Middleware
+app.use(cors(corsOptions))
+app.use(express.json())
 
-app.use(express.json());
-app.use("/api/user", userRoutes);
-app.use("/api/lobby", lobbyRoutes);
-app.use("/api/report", reportRoutes);
-app.use("/api/chat", chatRoutes);
+// Routes
+app.use('/api/user', userRoutes)
+app.use('/api/lobby', lobbyRoutes)
+app.use('/api/report', reportRoutes)
+app.use('/api/chat', chatRoutes)
 
-initializeSocketEvents(io);
+// Initialize Socket.IO event handlers
+initGame(io)
 
-const PORT = process.env.PORT || 3001;
+// Start server
+const PORT = process.env.PORT || 3001
 
 connectDB()
   .then(() => {
-    console.info("[SERVER] Database connected");
-    httpServer.listen(PORT, () =>
-      console.info(`[SERVER] Server running on port ${PORT}`)
-    );
+    console.info('[SERVER] Database connected')
+    httpServer.listen(PORT, () => console.info(`[SERVER] Server running on port ${PORT}`))
   })
-  .catch((error) => {
-    console.error(`Startup error: ${error.message}`);
-    process.exit(1);
-  });
+  .catch(error => {
+    console.error('[SERVER] Failed to start:', error.message)
+    process.exit(1)
+  })
